@@ -124,6 +124,9 @@
         "codeGeneration": {
           "useInstructionFiles": true
         },
+        "commitMessageGeneration": {
+          "useInstructionFiles": true
+        },
         "generateTests": {
           "codeLens": true
         },
@@ -131,7 +134,7 @@
           "useInstructionFiles": true
         },
         "testGeneration": {
-          "instructions": []
+          "useInstructionFiles": true
         }
       }
     }
