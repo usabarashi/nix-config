@@ -24,6 +24,11 @@
 
   home.file =
     let
+      agentScripts = {
+        source = config.lib.file.mkOutOfStoreSymlink "${repoPath}/config/agents/scripts";
+        force = true;
+        recursive = true;
+      };
       agentCommands = {
         source = config.lib.file.mkOutOfStoreSymlink "${repoPath}/config/agents/commands";
         force = true;
@@ -50,11 +55,7 @@
         source = config.lib.file.mkOutOfStoreSymlink "${repoPath}/config/claude/settings.json";
         force = true;
       };
-      ".claude/scripts" = {
-        source = config.lib.file.mkOutOfStoreSymlink "${repoPath}/config/claude/scripts";
-        force = true;
-        recursive = true;
-      };
+      ".claude/scripts" = agentScripts;
       ".claude/commands" = agentCommands;
       ".claude/skills" = agentSkills;
 
@@ -83,6 +84,7 @@
         source = config.lib.file.mkOutOfStoreSymlink "${repoPath}/config/gemini/policies";
         force = true;
       };
+      ".gemini/scripts" = agentScripts;
       ".gemini/commands" = agentCommands;
       ".gemini/skills" = agentSkills;
 
