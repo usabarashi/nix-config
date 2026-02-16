@@ -9,13 +9,8 @@
 
 let
   extensionsConfig = import ./vscode-extensions.nix { inherit pkgs; };
-  inherit (extensionsConfig) collectExtensions collectNestedExtensions;
+  inherit (extensionsConfig) collectExtensions;
   inherit (extensionsConfig) programmingLanguages;
-
-  programmingLanguageExtensions = collectNestedExtensions programmingLanguages;
-  aiAssistantExtensions = collectNestedExtensions;
-
-  allExtensions = programmingLanguageExtensions ++ aiAssistantExtensions;
 in
 {
   home.packages = with pkgs; [

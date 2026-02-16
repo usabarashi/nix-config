@@ -107,17 +107,10 @@ let
     ++ (if marketplace != [ ] then extensionsFromVscodeMarketplace marketplace else [ ])
     ++ custom;
 
-  collectNestedExtensions =
-    groups:
-    builtins.concatLists (builtins.map (group: collectExtensions group) (builtins.attrValues groups));
-
 in
 {
   inherit
     programmingLanguages
     collectExtensions
-    collectNestedExtensions
     ;
-
-  extensions = collectNestedExtensions programmingLanguages;
 }
