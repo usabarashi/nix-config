@@ -190,7 +190,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bash ~/.claude/scripts/deny-check.sh"
+            "command": "bash ~/.claude/scripts/deny-check.sh --settings ~/.claude/settings.json"
           }
         ]
       }
