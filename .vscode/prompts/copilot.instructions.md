@@ -27,7 +27,7 @@ DDD prioritizes domain knowledge representation in a ubiquitous language for cod
 We use the concept of category theory to build mathematically robust composable models.
 Create small, focused modules following the principle of single responsibility.
 Maintain clear responsibilities with minimal coupling.
-Eliminates unused code for lightweight module organization and optimized artifact size.
+Eliminate unused code for lightweight module organization and optimized artifact size.
 
 ## Audio Feedback (VOICEVOX)
 
