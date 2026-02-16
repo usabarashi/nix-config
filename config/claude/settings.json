@@ -201,7 +201,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bash ~/.claude/scripts/notify.sh --event notification"
+            "command": "bash ~/.claude/scripts/notify.sh --app 'Claude Code' --event notification"
           }
         ]
       }
@@ -212,7 +212,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bash ~/.claude/scripts/notify.sh --event stop"
+            "command": "bash ~/.claude/scripts/notify.sh --app 'Claude Code' --event stop"
           }
         ]
       }

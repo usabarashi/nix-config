@@ -51,7 +51,7 @@
           {
             "name": "Play sound after agent turn",
             "type": "command",
-            "command": "afplay /System/Library/Sounds/Glass.aiff"
+            "command": "bash ~/.gemini/scripts/notify.sh --app 'Gemini CLI' --event stop"
           }
         ]
       }

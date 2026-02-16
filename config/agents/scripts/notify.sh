@@ -1,6 +1,6 @@
 #!/bin/bash
-# Unified notification script for Claude Code hooks.
-# Usage: bash ~/.claude/scripts/notify.sh --event <notification|stop>
+# Unified notification script for LLM coding agents.
+# Usage: bash notify.sh --app <name> --event <notification|stop>
 #
 # Auto-detects IDE/terminal environment and adds click-to-open action:
 #   VSCode, Terminal.app
@@ -8,15 +8,22 @@
 set -euo pipefail
 
 # --- Parse arguments ---
+APP=""
 EVENT=""
 while [[ $# -gt 0 ]]; do
     case "$1" in
+        --app)   [[ $# -ge 2 ]] || { echo "Error: --app requires a value" >&2; exit 1; }
+                 APP="$2"; shift 2 ;;
         --event) [[ $# -ge 2 ]] || { echo "Error: --event requires a value" >&2; exit 1; }
                  EVENT="$2"; shift 2 ;;
         *)       shift ;;
     esac
 done
 
+if [[ -z "$APP" ]]; then
+    echo "Error: --app argument is required" >&2
+    exit 1
+fi
 if [[ -z "$EVENT" ]]; then
     echo "Error: --event argument is required" >&2
     exit 1
@@ -49,12 +56,12 @@ BRANCH=$(git -C "$PROJECT_DIR" rev-parse --abbrev-ref HEAD 2>/dev/null || echo "
 # --- Determine message and sound by event type ---
 case "$EVENT" in
     notification)
-        TITLE="Claude Code - Attention"
-        SOUND="Sosumi"
+        TITLE="${APP} - Attention"
+        SOUND="Ping"
         ;;
     stop)
-        TITLE="Claude Code - Complete"
-        SOUND="default"
+        TITLE="${APP} - Complete"
+        SOUND="Funk"
         ;;
     *)
         echo "Error: Unknown event type: $EVENT" >&2
@@ -99,7 +106,7 @@ NOTIFY_ARGS=(
     -subtitle "$SUBTITLE"
     -message "$MESSAGE"
     -sound "$SOUND"
-    -group "claude-code-${SESSION_SHORT}"
+    -group "${APP// /-}-${SESSION_SHORT}"
     "${CLICK_ACTION[@]}"
 )
 
