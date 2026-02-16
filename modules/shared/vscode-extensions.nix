@@ -96,44 +96,6 @@ let
     };
   };
 
-  aiAssistants = {
-    claude = {
-      nixpkgs = [
-      ];
-      marketplace = [
-      ];
-      custom = [
-        (
-          let
-            version = "0.1.4";
-          in
-          pkgs.vscode-utils.buildVscodeExtension {
-            pname = "claude-code-usage-monitor";
-            inherit version;
-            src = pkgs.runCommand "claude-code-usage-monitor.zip" { } ''
-              cp "${
-                pkgs.fetchurl {
-                  url = "https://github.com/usabarashi/vscode-extension-claude-code-usage-monitor/releases/download/v${version}/claude-code-usage-monitor-v${version}.vsix";
-                  sha256 = "sha256-4Qayrcfzvgivfp1glkPOw0iUfMLDVXR74vZ5zcn/jes=";
-                }
-              }" $out
-            '';
-            vscodeExtUniqueId = "usabarashi.claude-code-usage-monitor";
-            vscodeExtPublisher = "usabarashi";
-            vscodeExtName = "claude-code-usage-monitor";
-
-            meta = {
-              description = "Claude Code Usage Monitor VS Code Extension";
-              homepage = "https://github.com/usabarashi/vscode-extension-claude-code-usage-monitor";
-              license = pkgs.lib.licenses.mit;
-              platforms = pkgs.lib.platforms.all;
-            };
-          }
-        )
-      ];
-    };
-  };
-
   collectExtensions =
     group:
     let
@@ -153,10 +115,9 @@ in
 {
   inherit
     programmingLanguages
-    aiAssistants
     collectExtensions
     collectNestedExtensions
     ;
 
-  extensions = collectNestedExtensions programmingLanguages ++ collectNestedExtensions aiAssistants;
+  extensions = collectNestedExtensions programmingLanguages;
 }
