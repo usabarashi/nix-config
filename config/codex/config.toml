@@ -11,6 +11,7 @@ sandbox_mode = "workspace-write"
 web_search = "live"
 notify = ["bash", "-lc", "afplay /System/Library/Sounds/Ping.aiff"]
 personality = "pragmatic"
+project_doc_fallback_filenames = ["CLAUDE.md"]
 
 # Session history
 [history]
