@@ -1,0 +1,21 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": [
+    "config:recommended"
+  ],
+  "labels": [
+    "dependencies"
+  ],
+  "dependencyDashboard": true,
+  "timezone": "Asia/Tokyo",
+  "schedule": [
+    "* 21-23,0-6 * * 0,6"
+  ],
+  "updateNotScheduled": false,
+  "prConcurrentLimit": 3,
+  "prHourlyLimit": 1,
+  "rebaseWhen": "behind-base-branch",
+  "lockFileMaintenance": {
+    "enabled": false
+  }
+}
