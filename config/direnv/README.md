@@ -16,7 +16,7 @@ cp config/direnv/direnvrc.template ~/.config/direnv/direnvrc
 
 ## Secret Retrieval Methods
 
-The template supports three methods for retrieving secrets. Choose one per variable.
+Below are three methods you can use in `direnvrc` to retrieve secrets. Choose one per variable.
 
 ### Option A: 1Password CLI (`op`)
 
