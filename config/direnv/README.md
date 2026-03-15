@@ -39,8 +39,10 @@ export GITHUB_PERSONAL_ACCESS_TOKEN="$(security find-generic-password -s 'GitHub
 **Prerequisite:** Add the secret to your keychain first:
 
 ```bash
-security add-generic-password -a "$(whoami)" -s 'GitHub Personal Access Token' -w '<your-token>'
+security add-generic-password -a "$(whoami)" -s 'GitHub Personal Access Token' -w
 ```
+
+Omitting the value after `-w` prompts for interactive input, avoiding shell history exposure.
 
 | Flag | Description |
 |------|-------------|
