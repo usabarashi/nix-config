@@ -1,0 +1,36 @@
+(version 1)
+
+(allow default)
+
+(deny file-write*)
+(allow file-write*
+  ;; (param “NAME”) reflects the value passed as -D NAME=VALUE at startup
+
+  ;; Specify the project directory as TARGET_DIR
+  (subpath (param "TARGET_DIR"))
+
+  ;; Locations other than the project directory where writes are allowed
+  (regex (string-append "^" (param "HOME_DIR") "/.claude*"))
+  (subpath (string-append (param "HOME_DIR") "/Library/Keychains"))
+
+  ;; XDG Base Directory specification paths
+  (subpath (string-append (param "HOME_DIR") "/.cache"))
+  (subpath (string-append (param "HOME_DIR") "/.config"))
+  (subpath (string-append (param "HOME_DIR") "/.local"))
+
+  ;; Temporary file-related
+  (subpath (string-append (param "HOME_DIR") "/Library/Caches"))
+  (subpath "/private/tmp")
+  (subpath "/private/var/tmp")
+  (regex #"^/private/var/folders/[^/]+/[^/]+/[C,T]")
+
+  ;; Other tool-related. Please adjust according to the tool you are using
+  (subpath (string-append (param "HOME_DIR") "/.npm"))
+
+  ;; Like STDOUT.
+  (literal "/dev/stdout")
+  (literal "/dev/stderr")
+  (literal "/dev/null")
+  (literal "/dev/dtracehelper")
+  (regex #"^/dev/tty*")
+)

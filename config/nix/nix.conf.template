@@ -1,0 +1,14 @@
+# Nix Configuration Template
+# 
+# This file serves as a template for Nix configuration.
+# Copy this file to ~/.config/nix/nix.conf and replace environment variables with actual values.
+# 
+# Usage:
+#   1. Copy to user config: cp config/nix/nix.conf.template ~/.config/nix/nix.conf
+#   2. Replace $GITHUB_PERSONAL_ACCESS_TOKEN with your actual GitHub Personal Access Token
+#
+# Note: Never commit actual tokens to version control!
+
+experimental-features = nix-command
+extra-experimental-features = flakes
+access-tokens = github.com=$GITHUB_PERSONAL_ACCESS_TOKEN

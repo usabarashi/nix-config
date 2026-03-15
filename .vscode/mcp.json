@@ -1,0 +1,10 @@
+{
+	"servers": {
+		"voicevox": {
+			"type": "stdio",
+			"command": "voicevox-mcp-server",
+			"args": []
+		}
+	},
+	"inputs": []
+}

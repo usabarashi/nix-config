@@ -6,7 +6,6 @@ in
   home.packages = with pkgs; [
     colima
     docker
-    #kubectl
   ];
 
   # Colima Settings

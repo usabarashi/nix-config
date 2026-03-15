@@ -1,0 +1,191 @@
+# yaml-language-server: $schema=https://coderabbit.ai/integrations/schema.v2.json
+
+language: "en-US"
+
+tone_instructions: |
+  Be concise and direct. This is a personal Nix flake configuration
+  for macOS (nix-darwin + home-manager). Focus on Nix-specific correctness,
+  module composition, and potential evaluation errors.
+
+early_access: false
+
+reviews:
+  profile: "chill"
+  high_level_summary: true
+  high_level_summary_in_walkthrough: true
+  collapse_walkthrough: true
+  auto_apply_labels: false
+  auto_assign_reviewers: false
+  poem: false
+  review_status: false
+  sequence_diagrams: false
+
+  path_filters:
+    - "**/*.nix"
+    - "**/*.yaml"
+    - "**/*.yml"
+    - "**/*.toml"
+    - "**/*.json"
+    - "**/*.sh"
+    - "!**/result/**"
+    - "!flake.lock"
+
+  # Each path_instructions entry includes the full common Nix guidelines
+  # because CodeRabbit may apply only the most specific matching pattern.
+  path_instructions:
+    - path: "**/*.nix"
+      instructions: |
+        Review Nix expressions for:
+        - Correct use of nix-darwin and home-manager module options
+        - Proper attribute set structure and module imports
+        - Unnecessary `with` scoping (prefer explicit references)
+        - Unused let bindings or parameters
+        - Potential infinite recursion in module evaluation
+        - Consistent use of nixfmt-rfc-style formatting conventions
+        Do NOT flag trusted-users including the current user as a security
+        issue; this is a personal single-user macOS machine.
+
+    - path: "flake.nix"
+      instructions: |
+        Review Nix expressions for:
+        - Correct use of nix-darwin and home-manager module options
+        - Proper attribute set structure and module imports
+        - Unnecessary `with` scoping (prefer explicit references)
+        - Unused let bindings or parameters
+        - Potential infinite recursion in module evaluation
+        - Consistent use of nixfmt-rfc-style formatting conventions
+        Do NOT flag trusted-users including the current user as a security
+        issue; this is a personal single-user macOS machine.
+        Additionally, check flake structure: inputs pinning, outputs function
+        signature, and proper use of overlays. Verify that system configuration
+        composition via lib/builders.nix is consistent.
+
+    - path: "lib/*.nix"
+      instructions: |
+        Review Nix expressions for:
+        - Correct use of nix-darwin and home-manager module options
+        - Proper attribute set structure and module imports
+        - Unnecessary `with` scoping (prefer explicit references)
+        - Unused let bindings or parameters
+        - Potential infinite recursion in module evaluation
+        - Consistent use of nixfmt-rfc-style formatting conventions
+        Do NOT flag trusted-users including the current user as a security
+        issue; this is a personal single-user macOS machine.
+        Additionally, these are library functions for environment resolution,
+        system building, and overlays. Check for proper use of builtins,
+        clean function signatures, and composability.
+
+    - path: "modules/**/*.nix"
+      instructions: |
+        Review Nix expressions for:
+        - Correct use of nix-darwin and home-manager module options
+        - Proper attribute set structure and module imports
+        - Unnecessary `with` scoping (prefer explicit references)
+        - Unused let bindings or parameters
+        - Potential infinite recursion in module evaluation
+        - Consistent use of nixfmt-rfc-style formatting conventions
+        Do NOT flag trusted-users including the current user as a security
+        issue; this is a personal single-user macOS machine.
+        Additionally, these are reusable nix-darwin or home-manager modules.
+        Verify proper use of mkOption, mkEnableOption, and config/options
+        pattern. Check that modules are self-contained and composable.
+
+    - path: "packages/**/*.nix"
+      instructions: |
+        Review Nix expressions for:
+        - Correct use of nix-darwin and home-manager module options
+        - Proper attribute set structure and module imports
+        - Unnecessary `with` scoping (prefer explicit references)
+        - Unused let bindings or parameters
+        - Potential infinite recursion in module evaluation
+        - Consistent use of nixfmt-rfc-style formatting conventions
+        Do NOT flag trusted-users including the current user as a security
+        issue; this is a personal single-user macOS machine.
+        Additionally, these are custom package definitions. Verify proper use
+        of stdenv.mkDerivation or buildPythonPackage patterns, correct
+        dependency declarations, and appropriate meta attributes.
+
+    - path: "hosts/**/*.nix"
+      instructions: |
+        Review Nix expressions for:
+        - Correct use of nix-darwin and home-manager module options
+        - Proper attribute set structure and module imports
+        - Unnecessary `with` scoping (prefer explicit references)
+        - Unused let bindings or parameters
+        - Potential infinite recursion in module evaluation
+        - Consistent use of nixfmt-rfc-style formatting conventions
+        Do NOT flag trusted-users including the current user as a security
+        issue; this is a personal single-user macOS machine.
+        Additionally, this is host-specific nix-darwin system configuration.
+        Check for correct system defaults, proper module imports, and
+        consistency between PRIVATE and WORK environments.
+
+    - path: "home/**/*.nix"
+      instructions: |
+        Review Nix expressions for:
+        - Correct use of nix-darwin and home-manager module options
+        - Proper attribute set structure and module imports
+        - Unnecessary `with` scoping (prefer explicit references)
+        - Unused let bindings or parameters
+        - Potential infinite recursion in module evaluation
+        - Consistent use of nixfmt-rfc-style formatting conventions
+        Do NOT flag trusted-users including the current user as a security
+        issue; this is a personal single-user macOS machine.
+        Additionally, this is home-manager user configuration. Verify proper
+        use of home-manager options, package lists, and program configurations.
+
+  auto_review:
+    drafts: false
+    ignore_title_keywords:
+      - "wip"
+      - "draft"
+      - "do not merge"
+
+  finishing_touches:
+    docstrings:
+      enabled: false
+    unit_tests:
+      enabled: false
+
+  tools:
+    yamllint:
+      enabled: true
+    gitleaks:
+      enabled: true
+    actionlint:
+      enabled: true
+    shellcheck:
+      enabled: true
+    checkov:
+      enabled: false
+    semgrep:
+      enabled: false
+    github-checks:
+      enabled: true
+    # Disable language-specific linters not relevant to this repo
+    eslint:
+      enabled: false
+    biome:
+      enabled: false
+    golangci-lint:
+      enabled: false
+    clippy:
+      enabled: false
+    ruff:
+      enabled: false
+    buf:
+      enabled: false
+    phpstan:
+      enabled: false
+    oxc:
+      enabled: false
+
+chat:
+  art: false
+  auto_reply: false
+
+knowledge_base:
+  code_guidelines:
+    enabled: true
+    filePatterns:
+      - "CLAUDE.md"

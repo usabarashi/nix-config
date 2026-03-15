@@ -2,7 +2,7 @@
 { config, pkgs, ... }:
 
 let
-  local-cleanup = pkgs.writeShellScriptBin "git-local-cleanup" ''
+  git-clean = pkgs.writeShellScriptBin "git-clean" ''
     #!/bin/sh
 
     # Identify merged branches that can be deleted
@@ -32,15 +32,18 @@ let
   '';
 in
 {
-  home.packages = [
-    local-cleanup
+  home.packages = with pkgs; [
+    gh
+    git-clean
   ];
 
   programs.git = {
     enable = true;
-    userName = "usabarashi";
-    userEmail = "19676305+usabarashi@users.noreply.github.com";
-    extraConfig = {
+    settings = {
+      user = {
+        name = "usabarashi";
+        email = "19676305+usabarashi@users.noreply.github.com";
+      };
       core.autocrlf = "input";
       credential.helper = "osxkeychain";
     };
@@ -50,7 +53,8 @@ in
       ".DS_Store"
       ".direnv"
       ".env"
-      ".envrc"
+      ".claude/settings.local.json"
+      ".serena"
     ];
   };
 }

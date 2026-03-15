@@ -1,0 +1,60 @@
+{
+  "security": {
+    "auth": {
+      "selectedType": "vertex-ai"
+    }
+  },
+  "tools": {
+    "sandbox": true,
+    "useRipgrep": true
+  },
+  "ui": {
+    "theme": "Default",
+    "showLineNumbers": true
+  },
+  "ide": {
+    "hasSeenNudge": true,
+    "enabled": true
+  },
+  "ideIntegrationPort": 65432,
+  "mcpServers": {
+    "voicevox": {
+      "command": "voicevox-mcp-server",
+      "args": []
+    },
+    "serena": {
+      "command": "serena",
+      "args": [
+        "start-mcp-server",
+        "--context",
+        "ide",
+        "--project-from-cwd",
+        "--open-web-dashboard",
+        "False"
+      ],
+      "env": {
+        "SERENA_HOME": "${PWD}/.serena"
+      }
+    }
+  },
+  "general": {
+    "previewFeatures": true,
+    "enablePromptCompletion": true
+  },
+  "includeDirectories": [
+    "~/.gemini/commands"
+  ],
+  "hooks": {
+    "AfterAgent": [
+      {
+        "hooks": [
+          {
+            "name": "Play sound after agent turn",
+            "type": "command",
+            "command": "bash ~/.gemini/scripts/notify.sh --app 'Gemini CLI' --event stop"
+          }
+        ]
+      }
+    ]
+  }
+}

@@ -1,92 +1,69 @@
-# mynix
+# Nix Config
 
-My Nix configuration
+Declarative macOS environment using **nix-darwin** + **home-manager**.
+Define your entire development and daily-use software stack as code.
 
-## Getting started
+## Quick Start
 
-Install Nix.
-
-```sh
+```bash
+# Install Nix
 curl --proto '=https' --tlsv1.2 -sSf -L https://install.determinate.systems/nix | sh -s -- install
+
+# Clone and apply
+git clone https://github.com/usabarashi/nix-config.git
+cd nix-config
+nix run .#private  # or: nix run .#work
 ```
 
-Clone repository.
+## Commands
 
-```sh
-nix shell nixpkgs#git -c git clone https://github.com/usabarashi/mynix.git
+| Command | Description |
+|---------|-------------|
+| `nix run .#private` | Build and apply PRIVATE configuration |
+| `nix run .#work` | Build and apply WORK configuration |
+| `nix fmt` | Auto-format all Nix files |
+| `nix fmt -- --fail-on-change` | Check formatting without modifying |
+| `nix flake check --impure` | Validate flake syntax |
+| `nix flake update` | Update flake dependencies |
+| `nix flake show --impure` | Show current configuration |
+
+### Dry Run
+
+```bash
+nix build .#darwinConfigurations.private.system --impure --dry-run
 ```
 
-Install my nix Settings.
+### Manual GC
 
-```sh
-nix shell nixpkgs#cargo-make -c makers apply
-```
+System store GC runs automatically via launchd (`nix.gc`).
+For a full cleanup including Home Manager and user profiles:
 
-## Update dependency
-
-```sh
-nix flake update
-```
-
-[NixOS Search](https://search.nixos.org/packages?channel=unstable&from=0&size=50&sort=relevance&type=packages&query=nix) の特定リビジョン `Data from nixpkgs <REVISION>.` へ更新したい場合
-
-```sh
-nix flake lock --update-input nixpkgs --override-input nixpkgs github:nixos/nixpkgs/<REVISION>
-```
-
-## Delete cache
-
-home-manager の古い世代を削除する
-
-```sh
+```bash
 nix shell github:nix-community/home-manager -c home-manager expire-generations now
-```
-
-ユーザーの古いプロファイルを削除する
-
-```sh
 nix-env --delete-generations old
-```
-
-システムプロファイルの古いリンクを削除する
-
-```sh
 sudo nix-env --profile /nix/var/nix/profiles/system --delete-generations old
+nix-collect-garbage -d && nix-store --gc
 ```
 
-ガベージコレクションを再実行する
+> On macOS, if GC fails with "Operation not permitted", run from the Terminal app
+> with Full Disk Access enabled (System Settings > Privacy & Security > Full Disk Access).
 
-```sh
-nix-collect-garbage -d
-nix-store --gc
-```
+## Environment Variables
 
-## Uninstall
+| Variable | Required | Description |
+|----------|----------|-------------|
+| `CURRENT_USER` | Auto | Detected via `whoami` |
+| `REPOSITORY_PATH` | Auto | Detected via `pwd` |
 
-Uninstall nix-darwin
+## Build Requirements
 
-```sh
-nix --extra-experimental-features "nix-command flakes" run nix-darwin#darwin-uninstaller
-```
-
-Uninstall Nix.
-
-```sh
-/nix/nix-installer uninstall
-```
-
-Reboot to reset boot items.
+- **Platform**: macOS (Darwin) with Apple Silicon (aarch64)
+- **Build flag**: `--impure` (required for environment variable access)
+- **Nix**: Flakes enabled
 
 ## References
 
-- [Nix](https://nixos.org/)
-- [Nix Reference Manual](https://nixos.org/manual/nix/stable/introduction.html)
-  - [nix-env --delete-generations](https://nix.dev/manual/nix/2.18/command-ref/nix-env/delete-generations)
-- [https://search.nixos.org/packages](https://search.nixos.org/packages)
-- [Nix package versions](https://lazamar.co.uk/nix-versions/?)
-- [nix-installer](https://github.com/DeterminateSystems/nix-installer)
-- [nix-darwin](https://github.com/LnL7/nix-darwin)
-  - [Darwin Configuration Options](https://daiderd.com/nix-darwin/manual/index.html)
-- [home-manager](https://github.com/nix-community/home-manager)
-  - [Home Manager Manual](https://nix-community.github.io/home-manager/)
-- [mac-app-util](https://github.com/hraban/mac-app-util)
+- [Nix](https://nixos.org/) | [Manual](https://nixos.org/manual/nix/stable/) | [Installer](https://github.com/DeterminateSystems/nix-installer)
+- [NixOS Search](https://search.nixos.org/packages) | [NixHub](https://www.nixhub.io/) | [Versions](https://lazamar.co.uk/nix-versions/)
+- [home-manager](https://github.com/nix-community/home-manager) | [Manual](https://nix-community.github.io/home-manager/)
+- [nix-darwin](https://github.com/LnL7/nix-darwin) | [Options](https://daiderd.com/nix-darwin/manual/)

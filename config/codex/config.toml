@@ -1,0 +1,44 @@
+# See: https://developers.openai.com/codex/config-reference
+
+# Model
+model = "gpt-5.4"
+model_reasoning_effort = "medium"
+model_reasoning_summary = "auto"
+
+# Execution
+approval_policy = "on-request"
+sandbox_mode = "workspace-write"
+web_search = "live"
+notify = ["bash", "-lc", "afplay /System/Library/Sounds/Ping.aiff"]
+personality = "pragmatic"
+project_doc_fallback_filenames = ["CLAUDE.md"]
+
+# Session history
+[history]
+persistence = "save-all"
+max_bytes = 10_485_760
+
+# Workspace-write sandbox options
+[sandbox_workspace_write]
+network_access = true
+
+# MCP servers
+[mcp_servers.voicevox]
+type = "stdio"
+command = "voicevox-mcp-server"
+args = []
+startup_timeout_sec = 20
+tool_timeout_sec = 120
+
+[mcp_servers.serena]
+type = "stdio"
+command = "sh"
+args = [
+    "-c",
+    "SERENA_HOME=\"$PWD/.serena\" exec serena start-mcp-server --context codex --project-from-cwd --open-web-dashboard False",
+]
+
+
+# Model migration notice mapping
+[notice.model_migrations]
+"gpt-5.3" = "gpt-5.3-codex"

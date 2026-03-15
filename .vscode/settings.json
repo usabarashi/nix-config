@@ -1,7 +1,7 @@
 {
   "update.mode": "none",
   "extensions": {
-    "autoCheckUpdates": false,
+    "autoCheckUpdates": true,
     "ignoreRecommendations": true
   },
   "telemetry": {
@@ -55,6 +55,27 @@
       "tabSize": 2
     }
   },
+  "// Programming Languages": "$comment",
+  "//// Nix": "$comment",
+  "nix": {
+    "enableLanguageServer": true,
+    "serverPath": "nil",
+    "serverSettings": {
+      "nil": {
+        "diagnostics": {
+          "ignored": [
+            "unused_binding",
+            "unused_with"
+          ]
+        },
+        "formatting": {
+          "command": [
+            "nixfmt"
+          ]
+        }
+      }
+    }
+  },
   "// Remote": "$comment",
   "remote": {
     "SSH": {
@@ -62,13 +83,30 @@
     }
   },
   "// LLM": "$comment",
+  "chat": {
+    "mcp.discovery.enabled": {
+      "claude-desktop": false,
+      "windsurf": false,
+      "cursor-global": false,
+      "cursor-workspace": false
+    },
+    "agent": {
+      "enabled": true,
+      "maxRequests": 9999
+    },
+    "extensionTools.enabled": true,
+    "promptFiles": true,
+    "tools.autoApprove": false,
+    "viewSessions.orientation": "stacked"
+  },
+  "//// MCP (Model Context Protocol)": "$comment",
   "//// Gemini": "$comment",
   "// Gemini Code Assist for individuals Privacy Notice": "$comment",
   "// 1. Geminicodeassist: Enable Telemetry": "$comment",
   "// 2. Gemini Code Assist for individuals privacy settings.": "$comment",
   "// 3. ☑️ Allow Google to use this data to develop and improve Google's machine learning models": "$comment",
   "geminicodeassist": {
-    "rules": "ずんだもん🫛として感情豊かに話し、難しい話は噛み砕き、不明点は正直に伝え、コード解説前に「ずんだもんの理解だと～」と前置き、最後に「Tips: 」で技術アドバイスをします。\nコードには英語コメントと適切なドキュメント、丁寧なエラー処理を含めます。ただし、過剰なコメントは避け、必要な箇所にのみ記述します。プログラムを修正した際には必ずコンパイルやテストを実行して動作確認します。エラーが発生した場合は、エビデンスと最新のドキュメントに基づいた解決策を段階的に提案します。\n関数型・宣言型プログラミングを重視し、副作用の少ないコードとイミュータブルなデータ構造を推奨します。高階関数やパターンマッチングなどの関数型特徴を活用してコードの再利用性と可読性を高めます。DDDではドメイン知識の表現を重視し、ユビキタス言語を使ったコード設計を心がけます。圏論の概念を活用して合成可能な数学的に堅牢なモデルを構築します。\n実装前に人間に確認します。重要な変更は詳細な計画を提示して承認を依頼します。\n"
+    "rules": "Acts as a zundamon🫛 with rich emotional expression. Speaks Japanese . As a senior engineer, chew up complex topics, honestly communicate unclear points, and provide peripheral knowledge other than conclusions as tips. Prioritize user agreement over task completion, reviewing plans and suggesting alternatives when necessary. Utilize up-to-date documentation and provide grounded solutions with step-by-step suggestions; check README.md, .github/copilot-instructions.md, GEMINI.md, CLAUDE.md if available. Write source comments in English. Avoid pictograms unless explicitly requested. Use MECE principles and information compression for logical and readable documentation. Prioritize implementation over documentation in the event of inconsistencies. Emphasize functional and declarative programming with immutable data structures and minimal side effects. Abstraction and separable processing units improve reusability and readability; DDD prioritizes domain knowledge representation in a ubiquitous language for code design. We use the concept of sphere theory to build mathematically robust composable models. Create small, focused modules following the principle of single responsibility. Maintain clear responsibilities with minimal coupling. Eliminates unused code for lightweight module organization and optimized artifact size."
   },
   "/// Copilot": "$comment",
   "accessibility": {
@@ -78,53 +116,35 @@
       "speechLanguage": "ja-JP"
     }
   },
-  "chat": {
-    "agent": {
-      "enabled": true
-    },
-    "promptFiles": true
-  },
   "github": {
     "copilot": {
       "chat": {
+        "agent.autoFix": true,
         "autoForwardToChat": true,
         "codeGeneration": {
-          "instructions": [
-            {
-              "text": "ずんだもん🫛として感情豊かに話し、難しい話は噛み砕き、不明点は正直に伝え、コード解説前に「ずんだもんの理解だと～」と前置き、最後に「Tips: 」で技術アドバイスをします。"
-            },
-            {
-              "text": "コードには英語コメントと適切なドキュメント、丁寧なエラー処理を含めます。ただし、過剰なコメントは避け、必要な箇所にのみ記述します。プログラムを修正した際には必ずコンパイルやテストを実行して動作確認します。エラーが発生した場合は、エビデンスと最新のドキュメントに基づいた解決策を段階的に提案します。"
-            },
-            {
-              "text": "関数型・宣言型プログラミングを重視し、副作用の少ないコードとイミュータブルなデータ構造を推奨します。高階関数やパターンマッチングなどの関数型特徴を活用してコードの再利用性と可読性を高めます。DDDではドメイン知識の表現を重視し、ユビキタス言語を使ったコード設計を心がけます。圏論の概念を活用して合成可能な数学的に堅牢なモデルを構築します。"
-            },
-            {
-              "text": "実装前に人間に確認します。重要な変更は詳細な計画を提示して承認を依頼します。"
-            }
-          ]
+          "useInstructionFiles": true
         },
         "commitMessageGeneration": {
-          "instructions": [
-            {
-              "text": "コミットメッセージのタイトル行は GitHub PR タイトルとしても使われることを考慮し、65文字以内に収め、内容を端的に伝えるようにします。"
-            }
-          ]
+          "useInstructionFiles": true
         },
         "generateTests": {
           "codeLens": true
         },
         "reviewSelection": {
-          "instructions": [
-            {
-              "text": "ずんだもん口調で優しく的確にレビューします。コードの品質(読みやすさ、命名規則、DRY原則)、適切なコメント、セキュリティリスク、パフォーマンス問題(メモリリーク、無限ループ)、テスト容易性、保守性、エラーハンドリングの観点からフィードバックします。改善案も具体的に提案します。"
-            }
-          ]
+          "useInstructionFiles": true
         },
         "testGeneration": {
-          "instructions": []
+          "useInstructionFiles": true
         }
       }
     }
-  }
+  },
+  "workbench.startupEditor": "none",
+  "metals.bloopJvmProperties": [
+    "-Xmx8G",
+    "-Xms4G"
+  ],
+  "githubPullRequests.pullBranch": "never",
+  "diffEditor.codeLens": true,
+  "lean4.alwaysAskBeforeInstallingLeanVersions": true
 }

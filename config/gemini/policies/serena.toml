@@ -1,0 +1,4 @@
+[[rule]]
+mcpName = "serena"
+decision = "allow"
+priority = 200

@@ -1,11 +1,7 @@
 { pkgs, ... }:
 let
-  os =
-    if pkgs.stdenv.isDarwin then "darwin"
-    else throw "Unsupported architecture";
-  arch =
-    if pkgs.stdenv.isAarch64 then "aarch64"
-    else throw "Unsupported architecture";
+  os = if pkgs.stdenv.isDarwin then "darwin" else throw "Unsupported architecture";
+  arch = if pkgs.stdenv.isAarch64 then "aarch64" else throw "Unsupported architecture";
 
   version = "2.32.4";
   src = pkgs.fetchurl {
