@@ -61,7 +61,3 @@ export GITHUB_PERSONAL_ACCESS_TOKEN="your-token-here"
 ## Usage
 
 This template provides global direnv configuration that is loaded before every `.envrc` file. It allows you to define custom functions and extensions that will be available across all your projects.
-
-## Note
-
-For project-specific environment variables, use the template located in `config/envrc/.envrc.template` and copy it to your project root as `.envrc`.
