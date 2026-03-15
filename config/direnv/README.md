@@ -33,7 +33,7 @@ The secret reference format is `op://<vault>/<item>/<field>`. Adjust vault, item
 Uses the built-in macOS Keychain via `security find-generic-password`.
 
 ```bash
-export GITHUB_PERSONAL_ACCESS_TOKEN="$(security find-generic-password -s 'GitHub Personal Access Token' -w)"
+export GITHUB_PERSONAL_ACCESS_TOKEN="$(security find-generic-password -a "$(whoami)" -s 'GitHub Personal Access Token' -w)"
 ```
 
 **Prerequisite:** Add the secret to your keychain first:
