@@ -26,6 +26,7 @@
       dock = {
         autohide = true;
         launchanim = false;
+        mru-spaces = false;
         wvous-bl-corner = 1; # Disabled
         wvous-br-corner = 4; # Desktop
         wvous-tl-corner = 1; # Disabled
