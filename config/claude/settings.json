@@ -46,7 +46,6 @@
       "Bash(git apply:*)",
       "Bash(git bisect:*)",
       "Bash(git cherry-pick:*)",
-      "Bash(git commit:*)",
       "Bash(git fetch:*)",
       "Bash(git diff:*)",
       "Bash(git difftool:*)",
