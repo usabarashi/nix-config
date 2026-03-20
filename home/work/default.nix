@@ -26,7 +26,7 @@
   imports = [
     ../../modules/darwin/karabiner.nix
     ../../modules/shared/container.nix
-    ../../modules/shared/llm.nix
+    ../../modules/shared/agents.nix
     ../../modules/shared/git.nix
     ../../modules/shared/neovim.nix
     ../../modules/shared/ssh.nix

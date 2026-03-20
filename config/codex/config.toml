@@ -1,9 +1,10 @@
 # See: https://developers.openai.com/codex/config-reference
 
 # Model
-model = "gpt-5.4"
+model = "gpt-5.4-mini"
 model_reasoning_effort = "medium"
 model_reasoning_summary = "auto"
+model_verbosity = "medium"
 
 # Execution
 approval_policy = "on-request"
@@ -11,7 +12,7 @@ sandbox_mode = "workspace-write"
 web_search = "live"
 notify = ["bash", "-lc", "afplay /System/Library/Sounds/Ping.aiff"]
 personality = "pragmatic"
-project_doc_fallback_filenames = ["CLAUDE.md"]
+project_doc_fallback_filenames = ["CLAUDE.md", "GEMINI.md"]
 
 # Session history
 [history]
@@ -37,8 +38,3 @@ args = [
     "-c",
     "SERENA_HOME=\"$PWD/.serena\" exec serena start-mcp-server --context codex --project-from-cwd --open-web-dashboard False",
 ]
-
-
-# Model migration notice mapping
-[notice.model_migrations]
-"gpt-5.3" = "gpt-5.3-codex"
