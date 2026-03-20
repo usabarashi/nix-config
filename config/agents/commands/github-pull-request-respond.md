@@ -8,7 +8,7 @@ Respond to review comments on the current GitHub Pull Request by fixing code and
    `gh pr view --json number,url,title,reviewDecision,reviewThreads`
 2. For each comment in an unresolved review thread (`isResolved == false`):
    - Code fix needed: fix, commit, reply with full commit hash (use `git log -1 --format='%H'` to get the 40-character hash for GitHub autolink)
-   - Clarification only: reply with explanation
+   - No fix needed: reply with concrete rationale for why the current code is correct
    - One commit per comment
    - Do not reply until all fixes are committed
 3. Summarize all changes and replies
