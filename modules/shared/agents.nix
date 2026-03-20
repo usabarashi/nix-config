@@ -55,8 +55,8 @@
         source = config.lib.file.mkOutOfStoreSymlink "${repoPath}/config/claude/settings.json";
         force = true;
       };
-      ".claude/scripts" = agentScripts;
       ".claude/commands" = agentCommands;
+      ".claude/scripts" = agentScripts;
       ".claude/skills" = agentSkills;
 
       # Codex CLI settings
@@ -68,7 +68,7 @@
         source = config.lib.file.mkOutOfStoreSymlink "${repoPath}/config/codex/config.toml";
         force = true;
       };
-      ".codex/commands" = agentCommands;
+      ".codex/prompts" = agentCommands;
       ".codex/skills" = agentSkills;
 
       # Gemini CLI settings
@@ -84,9 +84,11 @@
         source = config.lib.file.mkOutOfStoreSymlink "${repoPath}/config/gemini/policies";
         force = true;
       };
+      # Gemini CLI commands require TOML format, not Markdown (Claude Code/Codex use .md, Gemini uses .toml)
       ".gemini/scripts" = agentScripts;
-      ".gemini/commands" = agentCommands;
       ".gemini/skills" = agentSkills;
 
+      # GitHub Copilot settings
+      ".copilot/skills" = agentSkills;
     };
 }
