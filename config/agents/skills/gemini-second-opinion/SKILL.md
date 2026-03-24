@@ -1,6 +1,6 @@
 ---
 name: gemini-second-opinion
-description: "For non-Gemini agents only (Claude, Codex). Invoke automatically when facing a decision with uncertain trade-offs or multiple viable options. Runs Gemini CLI in the background to get a second opinion. Gemini agents must use claude-second-opinion instead."
+description: "Use this skill (non-Gemini agents only) to get an independent second opinion from Gemini on any decision or question where a second perspective would be valuable. Appropriate triggers: any question with meaningful trade-offs, personal choices, technical or architectural decisions, comparisons between options. Only invoke when a second perspective would meaningfully change the outcome. Runs Gemini CLI in the background."
 ---
 
 # Gemini Second Opinion
@@ -18,18 +18,29 @@ Get an alternative perspective from Gemini on any decision, design, or code.
    - If `$ARGUMENTS` contains a specific question, use it as-is
    - If working on code, include relevant file contents or diff
    - If evaluating a design decision, summarize the options being considered
-2. Construct a prompt and run Gemini CLI:
-   ```bash
-   gemini -p "<constructed prompt>" -o text
-   ```
-3. Run Gemini CLI using environment-specific handling:
+2. Construct a prompt using the template in the **Prompt Construction** section below
+3. Execute Gemini CLI using environment-specific handling:
+   - **If `gemini` is not on PATH**: report the missing dependency to the user and skip
+   - **If running in Claude Code** (recommended flow):
+     1. Ensure the `Bash` tool schema is loaded before use (call `ToolSearch` with `query: "select:Bash"` if needed)
+     2. Run Gemini in the background with `run_in_background: true` and `timeout: 60000`:
+        ```bash
+        gemini -p "<constructed prompt>" -o text 2>&1
+        ```
+     3. Note the returned `task_id`
+     4. Ensure the `TaskOutput` tool schema is loaded (call `ToolSearch` with `query: "select:TaskOutput"` if needed)
+     5. Retrieve the result with `TaskOutput` using `block: true` and `timeout: 60000`
+     6. Treat the last cohesive text block in the output as Gemini's answer; ignore startup logs and error traces before it
    - **If running in Codex CLI** (long-running-safe flow):
-     1. Start Gemini in background and capture logs to a temp file.
-     2. Save PID and poll every 10-15 seconds.
-     3. Use a hard timeout (default: 300 seconds).
-     4. If timeout is hit, report that Gemini is still running and include the latest log tail (do not block indefinitely).
-     5. If process exits non-zero, report failure and include stderr/log tail.
+     1. Start Gemini in background and capture logs to a temp file
+     2. Save PID and poll every 10-15 seconds
+     3. Use a hard timeout (default: 300 seconds)
+     4. If timeout is hit, report that Gemini is still running and include the latest log tail (do not block indefinitely)
+     5. If process exits non-zero, report failure and include stderr/log tail
    - **Otherwise**: run synchronously and wait for result
+     ```bash
+     gemini -p "<constructed prompt>" -o text
+     ```
 4. Present Gemini's response alongside your own analysis, highlighting agreements and disagreements
 
 ## Prompt Construction
@@ -37,7 +48,7 @@ Get an alternative perspective from Gemini on any decision, design, or code.
 Wrap the context and question for Gemini as follows:
 
 ```
-You are providing a second opinion on a technical decision.
+You are providing a second opinion on a decision.
 
 Context:
 <context from the current task>
@@ -54,7 +65,8 @@ Provide your independent analysis. If you disagree with the current approach, ex
 - Always present both your perspective and Gemini's perspective
 - Clearly label which opinion comes from which model
 - If Gemini's response contradicts yours, explain the trade-offs of each approach
-- Do NOT blindly adopt Gemini's suggestion - evaluate it critically
-- Keep the Gemini prompt focused and under 2000 characters for reliability
+- Do NOT blindly adopt Gemini's suggestion — evaluate it critically
+- Keep the Gemini prompt focused; very long prompts increase latency and may hit CLI limits
 - In Codex CLI, always provide progress updates while polling and avoid silent waits longer than 15 seconds
 - In Codex CLI, do not lose intermediate output: preserve and summarize partial logs on timeout/error
+- Gemini CLI output may contain startup logs and onboarding messages before the actual response; treat the final cohesive text block as the answer
