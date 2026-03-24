@@ -9,6 +9,11 @@ Get an alternative perspective from Gemini on any decision, design, or code.
 
 ## Task
 
+0. **Self-Check (CRITICAL)**:
+   - **Are you acting as a Gemini agent?**
+   - **If YES**: **STOP IMMEDIATELY**. Do not proceed. Consulting yourself is redundant and wasteful. Report to the user that you cannot use this skill as a Gemini agent.
+   - **If NO** (e.g., you are Claude): Proceed to step 1.
+
 1. Gather the context for the second opinion:
    - If `$ARGUMENTS` contains a specific question, use it as-is
    - If working on code, include relevant file contents or diff
@@ -28,7 +33,7 @@ Get an alternative perspective from Gemini on any decision, design, or code.
      6. Treat the last cohesive text block in the output as Gemini's answer; ignore startup logs and error traces before it
    - **If running in Codex CLI** (long-running-safe flow):
      1. Start Gemini in background and capture logs to a temp file
-     2. Save PID and poll every 10–15 seconds
+     2. Save PID and poll every 10-15 seconds
      3. Use a hard timeout (default: 300 seconds)
      4. If timeout is hit, report that Gemini is still running and include the latest log tail (do not block indefinitely)
      5. If process exits non-zero, report failure and include stderr/log tail

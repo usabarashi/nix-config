@@ -6,52 +6,36 @@ Respond to review comments on the current GitHub Pull Request by fixing code and
 
 1. **Detect repo and PR number** from the current branch:
    ```sh
-   gh pr view --json number,url,title,headRefName
+   gh pr view --json number,url,title
    ```
 
-2. **Fetch all review comments** (flat list with thread info):
+2. **Fetch and identify unreplied comments** in a single API call:
    ```sh
    OWNER_REPO=$(gh repo view --json nameWithOwner -q .nameWithOwner)
    PR_NUM=$(gh pr view --json number -q .number)
-   gh api "repos/${OWNER_REPO}/pulls/${PR_NUM}/comments" --paginate
-   ```
-   Each comment has:
-   - `id`: unique comment ID
-   - `in_reply_to_id`: parent comment ID (null for root comments, non-null for replies)
-   - `user.login`: author
-   - `path`, `line`, `body`: location and content
-
-3. **Identify unreplied root comments** using this jq pattern:
-   ```sh
    MY_LOGIN=$(gh api user -q .login)
    gh api "repos/${OWNER_REPO}/pulls/${PR_NUM}/comments" --paginate --jq "
-     [.[] | {id: .id, in_reply_to_id: .in_reply_to_id, author: .user.login}] |
-     [.[] | select(.in_reply_to_id == null and .author != \"${MY_LOGIN}\") | .id] as \$roots |
-     [.[] | select(.author == \"${MY_LOGIN}\" and .in_reply_to_id != null) | .in_reply_to_id] as \$replied |
-     [\$roots[] | select(. as \$r | \$replied | any(. == \$r) | not)]
+     ( [.[] | select(.in_reply_to_id == null and .user.login != \"${MY_LOGIN}\") | .id] ) as \$roots |
+     ( [.[] | select(.user.login == \"${MY_LOGIN}\" and .in_reply_to_id != null) | .in_reply_to_id] ) as \$replied |
+     (\$roots - \$replied) as \$unreplied_ids |
+     [.[] | select(.id | IN(\$unreplied_ids[])) | {id, path, line, body}]
    "
    ```
-   This returns an array of unreplied root comment IDs. If empty (`[]`), all comments are addressed.
+   This returns an array of unreplied comment objects. If the array is empty (`[]`), all comments have been addressed.
 
-4. **Fetch full details** of each unreplied comment:
-   ```sh
-   gh api "repos/${OWNER_REPO}/pulls/${PR_NUM}/comments" --paginate \
-     --jq '.[] | select(.id == <ID>) | {id, path, line, body}'
-   ```
-
-5. **For each unreplied comment**:
+3. **For each unreplied comment**:
    - Read the referenced code and understand the reviewer's concern
    - Code fix needed: fix, commit, then reply with full 40-char commit hash
    - No fix needed: reply with concrete rationale for why the current code is correct
    - One commit per fix (multiple minor fixes may share one commit)
 
-6. **Reply via API** (do not use `gh pr review`):
+4. **Reply via API** (do not use `gh pr review`):
    ```sh
    gh api "repos/${OWNER_REPO}/pulls/${PR_NUM}/comments/<ROOT_ID>/replies" \
      -f body="<reply text>"
    ```
 
-7. **Summarize** all changes and replies
+5. **Summarize** all changes and replies
 
 ## Rules
 
