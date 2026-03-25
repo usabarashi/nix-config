@@ -11,6 +11,7 @@
 
   ;; Locations other than the project directory where writes are allowed
   (regex (string-append "^" (param "HOME_DIR") "/.claude*"))
+  (subpath (string-append (param "HOME_DIR") "/.cargo"))
   (subpath (string-append (param "HOME_DIR") "/.terraform.d/plugin-cache"))
   (subpath (string-append (param "HOME_DIR") "/Library/Keychains"))
 
