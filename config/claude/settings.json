@@ -62,6 +62,7 @@
       "Bash(git status:*)",
       "Bash(git submodule:*)",
       "Bash(wc:*)",
+      "WebFetch",
       "mcp__serena__activate_project",
       "mcp__serena__check_onboarding_performed",
       "mcp__serena__delete_memory",
@@ -86,8 +87,7 @@
       "mcp__serena__think_about_whether_you_are_done",
       "mcp__serena__write_memory",
       "mcp__voicevox__text_to_speech",
-      "mcp__voicevox__list_voice_styles",
-      "WebFetch(domain:github.com)"
+      "mcp__voicevox__list_voice_styles"
     ],
     "deny": [
       "Bash(gh auth:*)",
