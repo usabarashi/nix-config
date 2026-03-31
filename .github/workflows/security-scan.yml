@@ -61,7 +61,7 @@ jobs:
     - name: Fix SARIF locations for Code Scanning
       run: |
         nix run nixpkgs#jq -- '
-          (.runs[]?.results[]?) |=
+          (.runs[]?.results[]?) |= (
             ((.locations // []) | if length == 0 then [{}] else . end) as $locs |
             .locations = [$locs[] |
               if .physicalLocation.artifactLocation then .
@@ -73,6 +73,7 @@ jobs:
                 )
               end
             ]
+          )
         ' grype-results.sarif > grype-results-fixed.sarif
         mv grype-results-fixed.sarif grype-results.sarif
 
