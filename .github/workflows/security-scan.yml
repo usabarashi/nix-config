@@ -1,0 +1,88 @@
+name: "Security Scan"
+
+on:
+  push:
+    branches: [ "main" ]
+    paths:
+      - "**/*.nix"
+      - "flake.lock"
+      - ".github/workflows/security-scan.yml"
+  schedule:
+    - cron: "0 3 * * 1"
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  security-events: write
+
+jobs:
+  scan:
+    runs-on: macos-latest
+    timeout-minutes: 120
+    strategy:
+      matrix:
+        config_name: [private, work]
+    steps:
+    - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+    - name: Install Nix
+      uses: cachix/install-nix-action@2126ae7fc54c9df00dd18f7f18754393182c73cd # v31.9.1
+      with:
+        extra_nix_config: |
+          connect-timeout = 60
+          stalled-download-timeout = 90
+
+    - name: Build darwinConfigurations.${{ matrix.config_name }}.system
+      run: |
+        export CURRENT_USER=$(whoami)
+        export REPOSITORY_PATH=$(pwd)
+        nix build .#darwinConfigurations.${{ matrix.config_name }}.system --impure
+
+    - name: Generate SBOM
+      run: |
+        nix run nixpkgs#sbomnix -- result \
+          --cdx sbom.cdx.json \
+          --spdx sbom.spdx.json \
+          --csv sbom.csv
+
+    - name: Grype scan
+      id: grype
+      run: |
+        nix run nixpkgs#grype -- sbom:sbom.cdx.json \
+          -o table=grype-report.txt \
+          -o sarif=grype-results.sarif
+        vuln_count=$(jq '[.runs[].results[]] | length' grype-results.sarif)
+        echo "vuln_count=${vuln_count}" >> "$GITHUB_OUTPUT"
+
+    - name: Add scan summary
+      run: |
+        if [ "${{ steps.grype.outputs.vuln_count }}" = "0" ]; then
+          echo "## Grype: no CVEs detected" >> "$GITHUB_STEP_SUMMARY"
+        else
+          echo "## Grype: ${{ steps.grype.outputs.vuln_count }} CVEs detected" >> "$GITHUB_STEP_SUMMARY"
+          printf '```\n' >> "$GITHUB_STEP_SUMMARY"
+          cat grype-report.txt >> "$GITHUB_STEP_SUMMARY"
+          printf '```\n' >> "$GITHUB_STEP_SUMMARY"
+        fi
+
+    - name: Upload SARIF to Code Scanning
+      uses: github/codeql-action/upload-sarif@5c8a8a642e79153f5d047b10ec1cba1d1cc65699 # v3
+      with:
+        sarif_file: grype-results.sarif
+        category: ${{ matrix.config_name }}
+
+    - name: Upload artifacts
+      uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
+      with:
+        name: security-scan-${{ matrix.config_name }}-${{ github.sha }}
+        path: |
+          sbom.cdx.json
+          sbom.spdx.json
+          sbom.csv
+          grype-results.sarif
+          grype-report.txt
+        retention-days: 90
