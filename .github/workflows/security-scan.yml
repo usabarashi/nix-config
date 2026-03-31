@@ -62,9 +62,12 @@ jobs:
       run: |
         nix run nixpkgs#jq -- '
           (.runs[]?.results[]?) |=
-            if ([(.locations // [])[].physicalLocation.artifactLocation // empty] | length) == 0 then
-              .locations = ((.locations // []) + [{"physicalLocation":{"artifactLocation":{"uri":"flake.lock"},"region":{"startLine":1}}}])
-            else . end
+            ((.locations // []) | if length == 0 then [{}] else . end) as $locs |
+            .locations = [$locs[] |
+              if .physicalLocation.artifactLocation then .
+              else . + {"physicalLocation":{"artifactLocation":{"uri":"flake.lock"},"region":{"startLine":1}}}
+              end
+            ]
         ' grype-results.sarif > grype-results-fixed.sarif
         mv grype-results-fixed.sarif grype-results.sarif
 
