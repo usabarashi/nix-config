@@ -64,10 +64,10 @@ jobs:
           (.runs[]?.results[]?) |= (
             ((.locations // []) | if length == 0 then [{}] else . end) as $locs |
             .locations = [$locs[] |
-              if .physicalLocation.artifactLocation then .
+              if (.physicalLocation.artifactLocation.uri // "") != "" then .
               else
                 ( .physicalLocation |= (. // {})
-                | .physicalLocation.artifactLocation |= (. // {"uri":"flake.lock"})
+                | .physicalLocation.artifactLocation.uri |= (if . == "" or . == null then "flake.lock" else . end)
                 | .physicalLocation.region |= (. // {})
                 | .physicalLocation.region.startLine |= (. // 1)
                 )
