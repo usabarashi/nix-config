@@ -64,7 +64,8 @@ jobs:
           (.runs[]?.results[]?) |=
             ((.locations // []) | if length == 0 then [{}] else . end) as $locs |
             .locations = [$locs[] |
-              if .physicalLocation.artifactLocation then .
+              if type != "object" then {"physicalLocation":{"artifactLocation":{"uri":"flake.lock"},"region":{"startLine":1}}}
+              elif .physicalLocation.artifactLocation then .
               else
                 ( .physicalLocation |= (. // {})
                 | .physicalLocation.artifactLocation |= (. // {"uri":"flake.lock"})
