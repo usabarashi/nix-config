@@ -35,10 +35,7 @@
     let
       env = import ./lib/env.nix { };
       mkFlakeInputs =
-        system:
-        builtins.mapAttrs (
-          _name: input: if input ? packages.${system}.default then input.packages.${system}.default else input
-        ) inputs;
+        system: builtins.mapAttrs (_name: input: input.packages.${system}.default or input) inputs;
 
       builders = import ./lib/builders.nix {
         inherit
@@ -97,7 +94,7 @@
         private = builders.mkDarwinSystem {
           system = "aarch64-darwin";
           userName = env.currentUser;
-          repoPath = env.repoPath;
+          inherit (env) repoPath;
           homeModule = homeModules.private;
           hostPath = hostPaths.private;
           flakeInputs = mkFlakeInputs "aarch64-darwin";
@@ -105,7 +102,7 @@
         work = builders.mkDarwinSystem {
           system = "aarch64-darwin";
           userName = env.currentUser;
-          repoPath = env.repoPath;
+          inherit (env) repoPath;
           homeModule = homeModules.work;
           hostPath = hostPaths.work;
           flakeInputs = mkFlakeInputs "aarch64-darwin";

@@ -1,5 +1,4 @@
-{ ... }:
-{
+_: {
   # Combined CA certificate bundle for Netskope SSL inspection.
   # Requires bootstrap: generate the bundle before first `nix run .#work`.
   # See activation script below for auto-regeneration on subsequent applies.
