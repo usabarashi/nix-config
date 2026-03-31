@@ -15,9 +15,9 @@ let
 in
 pkgs.stdenv.mkDerivation {
   pname = "docker-compose";
-  version = version;
+  inherit version;
 
-  src = src;
+  inherit src;
 
   unpackPhase = "true";
 

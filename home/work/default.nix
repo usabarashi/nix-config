@@ -9,7 +9,7 @@
   programs.home-manager.enable = true;
   home = {
     username = userName;
-    homeDirectory = homeDirectory;
+    inherit homeDirectory;
     stateVersion = "25.11";
   };
 

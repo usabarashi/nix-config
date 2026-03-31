@@ -1,5 +1,4 @@
 {
-  lib,
   nix-darwin,
   home-manager,
 }:
@@ -18,8 +17,6 @@
       homeDirectory = "/Users/${userName}";
       hostConfig =
         {
-          config,
-          lib,
           pkgs,
           ...
         }:
@@ -43,17 +40,19 @@
         hostPath
         home-manager.darwinModules.home-manager
         {
-          home-manager.useGlobalPkgs = true;
-          home-manager.useUserPackages = true;
-          home-manager.backupFileExtension = "backup";
-          home-manager.users.${userName} = homeModule;
-          home-manager.extraSpecialArgs = {
-            inherit
-              repoPath
-              userName
-              homeDirectory
-              flakeInputs
-              ;
+          home-manager = {
+            useGlobalPkgs = true;
+            useUserPackages = true;
+            backupFileExtension = "backup";
+            users.${userName} = homeModule;
+            extraSpecialArgs = {
+              inherit
+                repoPath
+                userName
+                homeDirectory
+                flakeInputs
+                ;
+            };
           };
         }
       ];

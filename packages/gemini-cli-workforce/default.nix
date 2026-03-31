@@ -83,7 +83,7 @@ let
 in
 stdenv.mkDerivation {
   pname = "gemini-cli-workforce";
-  version = gemini-cli.version;
+  inherit (gemini-cli) version;
 
   dontUnpack = true;
   dontBuild = true;

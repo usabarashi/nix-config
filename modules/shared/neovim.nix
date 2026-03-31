@@ -1,7 +1,7 @@
 # see: https://neovim.io/
 # see: https://github.com/rockerBOO/awesome-neovim
 # see: https://github.com/nix-community/home-manager/blob/master/modules/programs/neovim.nix
-{ config, pkgs, ... }:
+{ pkgs, ... }:
 
 {
   programs.neovim = {
