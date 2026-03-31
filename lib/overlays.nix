@@ -1,11 +1,11 @@
 [
-  (final: prev: {
+  (final: _prev: {
     customPackages = import ../packages { pkgs = final; };
   })
 
-  (final: prev: {
+  (_final: prev: {
     lib = prev.lib.extend (
-      libFinal: libPrev: {
+      _libFinal: libPrev: {
         maintainers = libPrev.maintainers // {
           usabarashi = {
             github = "usabarashi";

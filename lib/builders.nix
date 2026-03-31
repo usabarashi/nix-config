@@ -1,7 +1,7 @@
 {
-  lib,
   nix-darwin,
   home-manager,
+  ...
 }:
 
 {
@@ -18,8 +18,6 @@
       homeDirectory = "/Users/${userName}";
       hostConfig =
         {
-          config,
-          lib,
           pkgs,
           ...
         }:

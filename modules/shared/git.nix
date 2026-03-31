@@ -1,5 +1,5 @@
 # see: https://github.com/nix-community/home-manager/blob/master/modules/programs/git.nix
-{ config, pkgs, ... }:
+{ pkgs, ... }:
 
 let
   git-clean = pkgs.writeShellScriptBin "git-clean" ''
