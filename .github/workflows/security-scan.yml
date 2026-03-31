@@ -65,7 +65,12 @@ jobs:
             ((.locations // []) | if length == 0 then [{}] else . end) as $locs |
             .locations = [$locs[] |
               if .physicalLocation.artifactLocation then .
-              else . + {"physicalLocation":{"artifactLocation":{"uri":"flake.lock"},"region":{"startLine":1}}}
+              else
+                ( .physicalLocation |= (. // {})
+                | .physicalLocation.artifactLocation |= (. // {"uri":"flake.lock"})
+                | .physicalLocation.region |= (. // {})
+                | .physicalLocation.region.startLine |= (. // 1)
+                )
               end
             ]
         ' grype-results.sarif > grype-results-fixed.sarif
