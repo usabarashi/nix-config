@@ -25,36 +25,38 @@ in
       nixfmt-rfc-style
     ];
 
-    file."Library/Application Support/Code/User/settings.json" = lib.mkForce {
-      source = config.lib.file.mkOutOfStoreSymlink "${repoPath}/.vscode/settings.json";
-      force = true;
-    };
+    file = {
+      "Library/Application Support/Code/User/settings.json" = lib.mkForce {
+        source = config.lib.file.mkOutOfStoreSymlink "${repoPath}/.vscode/settings.json";
+        force = true;
+      };
 
-    file."Library/Application Support/Code/User/keybindings.json" = lib.mkForce {
-      source = config.lib.file.mkOutOfStoreSymlink "${repoPath}/.vscode/keybindings.json";
-      force = true;
-    };
+      "Library/Application Support/Code/User/keybindings.json" = lib.mkForce {
+        source = config.lib.file.mkOutOfStoreSymlink "${repoPath}/.vscode/keybindings.json";
+        force = true;
+      };
 
-    file."Library/Application Support/Code/User/snippets" = {
-      source = config.lib.file.mkOutOfStoreSymlink "${repoPath}/.vscode/snippets";
-      force = true;
-      recursive = true;
-    };
+      "Library/Application Support/Code/User/snippets" = {
+        source = config.lib.file.mkOutOfStoreSymlink "${repoPath}/.vscode/snippets";
+        force = true;
+        recursive = true;
+      };
 
-    file."Library/Application Support/Code/User/tasks.json" = lib.mkForce {
-      source = config.lib.file.mkOutOfStoreSymlink "${repoPath}/.vscode/tasks.json";
-      force = true;
-    };
+      "Library/Application Support/Code/User/tasks.json" = lib.mkForce {
+        source = config.lib.file.mkOutOfStoreSymlink "${repoPath}/.vscode/tasks.json";
+        force = true;
+      };
 
-    file."Library/Application Support/Code/User/prompts" = {
-      source = config.lib.file.mkOutOfStoreSymlink "${repoPath}/.vscode/prompts";
-      force = true;
-      recursive = true;
-    };
+      "Library/Application Support/Code/User/prompts" = {
+        source = config.lib.file.mkOutOfStoreSymlink "${repoPath}/.vscode/prompts";
+        force = true;
+        recursive = true;
+      };
 
-    file."Library/Application Support/Code/User/mcp.json" = lib.mkForce {
-      source = config.lib.file.mkOutOfStoreSymlink "${repoPath}/.vscode/mcp.json";
-      force = true;
+      "Library/Application Support/Code/User/mcp.json" = lib.mkForce {
+        source = config.lib.file.mkOutOfStoreSymlink "${repoPath}/.vscode/mcp.json";
+        force = true;
+      };
     };
 
     activation.vscodeVimConfig = config.lib.dag.entryAfter [ "writeBoundary" ] ''
