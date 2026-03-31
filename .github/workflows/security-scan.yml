@@ -58,6 +58,16 @@ jobs:
         vuln_count=$(nix run nixpkgs#jq -- '[.runs[].results[]] | length' grype-results.sarif)
         echo "vuln_count=${vuln_count}" >> "$GITHUB_OUTPUT"
 
+    - name: Fix SARIF locations for Code Scanning
+      run: |
+        nix run nixpkgs#jq -- '
+          (.runs[].results[]?) |=
+            if (.locations // []) == [] then
+              .locations = [{"physicalLocation":{"artifactLocation":{"uri":"flake.lock"},"region":{"startLine":1}}}]
+            else . end
+        ' grype-results.sarif > grype-results-fixed.sarif
+        mv grype-results-fixed.sarif grype-results.sarif
+
     - name: Add scan summary
       run: |
         if [ "${{ steps.grype.outputs.vuln_count }}" = "0" ]; then
