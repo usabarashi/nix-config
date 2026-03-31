@@ -28,10 +28,10 @@ jobs:
       uses: cachix/install-nix-action@96951a368ba55167b55f1c916f7d416bac6505fe # v31.10.3
 
     - name: statix check
-      run: nix run nixpkgs#statix -- check .
+      run: nix run --inputs-from . nixpkgs#statix -- check .
 
     - name: deadnix check
-      run: nix run nixpkgs#deadnix -- --fail .
+      run: nix run --inputs-from . nixpkgs#deadnix -- --fail .
 
   lint:
     runs-on: macos-latest

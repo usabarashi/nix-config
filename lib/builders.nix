@@ -1,7 +1,6 @@
 {
   nix-darwin,
   home-manager,
-  ...
 }:
 
 {
