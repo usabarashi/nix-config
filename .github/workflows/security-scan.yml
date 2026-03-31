@@ -61,7 +61,7 @@ jobs:
     - name: Fix SARIF locations for Code Scanning
       run: |
         nix run nixpkgs#jq -- '
-          (.runs[].results[]?) |=
+          (.runs[]?.results[]?) |=
             if (.locations // []) == [] then
               .locations = [{"physicalLocation":{"artifactLocation":{"uri":"flake.lock"},"region":{"startLine":1}}}]
             else . end
