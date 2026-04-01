@@ -16,7 +16,6 @@
     };
     voicevox-cli = {
       url = "github:usabarashi/voicevox-cli";
-      inputs.nixpkgs.follows = "nixpkgs";
     };
     serena = {
       url = "github:oraios/serena";
