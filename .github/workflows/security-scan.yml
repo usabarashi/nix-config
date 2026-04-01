@@ -36,6 +36,15 @@ jobs:
           connect-timeout = 60
           stalled-download-timeout = 90
 
+    - name: Wait for Nix daemon
+      run: |
+        for i in $(seq 1 30); do
+          nix store ping 2>/dev/null && exit 0
+          sleep 1
+        done
+        echo "::error::Nix daemon did not become ready within 30 seconds"
+        exit 1
+
     - name: Build darwinConfigurations.${{ matrix.config_name }}.system
       run: |
         export CURRENT_USER=$(whoami)
