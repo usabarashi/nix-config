@@ -14,10 +14,12 @@
     substituters = [
       "https://cache.nixos.org/"
       "https://nix-community.cachix.org"
+      "https://voicevox-cli.cachix.org" # usabarashi/voicevox-cli pre-built binaries
     ];
     trusted-public-keys = [
       "cache.nixos.org-1:6NCHdD59X431o0gWypbMrAURkbJ16ZPMQFGspcDShjY="
       "nix-community.cachix.org-1:mB9FSh9qf2dCimDSUo8Zy7bkq5CX+/rkCWyvRCYg3Fs="
+      "voicevox-cli.cachix.org-1:mgBVkErTVM4g1h08Bz86D73qhB4Jew/+JQ4iCjaPzj0=" # voicevox-cli.cachix.org
     ];
   };
 }
