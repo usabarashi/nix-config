@@ -7,8 +7,12 @@ on:
     branches: [ "**" ]
   workflow_dispatch:
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
-  format:
+  check:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
@@ -19,41 +23,14 @@ jobs:
     - name: Check formatting
       run: nix fmt -- --fail-on-change
 
-  lint-static:
-    runs-on: ubuntu-latest
-    steps:
-    - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
-
-    - name: Install Nix
-      uses: cachix/install-nix-action@96951a368ba55167b55f1c916f7d416bac6505fe # v31.10.3
-
     - name: statix check
       run: nix run --inputs-from . nixpkgs#statix -- check .
 
     - name: deadnix check
       run: nix run --inputs-from . nixpkgs#deadnix -- --fail .
 
-  lint:
-    runs-on: macos-latest
-    steps:
-    - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
-
-    - name: Install Nix
-      uses: cachix/install-nix-action@96951a368ba55167b55f1c916f7d416bac6505fe # v31.10.3
-      with:
-        extra_nix_config: |
-          connect-timeout = 60
-          stalled-download-timeout = 90
-
-    - name: Validate Nix flake syntax
-      run: |
-        export CURRENT_USER=$(whoami)
-        export REPOSITORY_PATH=$(pwd)
-        nix flake show --impure
-        nix flake check --no-build --impure
-
   build:
-    needs: [format, lint, lint-static]
+    needs: [check]
     runs-on: macos-latest
     strategy:
       matrix:
@@ -67,6 +44,15 @@ jobs:
         extra_nix_config: |
           connect-timeout = 60
           stalled-download-timeout = 90
+
+    - name: Wait for Nix daemon
+      run: |
+        for i in $(seq 1 30); do
+          nix store ping 2>/dev/null && exit 0
+          sleep 1
+        done
+        echo "::error::Nix daemon did not become ready within 30 seconds"
+        exit 1
 
     - name: Dry-run build
       run: |
