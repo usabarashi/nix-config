@@ -1,0 +1,26 @@
+# Extra flake with custom inputs (not tracked in git).
+# Copy flake.nix.example and default.nix.example to ~/.config/nix-extra/
+# then rename to flake.nix and default.nix.
+# Run `nix flake update` in ~/.config/nix-extra/ to generate flake.lock.
+#
+# Export homeManagerModule to be imported by the main config.
+{
+  inputs = {
+    # some-tool.url = "github:owner/some-tool";
+  };
+
+  outputs =
+    {
+      # some-tool,
+      ...
+    }:
+    {
+      homeManagerModule =
+        { pkgs, ... }:
+        {
+          home.packages = [
+            # some-tool.packages.${pkgs.system}.default
+          ];
+        };
+    };
+}

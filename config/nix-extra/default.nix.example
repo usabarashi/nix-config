@@ -1,0 +1,12 @@
+# Extra packages and modules (not tracked in git).
+# Copy to ~/.config/nix-extra/default.nix and customize.
+#
+# This is a standard home-manager module.
+# Available args: pkgs, lib, config, homeDirectory, userName, repoPath, flakeInputs
+{ pkgs, ... }:
+
+{
+  home.packages = with pkgs; [
+    # cowsay
+  ];
+}
