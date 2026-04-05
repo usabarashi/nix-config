@@ -25,13 +25,14 @@
 
   imports = [
     ../../modules/darwin/karabiner.nix
-    ../../modules/shared/container.nix
     ../../modules/shared/agents.nix
+    ../../modules/shared/container.nix
+    ../../modules/shared/extra.nix
     ../../modules/shared/git.nix
     ../../modules/shared/neovim.nix
     ../../modules/shared/ssh.nix
+    ../../modules/shared/terminal.nix
     ../../modules/shared/terraform.nix
     ../../modules/shared/vscode.nix
-    ../../modules/shared/terminal.nix
   ];
 }

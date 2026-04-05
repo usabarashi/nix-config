@@ -47,6 +47,17 @@ packages/              Custom package definitions
 1. Standard nixpkgs packages
 2. Custom packages (`packages/`)
 3. External flake inputs (voicevox-cli, etc.)
+4. Optional local packages (`~/.config/nix-extra/`) -- not tracked in git
+
+### Extra Packages (optional, git-untracked)
+
+`modules/shared/extra.nix` conditionally imports `~/.config/nix-extra/` if it exists.
+Two modes supported:
+
+- **Simple**: Place `default.nix` (home-manager module) for nixpkgs packages only
+- **Flake**: Place `flake.nix` + `default.nix` for custom inputs with lock file
+
+See `config/nix-extra/*.example` for templates.
 
 ## Environment Variables
 

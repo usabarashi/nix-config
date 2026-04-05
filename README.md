@@ -48,6 +48,12 @@ nix-collect-garbage -d && nix-store --gc
 > On macOS, if GC fails with "Operation not permitted", run from the Terminal app
 > with Full Disk Access enabled (System Settings > Privacy & Security > Full Disk Access).
 
+## Extra Packages (optional)
+
+Git-untracked packages can be added via `~/.config/nix-extra/`.
+Copy templates from `config/nix-extra/*.example` and customize.
+Supports plain module (`default.nix`) or flake with custom inputs (`flake.nix`).
+
 ## Environment Variables
 
 | Variable | Required | Description |
