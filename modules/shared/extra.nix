@@ -10,5 +10,8 @@ let
 in
 {
   imports =
-    if hasFlake then [ extraFlake.homeManagerModule ] else lib.optional hasDefault extraDefaultPath;
+    if hasFlake && (extraFlake ? homeManagerModule) then
+      [ extraFlake.homeManagerModule ]
+    else
+      lib.optional hasDefault extraDefaultPath;
 }
