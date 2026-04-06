@@ -17,12 +17,10 @@
       homeDirectory = "/Users/${userName}";
       extraDir = "${homeDirectory}/.config/nix-extra";
       extraFlakePath = "${extraDir}/flake.nix";
+      hasExtraFlake = builtins.pathExists extraFlakePath;
       extraFlake = builtins.getFlake "path:${extraDir}";
       extraDarwinModules =
-        if builtins.pathExists extraFlakePath && (extraFlake ? darwinModule) then
-          [ extraFlake.darwinModule ]
-        else
-          [ ];
+        if hasExtraFlake && (extraFlake ? darwinModule) then [ extraFlake.darwinModule ] else [ ];
       hostConfig =
         {
           pkgs,
