@@ -50,9 +50,12 @@ nix-collect-garbage -d && nix-store --gc
 
 ## Extra Packages (optional)
 
-Git-untracked packages can be added via `~/.config/nix-extra/`.
+Git-untracked, machine-specific configuration can be added via `~/.config/nix-extra/`.
 Copy templates from `config/nix-extra/*.example` and customize.
-Supports plain module (`default.nix`) or flake with custom inputs (`flake.nix`).
+Supports plain module (`default.nix`) or flake (`flake.nix`) with two optional outputs:
+
+- `homeManagerModule`: user-level packages and settings
+- `darwinModule`: system-level settings (e.g. binary cache substituters)
 
 ## Environment Variables
 

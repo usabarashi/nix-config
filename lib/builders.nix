@@ -15,6 +15,12 @@
     }:
     let
       homeDirectory = "/Users/${userName}";
+      extraDir = "${homeDirectory}/.config/nix-extra";
+      extraFlakePath = "${extraDir}/flake.nix";
+      hasExtraFlake = builtins.pathExists extraFlakePath;
+      extraFlake = builtins.getFlake "path:${extraDir}";
+      extraDarwinModules =
+        if hasExtraFlake && (extraFlake ? darwinModule) then [ extraFlake.darwinModule ] else [ ];
       hostConfig =
         {
           pkgs,
@@ -38,6 +44,9 @@
       modules = [
         hostConfig
         hostPath
+      ]
+      ++ extraDarwinModules
+      ++ [
         home-manager.darwinModules.home-manager
         {
           home-manager = {

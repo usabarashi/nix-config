@@ -3,7 +3,9 @@
 # Run `nix flake update` in ~/.config/nix-extra/ to generate flake.lock.
 # Note: When flake.nix is present, default.nix is ignored (flake takes priority).
 #
-# Export homeManagerModule to be imported by the main config.
+# Export homeManagerModule and/or darwinModule to be imported by the main config.
+# - homeManagerModule: user-level packages and settings (home-manager)
+# - darwinModule: system-level settings such as nix substituters (nix-darwin)
 {
   inputs = {
     # some-tool.url = "github:owner/some-tool";
@@ -15,6 +17,19 @@
       ...
     }:
     {
+      # System-level nix-darwin module (e.g. binary cache configuration)
+      darwinModule = {
+        nix.settings = {
+          extra-substituters = [
+            # "https://example.cachix.org"
+          ];
+          extra-trusted-public-keys = [
+            # "example.cachix.org-1:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
+          ];
+        };
+      };
+
+      # User-level home-manager module (e.g. packages)
       homeManagerModule =
         { pkgs, ... }:
         {
