@@ -4,17 +4,33 @@
   claude-code,
   nodejs,
   runCommand,
+  writeShellScript,
   writeShellScriptBin,
 }:
 
 let
+  # Stub invoked when a package manager command is resolved via the
+  # claude-code-sandboxed PATH. Ensures the "node-only" intent holds even
+  # if another node installation (e.g. Homebrew) exists in the inherited
+  # PATH, because the stub at ${nodeOnly}/bin/{npm,npx,corepack} takes
+  # precedence over any later entry.
+  unavailableStub = writeShellScript "claude-sandbox-unavailable" ''
+    echo "$0 is intentionally unavailable in claude-code-sandboxed" >&2
+    exit 127
+  '';
+
   # Expose only the `node` binary (no npm/npx/corepack) to the claude-code
   # process tree. Required by the openai-codex plugin's companion scripts,
   # which are executed via `node ${CLAUDE_PLUGIN_ROOT}/scripts/*.mjs`.
-  # Omitting npm prevents any `npm install` side effects from the sandbox.
+  # Shadowing npm/npx/corepack with refusing stubs prevents any
+  # `npm install` side effects from the sandbox regardless of what else
+  # is on PATH.
   nodeOnly = runCommand "node-only" { } ''
     mkdir -p $out/bin
     ln -s ${nodejs}/bin/node $out/bin/node
+    for tool in npm npx corepack; do
+      ln -s ${unavailableStub} "$out/bin/$tool"
+    done
   '';
 
   sandboxProfilePath = "\${HOME}/.claude/permissive-open.sb";
