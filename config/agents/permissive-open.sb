@@ -14,6 +14,7 @@
   (subpath (string-append (param "HOME_DIR") "/.cargo/registry"))
   (subpath (string-append (param "HOME_DIR") "/.cargo/git"))
   (subpath (string-append (param "HOME_DIR") "/.cargo/.global-cache"))
+  (subpath (string-append (param "HOME_DIR") "/.codex"))
   (subpath (string-append (param "HOME_DIR") "/.terraform.d/plugin-cache"))
   (subpath (string-append (param "HOME_DIR") "/Library/Keychains"))
 
@@ -26,7 +27,7 @@
   (subpath (string-append (param "HOME_DIR") "/Library/Caches"))
   (subpath "/private/tmp")
   (subpath "/private/var/tmp")
-  (regex #"^/private/var/folders/[^/]+/[^/]+/[C,T]")
+  (regex #"^/private/var/folders/[^/]+/[^/]+/[CT]")
 
   ;; Other tool-related. Please adjust according to the tool you are using
   (subpath (string-append (param "HOME_DIR") "/.npm"))
