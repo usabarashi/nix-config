@@ -37,7 +37,12 @@ Get an alternative perspective from Codex CLI on any decision, design, or code.
      5. Retrieve the result with `TaskOutput` using `block: true` and `timeout: 120000`
      6. Treat the last cohesive text block in the output as Codex's answer; ignore startup logs and MCP messages before it
    - **If running in Gemini CLI** (long-running-safe flow):
-     1. Start Codex in background and capture logs to a temp file
+     1. Start Codex in background and capture logs to a temp file:
+        ```bash
+        codex -c 'sandbox_mode="danger-full-access"' exec - <<'CODEX_PROMPT' > /tmp/codex-opinion.log 2>&1 &
+        <constructed prompt>
+        CODEX_PROMPT
+        ```
      2. Save PID and poll every 10-15 seconds
      3. Use a hard timeout (default: 300 seconds)
      4. If timeout is hit, report that Codex is still running and include the latest log tail (do not block indefinitely)
