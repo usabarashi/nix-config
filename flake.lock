@@ -1,5 +1,20 @@
 {
   "nodes": {
+    "crane": {
+      "locked": {
+        "lastModified": 1775839657,
+        "narHash": "sha256-SPm9ck7jh3Un9nwPuMGbRU04UroFmOHjLP56T10MOeM=",
+        "owner": "ipetkov",
+        "repo": "crane",
+        "rev": "7cf72d978629469c4bd4206b95c402514c1f6000",
+        "type": "github"
+      },
+      "original": {
+        "owner": "ipetkov",
+        "repo": "crane",
+        "type": "github"
+      }
+    },
     "fenix": {
       "inputs": {
         "nixpkgs": [
@@ -321,16 +336,17 @@
     },
     "voicevox-cli": {
       "inputs": {
+        "crane": "crane",
         "fenix": "fenix",
         "flake-utils": "flake-utils_3",
         "nixpkgs": "nixpkgs_2"
       },
       "locked": {
-        "lastModified": 1773035670,
-        "narHash": "sha256-Li6onNOkhdwgwq6lX65Pm6zUY7u7YdSLipm0Z+nJlFY=",
+        "lastModified": 1776141552,
+        "narHash": "sha256-eLljj6S9SH5unr1IlE+FKipqnWgZ/zlyC+M4mnjvzjc=",
         "owner": "usabarashi",
         "repo": "voicevox-cli",
-        "rev": "f3c2e42ac79998901b46e9c38135285c95666f64",
+        "rev": "388137ee59f81d037c82034f543f5f442054b0c6",
         "type": "github"
       },
       "original": {

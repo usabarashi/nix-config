@@ -33,8 +33,17 @@ tool_timeout_sec = 120
 
 [mcp_servers.serena]
 type = "stdio"
-command = "sh"
+command = "serena"
 args = [
-    "-c",
-    "SERENA_HOME=\"$PWD/.serena\" exec serena start-mcp-server --context codex --project-from-cwd --open-web-dashboard False",
+    "start-mcp-server",
+    "--context",
+    "codex",
+    "--project-from-cwd",
+    "--enable-web-dashboard",
+    "False",
+    "--enable-gui-log-window",
+    "False",
 ]
+
+[mcp_servers.serena.env]
+SERENA_HOME = "${PWD}/.serena"
