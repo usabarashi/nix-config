@@ -38,13 +38,13 @@ Then retrieve with `TaskOutput` (`block: true`, `timeout: 120000`).
 **Otherwise** (tmpfile + poll):
 ```bash
 TMPFILE=$(mktemp /tmp/gemini-opinion.XXXXXX.log)
-trap "rm -f $TMPFILE" EXIT
 GEMINI_SANDBOX=false gemini -p "$(cat <<'GEMINI_PROMPT'
 <constructed prompt>
 GEMINI_PROMPT
 )" -o text > "$TMPFILE" 2>&1 &
+PID=$!
 ```
-Poll PID every 10-15s. Hard timeout: 300s.
+Poll `$PID` every 10-15s. Hard timeout: 300s. On timeout, `kill $PID` and clean up `$TMPFILE`.
 
 3. Parse output: ignore startup logs, MCP errors, and reasoning traces before the final text. Treat the last plain-text block as the answer.
 
@@ -56,4 +56,4 @@ On any failure — `gemini` not found, auth error (`ADC must be`, `gcloud.auth`)
 
 ## Shell Escaping
 
-Use a heredoc to pass prompts. This avoids shell argument length limits and escaping issues.
+Use a heredoc to build prompt text safely. This avoids shell escaping and quoting issues for multi-line content. Note that prompts passed via `-p` are still subject to `ARG_MAX`.

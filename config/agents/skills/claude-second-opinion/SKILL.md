@@ -38,13 +38,13 @@ Then retrieve with `TaskOutput` (`block: true`, `timeout: 120000`).
 **Otherwise** (tmpfile + poll):
 ```bash
 TMPFILE=$(mktemp /tmp/claude-opinion.XXXXXX.log)
-trap "rm -f $TMPFILE" EXIT
 claude --no-sandbox -p "$(cat <<'CLAUDE_PROMPT'
 <constructed prompt>
 CLAUDE_PROMPT
 )" > "$TMPFILE" 2>&1 &
+PID=$!
 ```
-Poll PID every 10-15s. Hard timeout: 300s.
+Poll `$PID` every 10-15s. Hard timeout: 300s. On timeout, `kill $PID` and clean up `$TMPFILE`.
 
 3. Parse output: ignore startup logs, MCP errors, and reasoning traces before the final text. Treat the last plain-text block as the answer.
 
@@ -56,4 +56,4 @@ On any failure — `claude` not found, auth error, network error, or timeout —
 
 ## Shell Escaping
 
-Use a heredoc (`<<'CLAUDE_PROMPT'`) to pass prompts. This avoids shell argument length limits and escaping issues.
+Use a heredoc (`<<'CLAUDE_PROMPT'`) to build prompt text safely. This avoids shell escaping and quoting issues for multi-line content. Note that prompts passed via `-p` are still subject to `ARG_MAX`.

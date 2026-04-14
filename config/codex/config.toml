@@ -46,4 +46,4 @@ args = [
 ]
 
 [mcp_servers.serena.env]
-SERENA_HOME = "${PWD}/.serena"
+SERENA_HOME = ".serena"
