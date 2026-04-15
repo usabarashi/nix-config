@@ -34,11 +34,13 @@
         "--context",
         "ide",
         "--project-from-cwd",
-        "--open-web-dashboard",
+        "--enable-web-dashboard",
+        "False",
+        "--enable-gui-log-window",
         "False"
       ],
       "env": {
-        "SERENA_HOME": "${PWD}/.serena"
+        "SERENA_HOME": ".serena"
       }
     }
   },
