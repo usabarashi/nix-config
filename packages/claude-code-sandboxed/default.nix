@@ -1,75 +1,70 @@
+# Sandboxed Claude Code CLI with pre-built binary.
+# Binary is fetched from Google Cloud Storage, managed independently from nixpkgs.
+# Requires --impure flag for builtins.fetchurl (no hash verification).
+#
+# Update workflow: update `version` below, then deploy.
 {
   lib,
-  stdenv,
-  claude-code,
+  stdenvNoCC,
   writeShellScriptBin,
+  procps,
+  ripgrep,
 }:
-
 let
+  version = "2.1.112";
+  baseUrl = "https://storage.googleapis.com/claude-code-dist-86c565f3-f756-42ad-8dfa-d59b1c096819/claude-code-releases";
+  platformKey = "darwin-arm64";
+
+  claudeBin = stdenvNoCC.mkDerivation {
+    pname = "claude-code-bin";
+    inherit version;
+    src = builtins.fetchurl "${baseUrl}/${version}/${platformKey}/claude";
+    dontUnpack = true;
+    dontBuild = true;
+    dontStrip = true;
+    installPhase = "install -Dm755 $src $out/bin/claude";
+    meta = {
+      license = lib.licenses.unfree;
+      sourceProvenance = with lib.sourceTypes; [ binaryNativeCode ];
+      platforms = [ "aarch64-darwin" ];
+    };
+  };
+
   sandboxProfilePath = "\${HOME}/.claude/permissive-open.sb";
-  errorMessages = {
-    profileNotFound = "Error: Sandbox policy not found at ${sandboxProfilePath}";
-    installationNote = "Please ensure claude configuration is properly installed.";
-  };
-  sandboxNotice = "🔒 Running Claude Code with macOS Seatbelt (permissive-open)";
-
-  claudeWrapper = writeShellScriptBin "claude" ''
-    # Direct path to claude-code binary
-    CLAUDE_BIN="${claude-code}/bin/claude"
-
-    # --no-sandbox: bypass sandbox and execute the binary directly.
-    # Useful when invoked from an already-sandboxed context (e.g., Gemini CLI).
-    if [ "''${1:-}" = "--no-sandbox" ]; then
-        shift
-        exec "$CLAUDE_BIN" "$@"
-    fi
-
-    # Check if sandbox profile exists
-    if [ ! -f "${sandboxProfilePath}" ]; then
-        echo "${errorMessages.profileNotFound}" >&2
-        echo "${errorMessages.installationNote}" >&2
-        exit 1
-    fi
-
-    # Show sandbox mode if not using --version or help flags
-    case "$*" in
-        *--version*|*--help*|*-h*) ;;
-        *)
-            echo "${sandboxNotice}" >&2
-            ;;
-    esac
-
-    # Execute claude with sandbox
-    exec /usr/bin/sandbox-exec -f "${sandboxProfilePath}" -D TARGET_DIR="$(pwd)" -D HOME_DIR="$HOME" "$CLAUDE_BIN" "$@"
-  '';
-
 in
-stdenv.mkDerivation {
-  pname = "claude-code-sandboxed";
-  version = claude-code.version or "1.0.0";
+writeShellScriptBin "claude" ''
+  export DISABLE_AUTOUPDATER=1
+  export FORCE_AUTOUPDATE_PLUGINS=1
+  export DISABLE_INSTALLATION_CHECKS=1
+  export USE_BUILTIN_RIPGREP=0
+  export PATH="${
+    lib.makeBinPath [
+      procps
+      ripgrep
+    ]
+  }:$PATH"
 
-  dontUnpack = true;
-  dontBuild = true;
+  CLAUDE_BIN="${claudeBin}/bin/claude"
 
-  installPhase = ''
-    runHook preInstall
+  # --no-sandbox: bypass sandbox and execute the binary directly.
+  # Useful when invoked from an already-sandboxed context (e.g., Gemini CLI).
+  if [ "''${1:-}" = "--no-sandbox" ]; then
+      shift
+      exec "$CLAUDE_BIN" "$@"
+  fi
 
-    mkdir -p $out/bin
-    ln -s ${claudeWrapper}/bin/claude $out/bin/claude
+  if [ ! -f "${sandboxProfilePath}" ]; then
+      echo "Error: Sandbox policy not found at ${sandboxProfilePath}" >&2
+      echo "Please ensure claude configuration is properly installed." >&2
+      exit 1
+  fi
 
-    runHook postInstall
-  '';
+  case " $* " in
+      *" --version "*|*" --help "*|*" -h "*) ;;
+      *)
+          echo "Running Claude Code with macOS Seatbelt (permissive-open)" >&2
+          ;;
+  esac
 
-  meta = with lib; {
-    description = "Sandboxed wrapper for Claude Code CLI";
-    longDescription = ''
-      A security wrapper that runs claude-code within a macOS sandbox using sandbox-exec
-      to restrict file system access for improved security.
-
-      Note: Requires claude-code to be installed separately.
-    '';
-    license = licenses.mit;
-    platforms = platforms.darwin;
-    mainProgram = "claude";
-  };
-}
+  exec /usr/bin/sandbox-exec -f "${sandboxProfilePath}" -D TARGET_DIR="$(pwd)" -D HOME_DIR="$HOME" "$CLAUDE_BIN" "$@"
+''
