@@ -1,33 +1,78 @@
+# Sandboxed Claude Code CLI with pre-built binary.
+# Binary is fetched from Google Cloud Storage, managed independently from nixpkgs.
+# Requires --impure flag for builtins.fetchurl (no hash verification).
+#
+# Update workflow: update `version` below, then deploy.
 {
   lib,
-  stdenv,
-  claude-code,
-  writeShellScriptBin,
+  stdenvNoCC,
+  makeBinaryWrapper,
+  procps,
+  ripgrep,
 }:
-
 let
+  stdenv = stdenvNoCC;
+  version = "2.1.112";
+  baseUrl = "https://storage.googleapis.com/claude-code-dist-86c565f3-f756-42ad-8dfa-d59b1c096819/claude-code-releases";
+  platformKey = "${stdenv.hostPlatform.node.platform}-${stdenv.hostPlatform.node.arch}";
+
   sandboxProfilePath = "\${HOME}/.claude/permissive-open.sb";
   errorMessages = {
     profileNotFound = "Error: Sandbox policy not found at ${sandboxProfilePath}";
     installationNote = "Please ensure claude configuration is properly installed.";
   };
-  sandboxNotice = "🔒 Running Claude Code with macOS Seatbelt (permissive-open)";
+  sandboxNotice = "Running Claude Code with macOS Seatbelt (permissive-open)";
+in
+stdenv.mkDerivation {
+  pname = "claude-code-sandboxed";
+  inherit version;
 
-  claudeWrapper = writeShellScriptBin "claude" ''
-    # Direct path to claude-code binary
-    CLAUDE_BIN="${claude-code}/bin/claude"
+  src = builtins.fetchurl "${baseUrl}/${version}/${platformKey}/claude";
+
+  dontUnpack = true;
+  dontBuild = true;
+  __noChroot = stdenv.hostPlatform.isDarwin;
+  dontStrip = true;
+
+  nativeBuildInputs = [ makeBinaryWrapper ];
+
+  strictDeps = true;
+
+  installPhase = ''
+    runHook preInstall
+
+    # Install the binary as claude-unwrapped
+    install -Dm755 $src $out/bin/claude-unwrapped
+
+    # Wrap with environment variables
+    wrapProgram $out/bin/claude-unwrapped \
+      --set DISABLE_AUTOUPDATER 1 \
+      --set-default FORCE_AUTOUPDATE_PLUGINS 1 \
+      --set DISABLE_INSTALLATION_CHECKS 1 \
+      --set USE_BUILTIN_RIPGREP 0 \
+      --prefix PATH : ${
+        lib.makeBinPath [
+          procps
+          ripgrep
+        ]
+      }
+
+    # Create sandbox wrapper script
+    cat > $out/bin/claude <<'WRAPPER'
+    #!/usr/bin/env bash
+    CLAUDE_BIN="CLAUDE_BIN_PLACEHOLDER"
 
     # --no-sandbox: bypass sandbox and execute the binary directly.
-    # Useful when invoked from an already-sandboxed context (e.g., Gemini CLI).
     if [ "''${1:-}" = "--no-sandbox" ]; then
         shift
         exec "$CLAUDE_BIN" "$@"
     fi
 
     # Check if sandbox profile exists
-    if [ ! -f "${sandboxProfilePath}" ]; then
-        echo "${errorMessages.profileNotFound}" >&2
-        echo "${errorMessages.installationNote}" >&2
+    SANDBOX_PROFILE="SANDBOX_PROFILE_PLACEHOLDER"
+    if [ ! -f "$SANDBOX_PROFILE" ]; then
+        echo "PROFILE_NOT_FOUND_PLACEHOLDER" >&2
+        echo "INSTALLATION_NOTE_PLACEHOLDER" >&2
         exit 1
     fi
 
@@ -35,41 +80,31 @@ let
     case "$*" in
         *--version*|*--help*|*-h*) ;;
         *)
-            echo "${sandboxNotice}" >&2
+            echo "SANDBOX_NOTICE_PLACEHOLDER" >&2
             ;;
     esac
 
     # Execute claude with sandbox
-    exec /usr/bin/sandbox-exec -f "${sandboxProfilePath}" -D TARGET_DIR="$(pwd)" -D HOME_DIR="$HOME" "$CLAUDE_BIN" "$@"
-  '';
+    exec /usr/bin/sandbox-exec -f "$SANDBOX_PROFILE" -D TARGET_DIR="$(pwd)" -D HOME_DIR="$HOME" "$CLAUDE_BIN" "$@"
+    WRAPPER
+    chmod +x $out/bin/claude
 
-in
-stdenv.mkDerivation {
-  pname = "claude-code-sandboxed";
-  version = claude-code.version or "1.0.0";
-
-  dontUnpack = true;
-  dontBuild = true;
-
-  installPhase = ''
-    runHook preInstall
-
-    mkdir -p $out/bin
-    ln -s ${claudeWrapper}/bin/claude $out/bin/claude
+    substituteInPlace $out/bin/claude \
+      --replace-fail 'CLAUDE_BIN_PLACEHOLDER' "$out/bin/claude-unwrapped" \
+      --replace-fail 'SANDBOX_PROFILE_PLACEHOLDER' '${sandboxProfilePath}' \
+      --replace-fail 'PROFILE_NOT_FOUND_PLACEHOLDER' '${errorMessages.profileNotFound}' \
+      --replace-fail 'INSTALLATION_NOTE_PLACEHOLDER' '${errorMessages.installationNote}' \
+      --replace-fail 'SANDBOX_NOTICE_PLACEHOLDER' '${sandboxNotice}'
 
     runHook postInstall
   '';
 
-  meta = with lib; {
-    description = "Sandboxed wrapper for Claude Code CLI";
-    longDescription = ''
-      A security wrapper that runs claude-code within a macOS sandbox using sandbox-exec
-      to restrict file system access for improved security.
-
-      Note: Requires claude-code to be installed separately.
-    '';
-    license = licenses.mit;
-    platforms = platforms.darwin;
+  meta = {
+    description = "Sandboxed Claude Code CLI with pre-built binary";
+    homepage = "https://github.com/anthropics/claude-code";
+    license = lib.licenses.unfree;
+    sourceProvenance = with lib.sourceTypes; [ binaryNativeCode ];
+    platforms = [ "aarch64-darwin" ];
     mainProgram = "claude";
   };
 }
