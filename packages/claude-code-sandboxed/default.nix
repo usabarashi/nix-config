@@ -13,7 +13,7 @@
 let
   version = "2.1.112";
   baseUrl = "https://storage.googleapis.com/claude-code-dist-86c565f3-f756-42ad-8dfa-d59b1c096819/claude-code-releases";
-  platformKey = "${stdenvNoCC.hostPlatform.node.platform}-${stdenvNoCC.hostPlatform.node.arch}";
+  platformKey = "darwin-arm64";
 
   claudeBin = stdenvNoCC.mkDerivation {
     pname = "claude-code-bin";
@@ -22,7 +22,6 @@ let
     dontUnpack = true;
     dontBuild = true;
     dontStrip = true;
-    __noChroot = stdenvNoCC.hostPlatform.isDarwin;
     installPhase = "install -Dm755 $src $out/bin/claude";
     meta = {
       license = lib.licenses.unfree;
@@ -60,8 +59,8 @@ writeShellScriptBin "claude" ''
       exit 1
   fi
 
-  case "$*" in
-      *--version*|*--help*|*-h*) ;;
+  case " $* " in
+      *" --version "*|*" --help "*|*" -h "*) ;;
       *)
           echo "Running Claude Code with macOS Seatbelt (permissive-open)" >&2
           ;;
