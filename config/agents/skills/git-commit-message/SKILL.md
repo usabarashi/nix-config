@@ -1,3 +1,8 @@
+---
+name: git-commit-message
+description: Draft a commit message from staged changes. Matches the style of recent commits in the repo, emphasizes why over what, and does not run `git commit`.
+---
+
 # Commit Message
 
 Generate a commit message from staged changes.
