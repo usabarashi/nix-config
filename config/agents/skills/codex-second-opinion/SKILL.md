@@ -25,26 +25,28 @@ Provide your independent analysis. If you disagree with the current approach, ex
 
 2. Run Codex CLI. Always set `sandbox_mode="danger-full-access"` (nested sandbox-exec is prohibited on macOS):
 
-**If `run_in_background` and `TaskOutput` are available**:
+**Pre-choose the output path yourself** (used by both code branches below). Pick a unique literal filesystem path in advance — e.g., `/tmp/codex-opinion-<unix-timestamp>-<random>.log`, assembled in your working context (not via `mktemp` inside the snippet, because that binds the path to a shell variable you cannot retrieve later). Reuse the exact same literal path verbatim in the Bash invocation and in the follow-up `Read`. This avoids any dependency on a harness-specific output-capture tool (`BashOutput`, task output files, etc.).
+
+**If Bash supports `run_in_background: true`** (typical case):
 ```bash
-# Bash tool: run_in_background: true, timeout: 120000
-codex -c 'sandbox_mode="danger-full-access"' exec - <<'CODEX_PROMPT' 2>&1
+# Bash tool: run_in_background: true, timeout: 300000
+# Substitute <TMPFILE> with the literal path you chose above.
+codex -c 'sandbox_mode="danger-full-access"' exec - > <TMPFILE> 2>&1 <<'CODEX_PROMPT'
 <constructed prompt>
 CODEX_PROMPT
 ```
-Then retrieve with `TaskOutput` (`block: true`, `timeout: 120000`).
+Wait for the background task to finish, then `Read <TMPFILE>`. Do NOT add `sleep` / `kill -0` / `pgrep` poll loops — they burn tool-call budget and the harness's completion signal is authoritative. An interim `Read` "to peek at progress" is also unnecessary; the file is incomplete until Codex exits. **If you are a nested subagent** (running inside an Agent/Task tool), do NOT use this background path — a subagent that ends its turn while Codex is still running will lose the background task. Use the foreground fallback below instead. After reading, `rm <TMPFILE>`; if the harness denies `rm`, leave the file — `/tmp` is reclaimed by the OS. `TaskOutput` is for Agent/Task tool tasks — do not use it here.
 
-**Otherwise** (tmpfile + poll):
+**Foreground fallback** (use when `run_in_background` is unavailable, OR when you are a nested subagent):
 ```bash
-TMPFILE=$(mktemp /tmp/codex-opinion.XXXXXX.log)
-codex -c 'sandbox_mode="danger-full-access"' exec - <<'CODEX_PROMPT' > "$TMPFILE" 2>&1 &
+# Bash tool: timeout: 300000
+codex -c 'sandbox_mode="danger-full-access"' exec - > <TMPFILE> 2>&1 <<'CODEX_PROMPT'
 <constructed prompt>
 CODEX_PROMPT
-PID=$!
 ```
-Poll `$PID` every 10-15s. Hard timeout: 300s. On timeout, `kill $PID` and clean up `$TMPFILE`.
+Bash blocks until Codex finishes or the tool timeout fires. On return, `Read <TMPFILE>` and then `rm <TMPFILE>`. Do not use `&` + `$!` polling — it adds PID tracking for no benefit once you control the Bash tool timeout. Do NOT use `trap 'rm -f $TMPFILE' EXIT` in any snippet that backgrounds a process — the trap fires when the launching shell exits, deleting the file before the background process writes to it.
 
-3. Parse output: ignore startup logs, MCP errors, and reasoning traces before the final text. Treat the last plain-text block as the answer.
+3. Parse output: ignore startup logs, MCP registration/errors, **MCP tool-call traces** (e.g. `voicevox.text_to_speech`, `serena.find_symbol` — any inline JSON or tool invocation lines from the caller's MCP context leaking into Codex's output, including cases where Codex itself invokes an MCP tool mid-reasoning), reasoning traces, and trailing metadata (`tokens used`, `session id`, token summary). The substantive answer is the main plain-text block; Codex sometimes prints it once inline and echoes it again after metadata. **Tiebreaker when both copies are complete: use the post-metadata echo** — it is Codex's canonical final form.
 
 4. Present both perspectives (labeled by model), highlight agreements and disagreements. Evaluate Codex's suggestion critically — do not blindly adopt it.
 
