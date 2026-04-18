@@ -25,16 +25,18 @@ Provide your independent analysis. If you disagree with the current approach, ex
 
 2. Run Codex CLI. Always set `sandbox_mode="danger-full-access"` (nested sandbox-exec is prohibited on macOS):
 
-**If `run_in_background` and `TaskOutput` are available**:
+**If Bash supports `run_in_background: true`** (typical case):
 ```bash
 # Bash tool: run_in_background: true, timeout: 120000
-codex -c 'sandbox_mode="danger-full-access"' exec - <<'CODEX_PROMPT' 2>&1
+# Redirect output to a file so it survives regardless of BashOutput availability.
+TMPFILE=$(mktemp /tmp/codex-opinion.XXXXXX.log)
+codex -c 'sandbox_mode="danger-full-access"' exec - > "$TMPFILE" 2>&1 <<'CODEX_PROMPT'
 <constructed prompt>
 CODEX_PROMPT
 ```
-Then retrieve with `TaskOutput` (`block: true`, `timeout: 120000`).
+Wait for completion, then retrieve output. Preferred: `BashOutput` with the returned `shell_id`. If `BashOutput` is not exposed in your environment, `Read` the `$TMPFILE` directly. `TaskOutput` is for Agent/Task tool tasks — do not use it here.
 
-**Otherwise** (tmpfile + poll):
+**If `run_in_background` is unavailable** (foreground-only environment, last resort):
 ```bash
 TMPFILE=$(mktemp /tmp/codex-opinion.XXXXXX.log)
 codex -c 'sandbox_mode="danger-full-access"' exec - <<'CODEX_PROMPT' > "$TMPFILE" 2>&1 &
@@ -44,7 +46,7 @@ PID=$!
 ```
 Poll `$PID` every 10-15s. Hard timeout: 300s. On timeout, `kill $PID` and clean up `$TMPFILE`.
 
-3. Parse output: ignore startup logs, MCP errors, and reasoning traces before the final text. Treat the last plain-text block as the answer.
+3. Parse output: ignore startup logs, MCP errors, reasoning traces, and trailing metadata (`tokens used`, `session id`, token summary lines). Treat the last substantive plain-text block before those metadata lines as the answer. If the same answer appears twice (once inline, once echoed after metadata), take either occurrence — they are equivalent.
 
 4. Present both perspectives (labeled by model), highlight agreements and disagreements. Evaluate Codex's suggestion critically — do not blindly adopt it.
 
