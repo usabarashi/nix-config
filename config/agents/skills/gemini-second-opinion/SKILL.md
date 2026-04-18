@@ -31,24 +31,30 @@ Provide your independent analysis. If you disagree with the current approach, ex
 **If Bash supports `run_in_background: true`** (typical case):
 ```bash
 # Bash tool: run_in_background: true, timeout: 120000
+# Echo the tempfile path so it is retrievable via BashOutput;
+# Gemini output itself is redirected to the file.
 TMPFILE=$(mktemp /tmp/gemini-opinion.XXXXXX.log)
+echo "TMPFILE=$TMPFILE"
 GEMINI_SANDBOX=false gemini --allowed-mcp-server-names "" -e "" -p "$(cat <<'GEMINI_PROMPT'
 <constructed prompt>
 GEMINI_PROMPT
 )" -o text > "$TMPFILE" 2>&1
+echo "EXIT=$?"
 ```
-Wait for completion, then retrieve output. Preferred: `BashOutput` with the returned `shell_id`. If `BashOutput` is not exposed in your environment, `Read` the `$TMPFILE` directly. `TaskOutput` is for Agent/Task tool tasks — do not use it here.
+Retrieve in two steps: (a) `BashOutput` with the returned `shell_id` — use it to capture the echoed `TMPFILE=...` path and to confirm completion via the `EXIT=` line; it will NOT contain Gemini's output because stdout/stderr are redirected to the file. (b) `Read` the concrete `TMPFILE` path for the actual answer. After reading, delete the file with `rm "<tmpfile>"` (keep it only when debugging). `TaskOutput` is for Agent/Task tool tasks — do not use it here.
 
 **If `run_in_background` is unavailable** (foreground-only environment, last resort):
 ```bash
 TMPFILE=$(mktemp /tmp/gemini-opinion.XXXXXX.log)
+echo "TMPFILE=$TMPFILE"
 GEMINI_SANDBOX=false gemini --allowed-mcp-server-names "" -e "" -p "$(cat <<'GEMINI_PROMPT'
 <constructed prompt>
 GEMINI_PROMPT
 )" -o text > "$TMPFILE" 2>&1 &
 PID=$!
+echo "PID=$PID"
 ```
-Poll `$PID` every 10-15s. Hard timeout: 300s. On timeout, `kill $PID` and clean up `$TMPFILE`.
+Capture the echoed `TMPFILE` and `PID` from the foreground output; subsequent tool calls need the concrete values. Poll with `kill -0 <PID>` every 10-15s. Hard timeout: 300s. On timeout, `kill <PID>` and `rm <TMPFILE>`. On success, `Read <TMPFILE>` then `rm <TMPFILE>`. Do NOT use `trap 'rm -f $TMPFILE' EXIT` in the launching shell — the trap fires when that Bash invocation exits, deleting the file before the background process writes to it.
 
 3. Parse output: ignore startup logs, MCP registration/tool-call errors (these may appear inline mid-output, not just before the answer), reasoning traces, and persona/voice styling leaked from the caller's MCP context (e.g. a voicevox persona bleeding into Gemini's reply). Treat the final substantive plain-text block as the answer. If it arrives in a persona voice, extract the content and present it in neutral prose.
 

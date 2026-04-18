@@ -28,23 +28,28 @@ Provide your independent analysis. If you disagree with the current approach, ex
 **If Bash supports `run_in_background: true`** (typical case):
 ```bash
 # Bash tool: run_in_background: true, timeout: 120000
-# Redirect output to a file so it survives regardless of BashOutput availability.
+# Echo the tempfile path so it is retrievable via BashOutput;
+# Codex output itself is redirected to the file.
 TMPFILE=$(mktemp /tmp/codex-opinion.XXXXXX.log)
+echo "TMPFILE=$TMPFILE"
 codex -c 'sandbox_mode="danger-full-access"' exec - > "$TMPFILE" 2>&1 <<'CODEX_PROMPT'
 <constructed prompt>
 CODEX_PROMPT
+echo "EXIT=$?"
 ```
-Wait for completion, then retrieve output. Preferred: `BashOutput` with the returned `shell_id`. If `BashOutput` is not exposed in your environment, `Read` the `$TMPFILE` directly. `TaskOutput` is for Agent/Task tool tasks — do not use it here.
+Retrieve in two steps: (a) `BashOutput` with the returned `shell_id` — use it to capture the echoed `TMPFILE=...` path and to confirm completion via the `EXIT=` line; it will NOT contain Codex's output because stdout/stderr are redirected to the file. (b) `Read` the concrete `TMPFILE` path for the actual answer. After reading, delete the file with `rm "<tmpfile>"` (keep it only when debugging). `TaskOutput` is for Agent/Task tool tasks — do not use it here.
 
 **If `run_in_background` is unavailable** (foreground-only environment, last resort):
 ```bash
 TMPFILE=$(mktemp /tmp/codex-opinion.XXXXXX.log)
+echo "TMPFILE=$TMPFILE"
 codex -c 'sandbox_mode="danger-full-access"' exec - <<'CODEX_PROMPT' > "$TMPFILE" 2>&1 &
 <constructed prompt>
 CODEX_PROMPT
 PID=$!
+echo "PID=$PID"
 ```
-Poll `$PID` every 10-15s. Hard timeout: 300s. On timeout, `kill $PID` and clean up `$TMPFILE`.
+Capture the echoed `TMPFILE` and `PID` from the foreground output; subsequent tool calls need the concrete values. Poll with `kill -0 <PID>` every 10-15s. Hard timeout: 300s. On timeout, `kill <PID>` and `rm <TMPFILE>`. On success, `Read <TMPFILE>` then `rm <TMPFILE>`. Do NOT use `trap 'rm -f $TMPFILE' EXIT` in the launching shell — the trap fires when that Bash invocation exits, deleting the file before the background process writes to it.
 
 3. Parse output: ignore startup logs, MCP errors, reasoning traces, and trailing metadata (`tokens used`, `session id`, token summary lines). Treat the last substantive plain-text block before those metadata lines as the answer. If the same answer appears twice (once inline, once echoed after metadata), take either occurrence — they are equivalent.
 
