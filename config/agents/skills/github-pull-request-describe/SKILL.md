@@ -45,3 +45,5 @@ Also show the same content in a single fenced code block for in-chat preview (an
 ## References
 - <issue/PR>
 ~~~
+
+When there are no references, replace the bullet under `## References` with a single bare line `N/A` (do NOT write `- N/A`).
