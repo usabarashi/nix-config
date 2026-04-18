@@ -1,3 +1,8 @@
+---
+name: github-pull-request-respond
+description: Respond to unreplied review comments on the current GitHub Pull Request. For each comment, either commit a fix and reply with the commit hash, or reply with concrete rationale for keeping the code as-is. Does not approve, request changes, or push.
+---
+
 # Pull Request Respond
 
 Respond to review comments on the current GitHub Pull Request by fixing code and replying.
@@ -44,6 +49,7 @@ Respond to review comments on the current GitHub Pull Request by fixing code and
 - Reply in the same language as the reviewer's comment
 - Always use `--paginate` when fetching comments (PRs may have 30+ comments)
 - Use `git log -1 --format='%H'` to get the full commit hash for GitHub autolink
+- Separate the commit hash and any `#NNN` issue/PR reference from surrounding text with an ASCII space or a newline on both sides. In Japanese or other non-space-delimited languages, GitHub's autolink detection will not fire if the hash is adjacent to a non-ASCII character (e.g. `修正しました。deadbeef...` stays as plain text). Safest format: put the hash on its own line.
 - Do not reply until all fixes for the current batch are committed
 
 ## Caveats
