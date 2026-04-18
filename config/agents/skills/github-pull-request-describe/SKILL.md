@@ -28,7 +28,7 @@ Boundary rule for Why vs What: "why is this work needed" belongs in Why; "what w
 Do NOT create the PR. Write the draft to `/tmp/pr-description.md` as the canonical artifact — chat rendering can introduce trailing whitespace invisibly, so the file (not the chat output) is the source of truth. Verify cleanliness and copy to the clipboard:
 
 ```sh
-grep -nP '[ \t]+$' /tmp/pr-description.md && echo "FAIL: trailing whitespace" || pbcopy < /tmp/pr-description.md
+grep -nE '[[:blank:]]+$' /tmp/pr-description.md && echo "FAIL: trailing whitespace" || pbcopy < /tmp/pr-description.md
 ```
 
 Also show the same content in a single fenced code block for in-chat preview (any fence style — triple backticks or tildes — works; the template below uses `~~~`). Do not leave trailing whitespace on any line.

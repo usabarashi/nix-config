@@ -23,7 +23,7 @@ Generate a commit message from staged changes.
 Do NOT run `git commit`. Write the draft to `/tmp/commit-message.md` as the canonical artifact — chat rendering can introduce trailing whitespace invisibly, so the file (not the chat output) is the source of truth. Verify cleanliness and copy to the clipboard:
 
 ```sh
-grep -nP '[ \t]+$' /tmp/commit-message.md && echo "FAIL: trailing whitespace" || pbcopy < /tmp/commit-message.md
+grep -nE '[[:blank:]]+$' /tmp/commit-message.md && echo "FAIL: trailing whitespace" || pbcopy < /tmp/commit-message.md
 ```
 
 Also show the same content in a single fenced code block for in-chat preview. Do not leave trailing whitespace on any line.
