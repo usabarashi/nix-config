@@ -60,6 +60,10 @@
       ".claude/skills" = agentSkills;
 
       # Codex CLI settings
+      ".codex/AGENTS.md" = {
+        source = config.lib.file.mkOutOfStoreSymlink "${repoPath}/config/codex/AGENTS.md";
+        force = true;
+      };
       ".codex/config.toml" = {
         source = config.lib.file.mkOutOfStoreSymlink "${repoPath}/config/codex/config.toml";
         force = true;
@@ -68,6 +72,10 @@
       ".codex/skills" = agentSkills;
 
       # Gemini CLI settings
+      ".gemini/GEMINI.md" = {
+        source = config.lib.file.mkOutOfStoreSymlink "${repoPath}/config/gemini/GEMINI.md";
+        force = true;
+      };
       ".gemini/settings.json" = {
         source = config.lib.file.mkOutOfStoreSymlink "${repoPath}/config/gemini/settings.json";
         force = true;
