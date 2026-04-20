@@ -1,4 +1,5 @@
 [[rule]]
+toolName = "*"
 mcpName = "serena"
 decision = "allow"
 priority = 200

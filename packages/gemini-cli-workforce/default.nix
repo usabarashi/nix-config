@@ -1,18 +1,19 @@
 {
   lib,
   stdenv,
-  gemini-cli,
+  gemini-cli-bin,
   google-cloud-sdk,
+  ripgrep,
   writeShellScriptBin,
 }:
 
 let
   globalLocation = "global";
   geminiWrapper = writeShellScriptBin "gemini" ''
-    GEMINI_BIN="${gemini-cli}/bin/gemini"
+    GEMINI_BIN="${gemini-cli-bin}/bin/gemini"
     GCLOUD_BIN_DIR="${google-cloud-sdk}/bin"
     GCLOUD_BIN="$GCLOUD_BIN_DIR/gcloud"
-    export PATH="$GCLOUD_BIN_DIR:$PATH"
+    export PATH="$GCLOUD_BIN_DIR:${ripgrep}/bin:$PATH"
     export GOOGLE_CLOUD_LOCATION="${globalLocation}"
     export GOOGLE_GENAI_USE_VERTEXAI="true"
     unset GOOGLE_API_KEY GEMINI_API_KEY
@@ -83,7 +84,7 @@ let
 in
 stdenv.mkDerivation {
   pname = "gemini-cli-workforce";
-  inherit (gemini-cli) version;
+  inherit (gemini-cli-bin) version;
 
   dontUnpack = true;
   dontBuild = true;
