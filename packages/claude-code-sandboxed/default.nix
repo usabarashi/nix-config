@@ -1,35 +1,14 @@
-# Sandboxed Claude Code CLI with pre-built binary.
-# Binary is fetched from Google Cloud Storage, managed independently from nixpkgs.
-# Requires --impure flag for builtins.fetchurl (no hash verification).
+# Sandboxed Claude Code CLI wrapping the version-pinned claude-code-bin.
 #
-# Update workflow: update `version` below, then deploy.
+# Binary version lives in packages/claude-code-bin/default.nix.
 {
   lib,
-  stdenvNoCC,
+  claude-code-bin,
   writeShellScriptBin,
   procps,
   ripgrep,
 }:
 let
-  version = "2.1.112";
-  baseUrl = "https://storage.googleapis.com/claude-code-dist-86c565f3-f756-42ad-8dfa-d59b1c096819/claude-code-releases";
-  platformKey = "darwin-arm64";
-
-  claudeBin = stdenvNoCC.mkDerivation {
-    pname = "claude-code-bin";
-    inherit version;
-    src = builtins.fetchurl "${baseUrl}/${version}/${platformKey}/claude";
-    dontUnpack = true;
-    dontBuild = true;
-    dontStrip = true;
-    installPhase = "install -Dm755 $src $out/bin/claude";
-    meta = {
-      license = lib.licenses.unfree;
-      sourceProvenance = with lib.sourceTypes; [ binaryNativeCode ];
-      platforms = [ "aarch64-darwin" ];
-    };
-  };
-
   sandboxProfilePath = "\${HOME}/.claude/permissive-open.sb";
 in
 writeShellScriptBin "claude" ''
@@ -44,7 +23,7 @@ writeShellScriptBin "claude" ''
     ]
   }:$PATH"
 
-  CLAUDE_BIN="${claudeBin}/bin/claude"
+  CLAUDE_BIN="${claude-code-bin}/bin/claude"
 
   # --no-sandbox: bypass sandbox and execute the binary directly.
   # Useful when invoked from an already-sandboxed context (e.g., Gemini CLI).

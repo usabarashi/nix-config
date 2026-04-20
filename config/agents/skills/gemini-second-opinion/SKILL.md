@@ -25,39 +25,76 @@ Provide your independent analysis. If you disagree with the current approach, ex
 
 2. Run Gemini CLI with three invariants:
    - `GEMINI_SANDBOX=false` (nested sandbox-exec is prohibited on macOS).
-   - `--allowed-mcp-server-names ""` and `-e ""` to isolate from the caller's MCP servers and extensions; without this, persona voices (e.g. voicevox) or prior-session state can leak in, including off-topic responses that answer a different question than the one you sent.
+   - **Isolated `HOME`** to prevent MCP servers, IDE companion integration, and persona/voice extensions from deadlocking Gemini in the non-TTY Bash subshell. Gemini CLI 0.38.2+ spawns MCP children and opens an IDE-companion socket on startup that hang indefinitely in Claude Code's Bash sandbox (no PTY; `openpty` is prohibited). The older `--allowed-mcp-server-names ""` / `-e ""` approach is now rejected by 0.38.2 as an invalid policy rule (`mcpName is required if specified (cannot be empty)`). An isolated `HOME` with a minimal `settings.json` is the only reliable way to run Gemini headlessly from Claude Code Bash; it also prevents persona voices and prior-session state from leaking into the response.
    - Redirect output to a tempfile so it survives regardless of retrieval path.
 
-**Pre-choose the output path yourself** (used by both code branches below). Pick a unique literal filesystem path in advance — e.g., `/tmp/gemini-opinion-<unix-timestamp>-<random>.log`, assembled in your working context (not via `mktemp` inside the snippet, because that binds the path to a shell variable you cannot retrieve later). Reuse the exact same literal path verbatim in the Bash invocation and in the follow-up `Read`. This avoids any dependency on a harness-specific output-capture tool (`BashOutput`, task output files, etc.).
+**Pre-choose the output path yourself** (used by both code branches below). Pick a unique literal filesystem path in advance — e.g., `/tmp/gemini-opinion-<unix-timestamp>-<random>.log`, assembled in your working context (not via `mktemp` inside the snippet, because that binds the path to a shell variable you cannot retrieve later). Reuse the exact same literal path verbatim in the Bash invocation and in the follow-up `Read`. This avoids any dependency on a harness-specific output-capture tool (`BashOutput`, task output files, etc.). Pick a similarly unique literal path for the isolated `HOME` directory — e.g., `/tmp/gemini-skill-home-<unix-timestamp>-<random>`.
+
+### Isolated HOME preamble
+
+Inline this block before the `gemini` call. It inherits the user's real `security.auth` from `~/.gemini/settings.json` (so Vertex AI / API-key / OAuth all work), while disabling MCP, IDE, preview features, prompt completion, and hooks. `node` is guaranteed to be present because Gemini CLI itself is a Node app.
+
+```bash
+ISO=<ISOLATED_HOME>   # literal path you chose, e.g. /tmp/gemini-skill-home-1776644000-abc
+mkdir -p "$ISO/.gemini" "$ISO/.config/gcloud"
+cp "$HOME/.gemini/oauth_creds.json" "$ISO/.gemini/" 2>/dev/null || true
+cp "$HOME/.config/gcloud/application_default_credentials.json" "$ISO/.config/gcloud/" 2>/dev/null || true
+node -e '
+const fs=require("fs"), path=require("path");
+const p=path.join(process.env.HOME, ".gemini/settings.json");
+let c={}; try { c = JSON.parse(fs.readFileSync(p,"utf8")); } catch(_){}
+c.tools = { sandbox: false };
+c.ide = { enabled: false };
+c.mcpServers = {};
+delete c.hooks;
+delete c.includeDirectories;
+c.general = Object.assign({}, c.general||{}, { previewFeatures:false, enablePromptCompletion:false });
+c.privacy = { usageStatisticsEnabled: false };
+process.stdout.write(JSON.stringify(c));
+' > "$ISO/.gemini/settings.json"
+```
 
 **If Bash supports `run_in_background: true`** (typical case):
 ```bash
 # Bash tool: run_in_background: true, timeout: 300000
-# Substitute <TMPFILE> with the literal path you chose above.
-GEMINI_SANDBOX=false gemini --allowed-mcp-server-names "" -e "" -p "$(cat <<'GEMINI_PROMPT'
+# Substitute <TMPFILE> and <ISOLATED_HOME> with the literal paths you chose above.
+ISO=<ISOLATED_HOME>
+# ... (inline the Isolated HOME preamble here) ...
+HOME="$ISO" GEMINI_SANDBOX=false gemini -p "$(cat <<'GEMINI_PROMPT'
 <constructed prompt>
 GEMINI_PROMPT
-)" -o text > <TMPFILE> 2>&1
+)" -o text < /dev/null > <TMPFILE> 2>&1
+rm -rf "$ISO"
 ```
 Wait for the background task to finish, then `Read <TMPFILE>`. Do NOT add `sleep` / `kill -0` / `pgrep` poll loops — they burn tool-call budget and the harness's completion signal is authoritative. An interim `Read` "to peek at progress" is also unnecessary; the file is incomplete until Gemini exits. **If you are a nested subagent** (running inside an Agent/Task tool), do NOT use this background path — a subagent that ends its turn while Gemini is still running will lose the background task. Use the foreground fallback below instead. After reading, `rm <TMPFILE>`; if the harness denies `rm`, leave the file — `/tmp` is reclaimed by the OS. `TaskOutput` is for Agent/Task tool tasks — do not use it here.
 
 **Foreground fallback** (use when `run_in_background` is unavailable, OR when you are a nested subagent):
 ```bash
 # Bash tool: timeout: 300000
-GEMINI_SANDBOX=false gemini --allowed-mcp-server-names "" -e "" -p "$(cat <<'GEMINI_PROMPT'
+ISO=<ISOLATED_HOME>
+# ... (inline the Isolated HOME preamble here) ...
+HOME="$ISO" GEMINI_SANDBOX=false gemini -p "$(cat <<'GEMINI_PROMPT'
 <constructed prompt>
 GEMINI_PROMPT
-)" -o text > <TMPFILE> 2>&1
+)" -o text < /dev/null > <TMPFILE> 2>&1
+rm -rf "$ISO"
 ```
 Bash blocks until Gemini finishes or the tool timeout fires. On return, `Read <TMPFILE>` and then `rm <TMPFILE>`. Do not use `&` + `$!` polling — it adds PID tracking for no benefit once you control the Bash tool timeout. Do NOT use `trap 'rm -f $TMPFILE' EXIT` in any snippet that backgrounds a process — the trap fires when the launching shell exits, deleting the file before the background process writes to it.
 
-3. Parse output: ignore startup logs, MCP registration/tool-call errors (these may appear inline mid-output, not just before the answer), reasoning traces, and persona/voice styling leaked from the caller's MCP context (e.g. a voicevox persona bleeding into Gemini's reply). Treat the final substantive plain-text block as the answer. If it arrives in a persona voice, extract the content and present it in neutral prose.
+Always close stdin with `< /dev/null`. Without it, Gemini may block waiting for additional prompt input appended via stdin.
+
+3. Parse output: ignore startup logs, MCP registration/tool-call errors (these may still appear inline in the relaunched-heap phase), reasoning traces, and persona/voice styling that somehow still leaked in. Treat the final substantive plain-text block as the answer. If it arrives in a persona voice, extract the content and present it in neutral prose.
 
 4. Present both perspectives (labeled by model), highlight agreements and disagreements. Evaluate Gemini's suggestion critically — do not blindly adopt it.
 
 ## Error Handling
 
-On any failure — `gemini` not found, auth error (`ADC must be`, `gcloud.auth`), network error, or timeout — report the reason to the user and proceed with your own analysis only. Discard partial output on timeout as unreliable.
+On any failure — `gemini` not found, auth error (`ADC must be`, `gcloud.auth`), network error, or timeout — report the reason to the user and proceed with your own analysis only. Discard partial output on timeout as unreliable. Always `rm -rf "$ISO"` on error paths too.
+
+Specific failure modes:
+- `ADC must be external_account, authorized_user, or external_account_authorized_user` — the ADC file was not copied into the isolated `HOME`. Verify `~/.config/gcloud/application_default_credentials.json` exists on the real `HOME`.
+- `Invalid policy rule: mcpName is required if specified (cannot be empty)` — you passed `--allowed-mcp-server-names ""` or `-e ""`. Remove those flags; this skill uses isolated `HOME` for isolation, not flags.
+- Timeout with 0 bytes output — the isolated `HOME` was not applied, or its `settings.json` still has `ide.enabled: true` / non-empty `mcpServers`. Double-check the preamble was inlined verbatim.
 
 ## Shell Escaping
 

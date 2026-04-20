@@ -1,4 +1,5 @@
 [[rule]]
+toolName = "*"
 mcpName = "voicevox"
 decision = "allow"
 priority = 200
