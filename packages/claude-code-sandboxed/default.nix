@@ -7,6 +7,7 @@
   writeShellScriptBin,
   procps,
   ripgrep,
+  jq,
 }:
 let
   sandboxProfilePath = "\${HOME}/.claude/permissive-open.sb";
@@ -20,6 +21,7 @@ writeShellScriptBin "claude" ''
     lib.makeBinPath [
       procps
       ripgrep
+      jq
     ]
   }:$PATH"
 

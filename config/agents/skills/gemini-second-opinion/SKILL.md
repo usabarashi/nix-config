@@ -32,25 +32,20 @@ Provide your independent analysis. If you disagree with the current approach, ex
 
 ### Isolated HOME preamble
 
-Inline this block before the `gemini` call. It inherits the user's real `security.auth` from `~/.gemini/settings.json` (so Vertex AI / API-key / OAuth all work), while disabling MCP, IDE, preview features, prompt completion, and hooks. `node` is guaranteed to be present because Gemini CLI itself is a Node app.
+Inline this block before the `gemini` call. It inherits the user's real `security.auth` from `~/.gemini/settings.json` (so Vertex AI / API-key / OAuth all work), while disabling MCP, IDE, preview features, prompt completion, and hooks. Requires `jq` on PATH.
 
 ```bash
 ISO=<ISOLATED_HOME>   # literal path you chose, e.g. /tmp/gemini-skill-home-1776644000-abc
 mkdir -p "$ISO/.gemini" "$ISO/.config/gcloud"
 cp "$HOME/.gemini/oauth_creds.json" "$ISO/.gemini/" 2>/dev/null || true
 cp "$HOME/.config/gcloud/application_default_credentials.json" "$ISO/.config/gcloud/" 2>/dev/null || true
-node -e '
-const fs=require("fs"), path=require("path");
-const p=path.join(process.env.HOME, ".gemini/settings.json");
-let c={}; try { c = JSON.parse(fs.readFileSync(p,"utf8")); } catch(_){}
-c.tools = { sandbox: false };
-c.ide = { enabled: false };
-c.mcpServers = {};
-delete c.hooks;
-delete c.includeDirectories;
-c.general = Object.assign({}, c.general||{}, { previewFeatures:false, enablePromptCompletion:false });
-c.privacy = { usageStatisticsEnabled: false };
-process.stdout.write(JSON.stringify(c));
+{ cat "$HOME/.gemini/settings.json" 2>/dev/null || echo '{}'; } | jq '
+  del(.hooks, .includeDirectories)
+  | .tools = { sandbox: false }
+  | .ide = { enabled: false }
+  | .mcpServers = {}
+  | .general = ((.general // {}) + { previewFeatures: false, enablePromptCompletion: false })
+  | .privacy = { usageStatisticsEnabled: false }
 ' > "$ISO/.gemini/settings.json"
 ```
 
@@ -95,6 +90,7 @@ Specific failure modes:
 - `ADC must be external_account, authorized_user, or external_account_authorized_user` — the ADC file was not copied into the isolated `HOME`. Verify `~/.config/gcloud/application_default_credentials.json` exists on the real `HOME`.
 - `Invalid policy rule: mcpName is required if specified (cannot be empty)` — you passed `--allowed-mcp-server-names ""` or `-e ""`. Remove those flags; this skill uses isolated `HOME` for isolation, not flags.
 - Timeout with 0 bytes output — the isolated `HOME` was not applied, or its `settings.json` still has `ide.enabled: true` / non-empty `mcpServers`. Double-check the preamble was inlined verbatim.
+- `jq: command not found` or empty `settings.json` — ensure `jq` is installed and on PATH in the harness you are running under, or replace the `jq` pipeline with an equivalent `python3 -c` / inline heredoc snippet.
 
 ## Shell Escaping
 
