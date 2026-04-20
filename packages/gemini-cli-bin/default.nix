@@ -28,6 +28,6 @@ stdenvNoCC.mkDerivation {
     description = "Pre-bundled Gemini CLI (npm @google/gemini-cli), version-pinned";
     license = lib.licenses.asl20;
     mainProgram = "gemini";
-    platforms = lib.platforms.darwin;
+    platforms = lib.platforms.unix;
   };
 }

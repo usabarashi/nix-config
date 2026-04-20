@@ -36,7 +36,9 @@ Inline this block before the `gemini` call. It inherits the user's real `securit
 
 ```bash
 ISO=<ISOLATED_HOME>   # literal path you chose, e.g. /tmp/gemini-skill-home-1776644000-abc
+umask 077
 mkdir -p "$ISO/.gemini" "$ISO/.config/gcloud"
+chmod 700 "$ISO" "$ISO/.gemini" "$ISO/.config" "$ISO/.config/gcloud"
 cp "$HOME/.gemini/oauth_creds.json" "$ISO/.gemini/" 2>/dev/null || true
 cp "$HOME/.config/gcloud/application_default_credentials.json" "$ISO/.config/gcloud/" 2>/dev/null || true
 { cat "$HOME/.gemini/settings.json" 2>/dev/null || echo '{}'; } | jq '
@@ -54,12 +56,12 @@ cp "$HOME/.config/gcloud/application_default_credentials.json" "$ISO/.config/gcl
 # Bash tool: run_in_background: true, timeout: 300000
 # Substitute <TMPFILE> and <ISOLATED_HOME> with the literal paths you chose above.
 ISO=<ISOLATED_HOME>
+trap 'rm -rf "$ISO"' EXIT
 # ... (inline the Isolated HOME preamble here) ...
 HOME="$ISO" GEMINI_SANDBOX=false gemini -p "$(cat <<'GEMINI_PROMPT'
 <constructed prompt>
 GEMINI_PROMPT
 )" -o text < /dev/null > <TMPFILE> 2>&1
-rm -rf "$ISO"
 ```
 Wait for the background task to finish, then `Read <TMPFILE>`. Do NOT add `sleep` / `kill -0` / `pgrep` poll loops — they burn tool-call budget and the harness's completion signal is authoritative. An interim `Read` "to peek at progress" is also unnecessary; the file is incomplete until Gemini exits. **If you are a nested subagent** (running inside an Agent/Task tool), do NOT use this background path — a subagent that ends its turn while Gemini is still running will lose the background task. Use the foreground fallback below instead. After reading, `rm <TMPFILE>`; if the harness denies `rm`, leave the file — `/tmp` is reclaimed by the OS. `TaskOutput` is for Agent/Task tool tasks — do not use it here.
 
@@ -67,14 +69,14 @@ Wait for the background task to finish, then `Read <TMPFILE>`. Do NOT add `sleep
 ```bash
 # Bash tool: timeout: 300000
 ISO=<ISOLATED_HOME>
+trap 'rm -rf "$ISO"' EXIT
 # ... (inline the Isolated HOME preamble here) ...
 HOME="$ISO" GEMINI_SANDBOX=false gemini -p "$(cat <<'GEMINI_PROMPT'
 <constructed prompt>
 GEMINI_PROMPT
 )" -o text < /dev/null > <TMPFILE> 2>&1
-rm -rf "$ISO"
 ```
-Bash blocks until Gemini finishes or the tool timeout fires. On return, `Read <TMPFILE>` and then `rm <TMPFILE>`. Do not use `&` + `$!` polling — it adds PID tracking for no benefit once you control the Bash tool timeout. Do NOT use `trap 'rm -f $TMPFILE' EXIT` in any snippet that backgrounds a process — the trap fires when the launching shell exits, deleting the file before the background process writes to it.
+Bash blocks until Gemini finishes or the tool timeout fires. On return, `Read <TMPFILE>` and then `rm <TMPFILE>`. Do not use `&` + `$!` polling — it adds PID tracking for no benefit once you control the Bash tool timeout. The `trap 'rm -rf "$ISO"' EXIT` above is safe here because `gemini` runs in the foreground of the snippet's shell, so the trap fires only after `gemini` has exited. Do NOT add a trap that targets `<TMPFILE>` if you ever switch to shell-level `&` backgrounding of `gemini` — in that case the trap would fire when the launching shell exits, deleting the file before the background process writes to it.
 
 Always close stdin with `< /dev/null`. Without it, Gemini may block waiting for additional prompt input appended via stdin.
 
@@ -84,7 +86,7 @@ Always close stdin with `< /dev/null`. Without it, Gemini may block waiting for 
 
 ## Error Handling
 
-On any failure — `gemini` not found, auth error (`ADC must be`, `gcloud.auth`), network error, or timeout — report the reason to the user and proceed with your own analysis only. Discard partial output on timeout as unreliable. Always `rm -rf "$ISO"` on error paths too.
+On any failure — `gemini` not found, auth error (`ADC must be`, `gcloud.auth`), network error, or timeout — report the reason to the user and proceed with your own analysis only. Discard partial output on timeout as unreliable. The `trap 'rm -rf "$ISO"' EXIT` in the snippets above handles cleanup on both success and error paths; verify it is present if you inline the snippet manually.
 
 Specific failure modes:
 - `ADC must be external_account, authorized_user, or external_account_authorized_user` — the ADC file was not copied into the isolated `HOME`. Verify `~/.config/gcloud/application_default_credentials.json` exists on the real `HOME`.
