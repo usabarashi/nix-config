@@ -10,7 +10,6 @@
   home.packages =
     with pkgs;
     [
-      codex
       terminal-notifier
     ]
     ++ [
@@ -19,6 +18,7 @@
     ]
     ++ [
       customPackages.claude-code-sandboxed
+      customPackages.codex-bin
       customPackages.gemini-cli-workforce
     ];
 

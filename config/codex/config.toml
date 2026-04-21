@@ -1,7 +1,7 @@
 # See: https://developers.openai.com/codex/config-reference
 
 # Model
-model = "gpt-5.4-mini"
+model = "gpt-5.4"
 model_reasoning_effort = "medium"
 model_reasoning_summary = "auto"
 model_verbosity = "medium"
@@ -13,6 +13,10 @@ web_search = "live"
 notify = ["bash", "-lc", "afplay /System/Library/Sounds/Ping.aiff"]
 personality = "pragmatic"
 project_doc_fallback_filenames = ["CLAUDE.md", "GEMINI.md"]
+
+# Features
+[features]
+memories = true
 
 # Session history
 [history]
