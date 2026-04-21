@@ -6,6 +6,7 @@ rec {
   claude-code-sandboxed = pkgs.callPackage ./claude-code-sandboxed {
     inherit claude-code-bin;
   };
+  codex-bin = pkgs.callPackage ./codex-bin { };
   docker-compose = pkgs.callPackage ./docker-compose { };
   gemini-cli-bin = pkgs.callPackage ./gemini-cli-bin { };
   gemini-cli-workforce = pkgs.callPackage ./gemini-cli-workforce {
