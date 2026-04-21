@@ -342,11 +342,11 @@
         "nixpkgs": "nixpkgs_2"
       },
       "locked": {
-        "lastModified": 1776141552,
-        "narHash": "sha256-eLljj6S9SH5unr1IlE+FKipqnWgZ/zlyC+M4mnjvzjc=",
+        "lastModified": 1776782920,
+        "narHash": "sha256-ioSxbfX2yb+l/bvUp0tswjLXO4cNUjzpBZcPoGGlr1A=",
         "owner": "usabarashi",
         "repo": "voicevox-cli",
-        "rev": "388137ee59f81d037c82034f543f5f442054b0c6",
+        "rev": "00832e845442760349e5b2f0bf20252f7e76e8b0",
         "type": "github"
       },
       "original": {
