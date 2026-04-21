@@ -1,19 +1,22 @@
 # Codex CLI native binary fetched from GitHub Releases, managed independently of nixpkgs.
-# Requires --impure flag for builtins.fetchurl (no hash verification).
-#
-# Update workflow: update `version` below, then deploy.
+# Update workflow: update `version` and `hash` below, then deploy.
 {
+  fetchurl,
   lib,
   stdenvNoCC,
 }:
 let
   version = "0.122.0";
   asset = "codex-aarch64-apple-darwin";
-  src = builtins.fetchurl "https://github.com/openai/codex/releases/download/rust-v${version}/${asset}.tar.gz";
+  src = fetchurl {
+    url = "https://github.com/openai/codex/releases/download/rust-v${version}/${asset}.tar.gz";
+    hash = "sha256-dOaIXhpY148CSfrtEm62qyIPnONOdiP55BCCVQNdYcw=";
+  };
 in
 stdenvNoCC.mkDerivation {
   pname = "codex-bin";
   inherit version src;
+  # The upstream tarball expands to a single binary at archive root.
   sourceRoot = ".";
   dontBuild = true;
   dontStrip = true;
