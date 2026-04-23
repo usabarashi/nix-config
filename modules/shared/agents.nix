@@ -20,6 +20,7 @@
       customPackages.claude-code-sandboxed
       customPackages.codex-bin
       customPackages.gemini-cli-workforce
+      customPackages.opencode-sandboxed
     ];
 
   home.file =
@@ -90,5 +91,15 @@
 
       # GitHub Copilot settings
       ".copilot/skills" = agentSkills;
+
+      # opencode settings (XDG-style location)
+      ".config/opencode/opencode.json" = {
+        source = config.lib.file.mkOutOfStoreSymlink "${repoPath}/config/opencode/opencode.json";
+        force = true;
+      };
+      ".config/opencode/permissive-open.sb" = {
+        source = config.lib.file.mkOutOfStoreSymlink "${repoPath}/config/agents/permissive-open.sb";
+        force = true;
+      };
     };
 }

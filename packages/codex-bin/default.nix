@@ -1,4 +1,5 @@
 # Codex CLI native binary fetched from GitHub Releases, managed independently of nixpkgs.
+#
 # Update workflow: update `version` and `hash` below, then deploy.
 {
   fetchurl,
@@ -6,17 +7,16 @@
   stdenvNoCC,
 }:
 let
-  version = "0.122.0";
+  version = "0.124.0";
   asset = "codex-aarch64-apple-darwin";
   src = fetchurl {
     url = "https://github.com/openai/codex/releases/download/rust-v${version}/${asset}.tar.gz";
-    hash = "sha256-dOaIXhpY148CSfrtEm62qyIPnONOdiP55BCCVQNdYcw=";
+    hash = "sha256-ceh0SUR5HKi+IrmlGx8RFK+bBdbc0pkW5T85YevlKc4=";
   };
 in
 stdenvNoCC.mkDerivation {
   pname = "codex-bin";
   inherit version src;
-  # The upstream tarball expands to a single binary at archive root.
   sourceRoot = ".";
   dontBuild = true;
   dontStrip = true;
