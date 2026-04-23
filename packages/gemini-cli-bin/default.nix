@@ -1,20 +1,24 @@
-# Pre-bundled Gemini CLI fetched from npm, managed independently of nixpkgs.
-# Requires --impure flag for builtins.fetchurl (no hash verification).
+# Gemini CLI bundle fetched from npm, managed independently of nixpkgs.
 #
-# Update workflow: update `version` below, then deploy.
+# Update workflow: update `version` and `hash` below, then deploy.
 {
+  fetchurl,
   lib,
   stdenvNoCC,
   nodejs_22,
 }:
 let
-  version = "0.38.2";
+  version = "0.39.0";
+  src = fetchurl {
+    url = "https://registry.npmjs.org/@google/gemini-cli/-/gemini-cli-${version}.tgz";
+    hash = "sha256-iwCTMl/Woxb6Jzsqe5yY/w1xSwVgrh/Ug2OwA8mT0Mg=";
+  };
 in
 stdenvNoCC.mkDerivation {
   pname = "gemini-cli-bin";
-  inherit version;
-  src = builtins.fetchurl "https://registry.npmjs.org/@google/gemini-cli/-/gemini-cli-${version}.tgz";
+  inherit version src;
   dontBuild = true;
+  dontStrip = true;
   installPhase = ''
     runHook preInstall
     mkdir -p $out/share/gemini-cli $out/bin
@@ -27,6 +31,7 @@ stdenvNoCC.mkDerivation {
   meta = {
     description = "Pre-bundled Gemini CLI (npm @google/gemini-cli), version-pinned";
     license = lib.licenses.asl20;
+    sourceProvenance = with lib.sourceTypes; [ binaryBytecode ];
     mainProgram = "gemini";
     platforms = lib.platforms.unix;
   };

@@ -1,20 +1,21 @@
 # Claude Code native binary fetched from Google Cloud Storage, managed independently of nixpkgs.
-# Requires --impure flag for builtins.fetchurl (no hash verification).
 #
-# Update workflow: update `version` below, then deploy.
+# Update workflow: update `version` and `hash` below, then deploy.
 {
+  fetchurl,
   lib,
   stdenvNoCC,
 }:
 let
-  version = "2.1.112";
-  baseUrl = "https://storage.googleapis.com/claude-code-dist-86c565f3-f756-42ad-8dfa-d59b1c096819/claude-code-releases";
-  platformKey = "darwin-arm64";
+  version = "2.1.118";
+  src = fetchurl {
+    url = "https://storage.googleapis.com/claude-code-dist-86c565f3-f756-42ad-8dfa-d59b1c096819/claude-code-releases/${version}/darwin-arm64/claude";
+    hash = "sha256-VOXT9lEJuJxgRvR0QJRNUpBsZi0eUXSPYgpDDSatNmU=";
+  };
 in
 stdenvNoCC.mkDerivation {
   pname = "claude-code-bin";
-  inherit version;
-  src = builtins.fetchurl "${baseUrl}/${version}/${platformKey}/claude";
+  inherit version src;
   dontUnpack = true;
   dontBuild = true;
   dontStrip = true;
