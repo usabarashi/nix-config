@@ -6,51 +6,84 @@
     "bash": "ask",
     "edit": "ask",
     "read": "allow",
-    "webfetch": "ask"
+    "webfetch": "ask",
+    "task": "ask"
   },
   "mcp": {
     "voicevox": {
       "type": "local",
       "command": ["voicevox-mcp-server"],
       "timeout": 120000
-    },
-    "serena": {
-      "type": "local",
-      "command": [
-        "serena",
-        "start-mcp-server",
-        "--context",
-        "oaicompat-agent",
-        "--project-from-cwd",
-        "--enable-web-dashboard",
-        "False",
-        "--enable-gui-log-window",
-        "False"
-      ],
-      "environment": {
-        "SERENA_HOME": ".serena"
-      }
     }
   },
   "provider": {
-    "ollama-local": {
+    "llamacpp-local": {
       "npm": "@ai-sdk/openai-compatible",
-      "name": "Ollama (local)",
+      "name": "llama.cpp (local)",
       "options": {
-        "baseURL": "http://127.0.0.1:11434/v1"
+        "baseURL": "http://127.0.0.1:8080/v1"
       },
       "models": {
-        "qwen3.6-full": {
-          "name": "Qwen3.6 35B MoE Q4 full-GPU (local)",
+        "qwen3.6-35b-a3b": {
+          "name": "Qwen3.6 35B-A3B MoE UD-IQ4_XS (local)",
           "tool_call": true,
           "reasoning": true,
           "limit": {
-            "context": 32768,
+            "context": 65536,
             "output": 8192
           }
         }
       }
     }
   },
-  "model": "ollama-local/qwen3.6-full"
+  "agent": {
+    "plan": {
+      "description": "Use only for non-trivial changes: unfamiliar subsystem, multi-file edits, unclear design, or risky behavior changes. Read code, identify existing patterns/utilities, and return a concise implementation plan. Do not edit files.",
+      "mode": "subagent",
+      "steps": 10,
+      "temperature": 0.1,
+      "permission": {
+        "read": "allow",
+        "grep": "allow",
+        "glob": "allow",
+        "list": "allow",
+        "edit": "deny",
+        "webfetch": "ask",
+        "task": "deny",
+        "bash": {
+          "*": "deny",
+          "git grep *": "allow",
+          "git ls-files": "allow",
+          "git ls-files *": "allow"
+        }
+      }
+    },
+    "review": {
+      "description": "Read-only code reviewer. Inspect the current git diff first, then read touched files as needed. Flag correctness risks, regressions, security issues, and missing tests. Do not edit files.",
+      "mode": "subagent",
+      "steps": 8,
+      "temperature": 0.1,
+      "permission": {
+        "read": "allow",
+        "grep": "allow",
+        "glob": "allow",
+        "list": "allow",
+        "edit": "deny",
+        "webfetch": "deny",
+        "task": "deny",
+        "bash": {
+          "*": "deny",
+          "git status": "allow",
+          "git status *": "allow",
+          "git diff": "allow",
+          "git diff *": "allow",
+          "git log": "allow",
+          "git log *": "allow",
+          "git show": "allow",
+          "git show *": "allow"
+        }
+      }
+    }
+  },
+  "model": "llamacpp-local/qwen3.6-35b-a3b"
 }
