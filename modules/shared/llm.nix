@@ -7,132 +7,136 @@
 }:
 
 {
-  home.packages = with pkgs; [
-    llama-cpp
-    swiftbar
-  ];
+  home = {
+    packages = with pkgs; [
+      llama-cpp
+      swiftbar
+    ];
 
-  home.activation.createLlmDirectories = config.lib.dag.entryAfter [ "writeBoundary" ] ''
-    run mkdir -p "${homeDirectory}/Library/Logs/llama-server"
-    run mkdir -p "${homeDirectory}/Library/Logs/llm"
-    run mkdir -p "${homeDirectory}/Library/Logs/swiftbar"
-    run mkdir -p "${homeDirectory}/.cache/llama-server-slots"
-    run mkdir -p "${homeDirectory}/Library/Application Support/SwiftBar/Plugins"
-  '';
+    activation.createLlmDirectories = config.lib.dag.entryAfter [ "writeBoundary" ] ''
+      run mkdir -p "${homeDirectory}/Library/Logs/llama-server"
+      run mkdir -p "${homeDirectory}/Library/Logs/llm"
+      run mkdir -p "${homeDirectory}/Library/Logs/swiftbar"
+      run mkdir -p "${homeDirectory}/.cache/llama-server-slots"
+      run mkdir -p "${homeDirectory}/Library/Application Support/SwiftBar/Plugins"
+    '';
 
-  # Menu-bar control plugin for the on-demand llama-server. SwiftBar
-  # discovers plugins from `~/Library/Application Support/SwiftBar/Plugins`
-  # by default; the file name `*.5s.sh` triggers a 5-second refresh.
-  home.file."Library/Application Support/SwiftBar/Plugins/llama-server.5s.sh" = {
-    source = config.lib.file.mkOutOfStoreSymlink "${repoPath}/config/swiftbar/llama-server.5s.sh";
-    force = true;
-  };
-
-  # Auto-start SwiftBar on login so the menu-bar control plugin is always
-  # available without manually opening the .app each session.
-  launchd.agents.swiftbar = {
-    enable = true;
-    config = {
-      ProgramArguments = [
-        "${pkgs.swiftbar}/Applications/SwiftBar.app/Contents/MacOS/SwiftBar"
-      ];
-      RunAtLoad = true;
-      KeepAlive = true;
-      ThrottleInterval = 30;
-      StandardOutPath = "${homeDirectory}/Library/Logs/swiftbar/stdout.log";
-      StandardErrorPath = "${homeDirectory}/Library/Logs/swiftbar/stderr.log";
+    # Menu-bar control plugin for the on-demand llama-server. SwiftBar
+    # discovers plugins from `~/Library/Application Support/SwiftBar/Plugins`
+    # by default; the file name `*.5s.sh` triggers a 5-second refresh.
+    file."Library/Application Support/SwiftBar/Plugins/llama-server.5s.sh" = {
+      source = config.lib.file.mkOutOfStoreSymlink "${repoPath}/config/swiftbar/llama-server.5s.sh";
+      force = true;
     };
   };
 
-  # llama-server hosts Qwen3.6-35B-A3B (MoE, 3B active) for OpenCode.
-  # On-demand because the 22 GiB resident model would otherwise pin unified
-  # memory; SwiftBar plugin (config/swiftbar/) exposes menu-bar Start/Stop.
-  # Sparse attention (full_attention_interval=4, 10/40 layers full) keeps
-  # q8 KV at 64k under ~700 MiB on Metal. `--flash-attn on` is required
-  # with quantized KV, else dequantize round-trips erase the savings.
-  # `--no-mmproj` skips the bundled vision projector. `--slot-save-path`
-  # only exposes /slots/X?action=save|restore — prefix caches must be
-  # persisted explicitly, not on shutdown. Speculative decoding is
-  # unsupported: the model's Mamba SSM state cannot be rolled back on
-  # draft rejection.
-  launchd.agents.llama-server = {
-    enable = true;
-    config = {
-      ProgramArguments = [
-        "${pkgs.llama-cpp}/bin/llama-server"
-        "-hf"
-        "unsloth/Qwen3.6-35B-A3B-GGUF:UD-IQ4_XS"
-        "--no-mmproj"
-        "--alias"
-        "qwen3.6-35b-a3b"
-        "-c"
-        "65536"
-        "-ngl"
-        "99"
-        "--flash-attn"
-        "on"
-        "--cache-type-k"
-        "q8_0"
-        "--cache-type-v"
-        "q8_0"
-        "--cache-reuse"
-        "256"
-        "--slot-save-path"
-        "${homeDirectory}/.cache/llama-server-slots"
-        "--host"
-        "127.0.0.1"
-        "--port"
-        "8080"
-        "--temp"
-        "0.6"
-        "--top-p"
-        "0.95"
-        "--top-k"
-        "20"
-        "--presence-penalty"
-        "1.5"
-        "--min-p"
-        "0.00"
-        "--jinja"
-      ];
-      RunAtLoad = false;
-      KeepAlive = false;
-      ThrottleInterval = 30;
-      StandardOutPath = "${homeDirectory}/Library/Logs/llama-server/stdout.log";
-      StandardErrorPath = "${homeDirectory}/Library/Logs/llama-server/stderr.log";
+  launchd.agents = {
+    # Auto-start SwiftBar on login so the menu-bar control plugin is always
+    # available without manually opening the .app each session.
+    swiftbar = {
+      enable = true;
+      config = {
+        ProgramArguments = [
+          "${pkgs.swiftbar}/Applications/SwiftBar.app/Contents/MacOS/SwiftBar"
+        ];
+        RunAtLoad = true;
+        KeepAlive = true;
+        ThrottleInterval = 30;
+        StandardOutPath = "${homeDirectory}/Library/Logs/swiftbar/stdout.log";
+        StandardErrorPath = "${homeDirectory}/Library/Logs/swiftbar/stderr.log";
+      };
     };
-  };
 
-  # Monthly HF cache visibility snapshot. Logs total + per-model size so
-  # growth is easy to spot. Auto-deletion is intentionally NOT done: the
-  # HF cache uses a `blobs/` + `snapshots/` symlink layout where blunt
-  # mtime-based pruning can break references for revisions still in use.
-  # Cleanup is manual via `huggingface-cli delete-cache` or by removing
-  # whole `models--<org>--<repo>` dirs (each is self-contained).
-  launchd.agents.llm-disk-gc = {
-    enable = true;
-    config = {
-      ProgramArguments = [
-        "/bin/sh"
-        "-c"
-        ''
-          out="${homeDirectory}/Library/Logs/llm/disk-$(/bin/date +%Y-%m).log"
+    # llama-server hosts Qwen3.6-35B-A3B (MoE, 3B active) for OpenCode.
+    # On-demand because the 22 GiB resident model would otherwise pin unified
+    # memory; SwiftBar plugin (config/swiftbar/) exposes menu-bar Start/Stop.
+    # Sparse attention (full_attention_interval=4, 10/40 layers full) keeps
+    # q8 KV at 64k under ~700 MiB on Metal. `--flash-attn on` is required
+    # with quantized KV, else dequantize round-trips erase the savings.
+    # `--no-mmproj` skips the bundled vision projector. `--slot-save-path`
+    # only exposes /slots/X?action=save|restore — prefix caches must be
+    # persisted explicitly, not on shutdown. Speculative decoding is
+    # unsupported: the model's Mamba SSM state cannot be rolled back on
+    # draft rejection.
+    llama-server = {
+      enable = true;
+      config = {
+        ProgramArguments = [
+          "${pkgs.llama-cpp}/bin/llama-server"
+          "-hf"
+          "unsloth/Qwen3.6-35B-A3B-GGUF:UD-IQ4_XS"
+          "--no-mmproj"
+          "--alias"
+          "qwen3.6-35b-a3b"
+          "-c"
+          "65536"
+          "-ngl"
+          "99"
+          "--flash-attn"
+          "on"
+          "--cache-type-k"
+          "q8_0"
+          "--cache-type-v"
+          "q8_0"
+          "--cache-reuse"
+          "256"
+          "--slot-save-path"
+          "${homeDirectory}/.cache/llama-server-slots"
+          "--host"
+          "127.0.0.1"
+          "--port"
+          "8080"
+          "--temp"
+          "0.6"
+          "--top-p"
+          "0.95"
+          "--top-k"
+          "20"
+          "--presence-penalty"
+          "1.5"
+          "--min-p"
+          "0.00"
+          "--jinja"
+        ];
+        RunAtLoad = false;
+        KeepAlive = false;
+        ThrottleInterval = 30;
+        StandardOutPath = "${homeDirectory}/Library/Logs/llama-server/stdout.log";
+        StandardErrorPath = "${homeDirectory}/Library/Logs/llama-server/stderr.log";
+      };
+    };
+
+    # Monthly HF cache visibility snapshot. Logs total + per-model size so
+    # growth is easy to spot. Auto-deletion is intentionally NOT done: the
+    # HF cache uses a `blobs/` + `snapshots/` symlink layout where blunt
+    # mtime-based pruning can break references for revisions still in use.
+    # Cleanup is manual via `huggingface-cli delete-cache` or by removing
+    # whole `models--<org>--<repo>` dirs (each is self-contained).
+    llm-disk-snapshot = {
+      enable = true;
+      config = {
+        ProgramArguments = [
+          "/bin/sh"
+          "-c"
+          ''
+            out="${homeDirectory}/Library/Logs/llm/disk-snapshot-$(/bin/date +%Y-%m).log"
+            {
+              echo "=== $(/bin/date) ==="
+              /usr/bin/du -sh "${homeDirectory}/.cache/huggingface/hub" 2>&1 || true
+              /usr/bin/du -sh "${homeDirectory}/.cache/huggingface/hub/models--"* 2>/dev/null || true
+            } >> "$out"
+          ''
+        ];
+        StartCalendarInterval = [
           {
-            echo "=== $(/bin/date) ==="
-            /usr/bin/du -sh "${homeDirectory}/.cache/huggingface/hub" 2>&1 || true
-            /usr/bin/du -sh "${homeDirectory}/.cache/huggingface/hub/models--"* 2>/dev/null || true
-          } >> "$out"
-        ''
-      ];
-      StartCalendarInterval = [
-        {
-          Day = 1;
-          Hour = 4;
-          Minute = 0;
-        }
-      ];
-      StandardOutPath = "/dev/null";
-      StandardErrorPath = "/dev/null";
+            Day = 1;
+            Hour = 4;
+            Minute = 0;
+          }
+        ];
+        StandardOutPath = "/dev/null";
+        StandardErrorPath = "/dev/null";
+      };
     };
   };
 }
