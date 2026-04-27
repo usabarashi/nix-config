@@ -10,7 +10,7 @@ PATH=/usr/bin:/bin:/usr/sbin:/sbin
 UID_NUM=$(id -u)
 LABEL="gui/${UID_NUM}/org.nix-community.home.llama-server"
 HEALTH=$(curl -sS --max-time 1 http://127.0.0.1:8080/health 2>/dev/null || echo "")
-PID=$(pgrep -f "llama-server" 2>/dev/null | head -1 || true)
+PID=$(pgrep -x "llama-server" 2>/dev/null | head -1 || true)
 
 STATE="stopped"
 MEM_GB="?"
