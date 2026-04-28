@@ -64,7 +64,7 @@
         ProgramArguments = [
           "${pkgs.llama-cpp}/bin/llama-server"
           "-hf"
-          "unsloth/Qwen3.6-35B-A3B-GGUF:UD-IQ4_XS"
+          "bartowski/Qwen_Qwen3.6-35B-A3B-GGUF:IQ4_XS"
           "--no-mmproj"
           "--alias"
           "qwen3.6-35b-a3b"
