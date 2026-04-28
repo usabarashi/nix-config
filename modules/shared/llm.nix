@@ -18,6 +18,7 @@
       run mkdir -p "${homeDirectory}/Library/Logs/llm"
       run mkdir -p "${homeDirectory}/Library/Logs/swiftbar"
       run mkdir -p "${homeDirectory}/.cache/llama-server-slots"
+      run mkdir -p "${homeDirectory}/.config/llama-server"
       run mkdir -p "${homeDirectory}/Library/Application Support/SwiftBar/Plugins"
     '';
 
@@ -26,6 +27,15 @@
     # by default; the file name `*.5s.sh` triggers a 5-second refresh.
     file."Library/Application Support/SwiftBar/Plugins/llama-server.5s.sh" = {
       source = config.lib.file.mkOutOfStoreSymlink "${repoPath}/config/swiftbar/llama-server.5s.sh";
+      force = true;
+    };
+
+    # Log-rotation wrapper invoked by the llama-server launchd agent. Lives
+    # under `~/.config/` (no spaces) because launchd's home-manager-generated
+    # `/bin/sh -c "wait4path ... && exec ..."` joins ProgramArguments by
+    # spaces; a path with embedded whitespace would split incorrectly.
+    file.".config/llama-server/wrapper.sh" = {
+      source = config.lib.file.mkOutOfStoreSymlink "${repoPath}/config/llama-server/wrapper.sh";
       force = true;
     };
   };
@@ -62,6 +72,10 @@
       enable = true;
       config = {
         ProgramArguments = [
+          # Wrapper rotates `~/Library/Logs/llama-server/stderr.log` (5
+          # gzip'd generations, 10 MiB threshold) on each start, then
+          # `exec`s its arguments. See `config/llama-server/wrapper.sh`.
+          "${homeDirectory}/.config/llama-server/wrapper.sh"
           "${pkgs.llama-cpp}/bin/llama-server"
           # Bartowski mirror is a pragmatic workaround, not a permanent fix:
           # when HF migrated unsloth/Qwen3.6-35B-A3B-GGUF to Xet storage, the
