@@ -3,6 +3,11 @@
 # <bitbar.author>nix-config</bitbar.author>
 # <bitbar.desc>Status & control for the local llama-server (org.nix-community.home.llama-server)</bitbar.desc>
 # <bitbar.dependencies>bash, curl, launchctl, footprint, lsof</bitbar.dependencies>
+# <swiftbar.hideAbout>true</swiftbar.hideAbout>
+# <swiftbar.hideRunInTerminal>true</swiftbar.hideRunInTerminal>
+# <swiftbar.hideLastUpdated>true</swiftbar.hideLastUpdated>
+# <swiftbar.hideDisablePlugin>true</swiftbar.hideDisablePlugin>
+# <swiftbar.hideSwiftBar>true</swiftbar.hideSwiftBar>
 
 set -u
 PATH=/usr/bin:/bin:/usr/sbin:/sbin
