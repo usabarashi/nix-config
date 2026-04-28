@@ -34,9 +34,14 @@
     # under `~/.config/` (no spaces) because launchd's home-manager-generated
     # `/bin/sh -c "wait4path ... && exec ..."` joins ProgramArguments by
     # spaces; a path with embedded whitespace would split incorrectly.
+    #
+    # Source is a path literal (NOT mkOutOfStoreSymlink) so the wrapper is
+    # copied into the Nix store. macOS TCC blocks launchd-spawned shells
+    # from traversing into `~/Documents/` (where the repo lives), causing
+    # `Operation not permitted` on exec; `/nix/store` is unrestricted.
     file.".config/llama-server/wrapper.sh" = {
-      source = config.lib.file.mkOutOfStoreSymlink "${repoPath}/config/llama-server/wrapper.sh";
-      force = true;
+      source = ../../config/llama-server/wrapper.sh;
+      executable = true;
     };
   };
 
