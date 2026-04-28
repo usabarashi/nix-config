@@ -18,6 +18,7 @@
       run mkdir -p "${homeDirectory}/Library/Logs/llm"
       run mkdir -p "${homeDirectory}/Library/Logs/swiftbar"
       run mkdir -p "${homeDirectory}/.cache/llama-server-slots"
+      run mkdir -p "${homeDirectory}/.config/llama-server"
       run mkdir -p "${homeDirectory}/Library/Application Support/SwiftBar/Plugins"
     '';
 
@@ -27,6 +28,20 @@
     file."Library/Application Support/SwiftBar/Plugins/llama-server.5s.sh" = {
       source = config.lib.file.mkOutOfStoreSymlink "${repoPath}/config/swiftbar/llama-server.5s.sh";
       force = true;
+    };
+
+    # Log-rotation wrapper invoked by the llama-server launchd agent. Lives
+    # under `~/.config/` (no spaces) because launchd's home-manager-generated
+    # `/bin/sh -c "wait4path ... && exec ..."` joins ProgramArguments by
+    # spaces; a path with embedded whitespace would split incorrectly.
+    #
+    # Source is a path literal (NOT mkOutOfStoreSymlink) so the wrapper is
+    # copied into the Nix store. macOS TCC blocks launchd-spawned shells
+    # from traversing into `~/Documents/` (where the repo lives), causing
+    # `Operation not permitted` on exec; `/nix/store` is unrestricted.
+    file.".config/llama-server/wrapper.sh" = {
+      source = ../../config/llama-server/wrapper.sh;
+      executable = true;
     };
   };
 
@@ -62,9 +77,22 @@
       enable = true;
       config = {
         ProgramArguments = [
+          # Wrapper rotates `~/Library/Logs/llama-server/stderr.log` (5
+          # gzip'd generations, 10 MiB threshold) on each start, then
+          # `exec`s its arguments. See `config/llama-server/wrapper.sh`.
+          "${homeDirectory}/.config/llama-server/wrapper.sh"
           "${pkgs.llama-cpp}/bin/llama-server"
+          # Bartowski mirror is a pragmatic workaround, not a permanent fix:
+          # when HF migrated unsloth/Qwen3.6-35B-A3B-GGUF to Xet storage, the
+          # tree API briefly returned masked `lfs.oid` (64 asterisks) instead
+          # of valid SHA256, which llama.cpp's `is_valid_oid` rejects, causing
+          # `get_repo_files` to drop every GGUF and report "no GGUF files
+          # found". HF has since restored valid OIDs for this repo, but the
+          # next Xet-induced regression could hit any mirror — durable fix
+          # belongs upstream in llama.cpp (Xet-aware repo listing). Revisit
+          # this pin if you want the marginally smaller UD-IQ4_XS quant.
           "-hf"
-          "unsloth/Qwen3.6-35B-A3B-GGUF:UD-IQ4_XS"
+          "bartowski/Qwen_Qwen3.6-35B-A3B-GGUF:IQ4_XS"
           "--no-mmproj"
           "--alias"
           "qwen3.6-35b-a3b"
