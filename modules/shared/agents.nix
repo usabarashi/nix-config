@@ -30,11 +30,6 @@
         force = true;
         recursive = true;
       };
-      agentCommands = {
-        source = config.lib.file.mkOutOfStoreSymlink "${repoPath}/config/agents/commands";
-        force = true;
-        recursive = true;
-      };
       agentSkills = {
         source = config.lib.file.mkOutOfStoreSymlink "${repoPath}/config/agents/skills";
         force = true;
@@ -56,7 +51,6 @@
         source = config.lib.file.mkOutOfStoreSymlink "${repoPath}/config/claude/settings.json";
         force = true;
       };
-      ".claude/commands" = agentCommands;
       ".claude/scripts" = agentScripts;
       ".claude/skills" = agentSkills;
 
@@ -69,7 +63,6 @@
         source = config.lib.file.mkOutOfStoreSymlink "${repoPath}/config/codex/config.toml";
         force = true;
       };
-      ".codex/prompts" = agentCommands;
       ".codex/skills" = agentSkills;
 
       # Gemini CLI settings
