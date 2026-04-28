@@ -12,13 +12,18 @@
 # Disk ceiling: 5 generations × ~2 MB compressed ≈ 10 MB. Reset to fresh
 # log on every llama-server start that crosses the threshold.
 
-set -u
+set -eu
 PATH=/usr/bin:/bin:/usr/sbin:/sbin
 
 LOG="$HOME/Library/Logs/llama-server/stderr.log"
 MAX_BYTES=$((10 * 1024 * 1024))
 
-if [ -f "$LOG" ] && [ "$(stat -f %z "$LOG")" -gt "$MAX_BYTES" ]; then
+# `stat ... || echo 0` collapses the missing-file path and the size-check into
+# a single race-free read: a delete between an `[ -f ]` test and `stat` would
+# otherwise leave the comparison with an empty string and abort the script
+# under `set -e` before `exec "$@"` runs, blocking the launchd start.
+filesize=$(stat -f %z "$LOG" 2>/dev/null || echo 0)
+if [ "$filesize" -gt "$MAX_BYTES" ]; then
     [ -f "$LOG.5.gz" ] && rm -f "$LOG.5.gz"
     for i in 4 3 2 1; do
         [ -f "$LOG.$i.gz" ] && mv "$LOG.$i.gz" "$LOG.$((i+1)).gz"
