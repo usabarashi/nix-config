@@ -27,12 +27,19 @@ if echo "$HEALTH" | grep -q '"status":"ok"'; then
         # with `-ngl 99`, llama.cpp mmaps the GGUF and Metal pins it as GPU
         # buffer in unified memory, which is excluded from process accounting.
         # Read the mmap'd blob sizes from lsof to surface the hidden bulk.
-        MEM_MB=$(footprint "$PID" 2>/dev/null | sed -nE 's/.*Footprint: ([0-9]+) MB.*/\1/p' | head -1)
-        if [ -n "${MEM_MB:-}" ]; then
-            HOST_GB=$(awk "BEGIN { printf \"%.1f\", ${MEM_MB} / 1024 }")
+        # `-f bytes` avoids unit/locale ambiguity (default `formatted` switches
+        # KB/MB/GB suffixes once the process grows past each boundary).
+        MEM_BYTES=$(footprint -f bytes "$PID" 2>/dev/null | sed -nE 's/.*Footprint:[[:space:]]+([0-9]+) B.*/\1/p' | head -1)
+        if [ -n "${MEM_BYTES:-}" ]; then
+            HOST_GB=$(awk "BEGIN { printf \"%.1f\", ${MEM_BYTES} / 1024 / 1024 / 1024 }")
         fi
-        MODEL_BYTES=$(lsof -p "$PID" 2>/dev/null \
-            | awk '$NF ~ /huggingface\/hub\/models--.*\/blobs\// { print $NF }' \
+        # `lsof -Fn` is field-mode output (one path per `n`-prefixed line),
+        # which is path-with-space safe (vs. `awk '$NF'`). Match both `blobs/`
+        # (HF cache layout) and `snapshots/<commit>/` (symlink-resolved path,
+        # depending on macOS resolution behaviour).
+        MODEL_BYTES=$(lsof -p "$PID" -n -P -Fn 2>/dev/null \
+            | sed -n 's/^n//p' \
+            | grep -E "huggingface/hub/models--.*/(blobs|snapshots)/" \
             | sort -u \
             | while read -r f; do [ -f "$f" ] && stat -f "%z" "$f" 2>/dev/null; done \
             | awk '{ sum += $1 } END { print sum+0 }')

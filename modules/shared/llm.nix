@@ -63,6 +63,15 @@
       config = {
         ProgramArguments = [
           "${pkgs.llama-cpp}/bin/llama-server"
+          # Bartowski mirror is a pragmatic workaround, not a permanent fix:
+          # when HF migrated unsloth/Qwen3.6-35B-A3B-GGUF to Xet storage, the
+          # tree API briefly returned masked `lfs.oid` (64 asterisks) instead
+          # of valid SHA256, which llama.cpp's `is_valid_oid` rejects, causing
+          # `get_repo_files` to drop every GGUF and report "no GGUF files
+          # found". HF has since restored valid OIDs for this repo, but the
+          # next Xet-induced regression could hit any mirror — durable fix
+          # belongs upstream in llama.cpp (Xet-aware repo listing). Revisit
+          # this pin if you want the marginally smaller UD-IQ4_XS quant.
           "-hf"
           "bartowski/Qwen_Qwen3.6-35B-A3B-GGUF:IQ4_XS"
           "--no-mmproj"
