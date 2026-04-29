@@ -48,21 +48,6 @@ nix-collect-garbage -d && nix-store --gc
 > On macOS, if GC fails with "Operation not permitted", run from the Terminal app
 > with Full Disk Access enabled (System Settings > Privacy & Security > Full Disk Access).
 
-## Local LLM (private only)
-
-The `private` host runs Ollama as a user LaunchAgent for OpenCode backend experimentation.
-After first deploy, bootstrap the model once:
-
-```bash
-ollama pull qwen3.6:35b-a3b-q4_K_M
-ollama create qwen3.6-full -f config/ollama/modelfiles/qwen3.6-full.Modelfile
-```
-
-The derivative (`qwen3.6-full`) forces all 41 layers to GPU via
-`PARAMETER num_gpu 41`, keeping the M2 Pro 25 GiB Metal budget full-GPU and
-avoiding CPU offload on the output layer. OpenCode's model reference in
-`config/opencode/opencode.json` points at this derivative tag.
-
 ## Extra Packages (optional)
 
 Git-untracked, machine-specific configuration can be added via `~/.config/nix-extra/`.
