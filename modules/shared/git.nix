@@ -34,6 +34,7 @@ in
 {
   home.packages = with pkgs; [
     gh
+    ghq
     git-clean
   ];
 

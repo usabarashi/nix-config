@@ -15,6 +15,11 @@
     nix-direnv.enable = true;
   };
 
+  programs.fzf = {
+    enable = true;
+    enableZshIntegration = true;
+  };
+
   programs.zsh = {
     enable = true;
     dotDir = "${config.xdg.configHome}/zsh";
@@ -28,6 +33,21 @@
 
       # Add user tools to PATH
       export PATH=$HOME/bin:$PATH
+    '';
+
+    initContent = ''
+      git-find() {
+        local selected
+        selected=$(ghq list | fzf --query "$*") || return 1
+        cd "$(ghq root)/$selected"
+      }
+
+      git-find-widget() {
+        BUFFER="git-find ''${(q)LBUFFER}"
+        zle accept-line
+      }
+      zle -N git-find-widget
+      bindkey '^G' git-find-widget
     '';
 
     syntaxHighlighting.enable = true;
