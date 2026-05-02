@@ -60,7 +60,7 @@ export GITHUB_PERSONAL_ACCESS_TOKEN="$(sops -d --extract '["github"]["token"]' ~
 
 The `--extract` argument uses bracket-based path syntax matching the YAML structure (e.g. `["github"]["token"]` for a top-level `github` key with a nested `token` field). Adjust the path and file location to match your setup.
 
-**Prerequisite:** Generate an age key, point sops at it, then create and encrypt the secrets file:
+**Prerequisite:** Generate an age key, point sops at it, then create and encrypt the secrets file. **Warning:** `age-keygen -o` overwrites the destination path without prompting — skip the keygen step if `~/.config/sops/age/keys.txt` already exists, or losing the previous key will make every file encrypted to it unrecoverable.
 
 ```bash
 mkdir -p ~/.config/sops/age
