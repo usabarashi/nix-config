@@ -16,7 +16,7 @@ cp config/direnv/direnvrc.template ~/.config/direnv/direnvrc
 
 ## Secret Retrieval Methods
 
-Below are three methods you can use in `direnvrc` to retrieve secrets. Choose one per variable.
+Below are several methods you can use in `direnvrc` to retrieve secrets. Choose one per variable.
 
 ### Option A: 1Password CLI (`op`)
 
@@ -58,7 +58,7 @@ Uses [sops](https://github.com/getsops/sops) to read a single field from an encr
 export GITHUB_PERSONAL_ACCESS_TOKEN="$(sops -d --extract '["github"]["token"]' ~/.config/sops/secrets.enc.yaml)"
 ```
 
-The `--extract` argument is a JSON-path-like selector matching the YAML structure (e.g. `github.token`). Adjust the path and file location to match your setup.
+The `--extract` argument uses bracket-based path syntax matching the YAML structure (e.g. `["github"]["token"]` for a top-level `github` key with a nested `token` field). Adjust the path and file location to match your setup.
 
 **Prerequisite:** Generate an age key, point sops at it, then create and encrypt the secrets file:
 
