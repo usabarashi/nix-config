@@ -39,12 +39,12 @@
       initContent = ''
         git-find() {
           local selected
-          selected=$(ghq list | fzf --query "$*") || return 1
-          cd "$(ghq root)/$selected"
+          selected=$(ghq list -p | fzf --query "$*") || return 1
+          cd "$selected"
         }
 
         git-find-widget() {
-          BUFFER="git-find ''${(q)LBUFFER}"
+          BUFFER="git-find ''${(q)BUFFER}"
           zle accept-line
         }
         zle -N git-find-widget
