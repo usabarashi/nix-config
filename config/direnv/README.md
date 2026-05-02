@@ -16,7 +16,7 @@ cp config/direnv/direnvrc.template ~/.config/direnv/direnvrc
 
 ## Secret Retrieval Methods
 
-Below are three methods you can use in `direnvrc` to retrieve secrets. Choose one per variable.
+Below are several methods you can use in `direnvrc` to retrieve secrets. Choose one per variable.
 
 ### Option A: 1Password CLI (`op`)
 
@@ -50,7 +50,29 @@ Omitting the value after `-w` prompts for interactive input, avoiding shell hist
 | `-s` | Service name (used as lookup key) |
 | `-w` | Print password only (for retrieval) / password value (for storage) |
 
-### Option C: Manual
+### Option C: SOPS (`sops`)
+
+Uses [sops](https://github.com/getsops/sops) to read a single field from an encrypted file. Requires an age key (or other supported backend) configured beforehand.
+
+```bash
+export GITHUB_PERSONAL_ACCESS_TOKEN="$(sops -d --extract '["github"]["token"]' ~/.config/sops/secrets.enc.yaml)"
+```
+
+The `--extract` argument uses bracket-based path syntax matching the YAML structure (e.g. `["github"]["token"]` for a top-level `github` key with a nested `token` field). Adjust the path and file location to match your setup.
+
+**Prerequisite:** Generate an age key, point sops at it, then create and encrypt the secrets file. **Warning:** `age-keygen -o` overwrites the destination path without prompting — skip the keygen step if `~/.config/sops/age/keys.txt` already exists, or losing the previous key will make every file encrypted to it unrecoverable.
+
+```bash
+mkdir -p ~/.config/sops/age
+age-keygen -o ~/.config/sops/age/keys.txt
+export SOPS_AGE_KEY_FILE=~/.config/sops/age/keys.txt
+export SOPS_AGE_RECIPIENTS="$(age-keygen -y ~/.config/sops/age/keys.txt)"
+sops ~/.config/sops/secrets.enc.yaml  # opens $EDITOR; save as plain YAML, sops encrypts on write
+```
+
+Persist `SOPS_AGE_KEY_FILE` (and optionally `SOPS_AGE_RECIPIENTS`) in your shell init or a global `direnvrc` so the one-liner above works without per-shell setup. Back up `~/.config/sops/age/keys.txt` securely — losing it makes every encrypted file unrecoverable.
+
+### Option D: Manual
 
 Paste the value directly into the `.envrc` file. Least secure — avoid for shared machines.
 
