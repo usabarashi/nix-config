@@ -19,7 +19,6 @@
   };
 
   home.packages = with pkgs; [
-    _1password-cli
     gmailctl
   ];
 
@@ -28,6 +27,7 @@
     ../../modules/shared/agents.nix
     ../../modules/shared/container.nix
     ../../modules/shared/extra.nix
+    ../../modules/shared/gcloud.nix
     ../../modules/shared/git.nix
     ../../modules/shared/neovim.nix
     ../../modules/shared/ssh.nix
