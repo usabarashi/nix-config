@@ -30,6 +30,7 @@
     ../../modules/darwin/karabiner.nix
     ../../modules/shared/agents.nix
     ../../modules/shared/extra.nix
+    ../../modules/shared/gcloud.nix
     ../../modules/shared/git.nix
     ../../modules/shared/llm.nix
     ../../modules/shared/neovim.nix
