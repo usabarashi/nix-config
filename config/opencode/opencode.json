@@ -39,7 +39,7 @@
   "agent": {
     "plan": {
       "description": "Use only for non-trivial changes: unfamiliar subsystem, multi-file edits, unclear design, or risky behavior changes. Read code, identify existing patterns/utilities, and return a concise implementation plan. Do not edit files.",
-      "mode": "subagent",
+      "mode": "primary",
       "steps": 10,
       "temperature": 0.1,
       "permission": {

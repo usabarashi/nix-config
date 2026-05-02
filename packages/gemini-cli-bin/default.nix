@@ -8,10 +8,10 @@
   nodejs_22,
 }:
 let
-  version = "0.39.0";
+  version = "0.40.1";
   src = fetchurl {
     url = "https://registry.npmjs.org/@google/gemini-cli/-/gemini-cli-${version}.tgz";
-    hash = "sha256-iwCTMl/Woxb6Jzsqe5yY/w1xSwVgrh/Ug2OwA8mT0Mg=";
+    hash = "sha256-iTIFEnwHLTuqL7pBmigIG5/Vy3fHRYgxOd2ePiwaKy0=";
   };
 in
 stdenvNoCC.mkDerivation {
