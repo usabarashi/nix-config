@@ -10,27 +10,49 @@
     tmux
   ];
 
-  programs.direnv = {
-    enable = true;
-    nix-direnv.enable = true;
-  };
+  programs = {
+    direnv = {
+      enable = true;
+      nix-direnv.enable = true;
+    };
 
-  programs.zsh = {
-    enable = true;
-    dotDir = "${config.xdg.configHome}/zsh";
+    fzf = {
+      enable = true;
+      enableZshIntegration = true;
+    };
 
-    envExtra = ''
-      # Nix
-      if [ -e '/nix/var/nix/profiles/default/etc/profile.d/nix-daemon.sh' ]; then
-        . '/nix/var/nix/profiles/default/etc/profile.d/nix-daemon.sh'
-      fi
-      # End Nix
+    zsh = {
+      enable = true;
+      dotDir = "${config.xdg.configHome}/zsh";
 
-      # Add user tools to PATH
-      export PATH=$HOME/bin:$PATH
-    '';
+      envExtra = ''
+        # Nix
+        if [ -e '/nix/var/nix/profiles/default/etc/profile.d/nix-daemon.sh' ]; then
+          . '/nix/var/nix/profiles/default/etc/profile.d/nix-daemon.sh'
+        fi
+        # End Nix
 
-    syntaxHighlighting.enable = true;
+        # Add user tools to PATH
+        export PATH=$HOME/bin:$PATH
+      '';
+
+      initContent = ''
+        git-find() {
+          local selected
+          selected=$(ghq list -p | fzf --query "$*") || return 1
+          cd "$selected"
+        }
+
+        git-find-widget() {
+          BUFFER="git-find ''${(q)BUFFER}"
+          zle accept-line
+        }
+        zle -N git-find-widget
+        bindkey '^G' git-find-widget
+      '';
+
+      syntaxHighlighting.enable = true;
+    };
   };
 
   home.file = {
