@@ -5,14 +5,16 @@ let
   preCommitHook = pkgs.writeShellScript "global-pre-commit" ''
     set -eu
 
-    ${pkgs.gitleaks}/bin/gitleaks protect --staged --redact --verbose
-
-    # Delegate to the repository's own pre-commit hook so per-repo setups keep working.
-    git_dir=$(git rev-parse --git-dir 2>/dev/null) || exit 0
-    repo_hook="$git_dir/hooks/pre-commit"
-    if [ -x "$repo_hook" ]; then
-      exec "$repo_hook"
+    # Run the repository's own pre-commit hook first; it may rewrite and re-stage
+    # files (formatters, codegen), so we must scan the resulting index, not the
+    # one the user originally staged. --git-path resolves to the common git dir
+    # (so worktrees are handled) and is not affected by core.hooksPath.
+    repo_hook=$(git rev-parse --git-path hooks/pre-commit 2>/dev/null || true)
+    if [ -n "$repo_hook" ] && [ -x "$repo_hook" ]; then
+      "$repo_hook" "$@"
     fi
+
+    exec ${pkgs.gitleaks}/bin/gitleaks protect --staged --redact --verbose
   '';
 
   git-clean = pkgs.writeShellScriptBin "git-clean" ''
