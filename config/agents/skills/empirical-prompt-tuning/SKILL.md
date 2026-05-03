@@ -29,15 +29,15 @@ When not to use:
 1. **Baseline preparation**: fix the target prompt and prepare the following two:
    - **Evaluation scenarios**, 2 to 3 (1 median + 1 to 2 edge). Tasks that could realistically occur, simulating situations where the target prompt is actually applied.
    - **Requirements checklist** (for accuracy calculation). For each scenario, list 3 to 7 items the deliverable must satisfy. Accuracy % = items satisfied / total items. Fix this in advance (do not move it later).
-2. **Bias-free read**: have a "blank" executor read the instructions. **Dispatch a fresh subagent** via the Task tool. Do not settle for self-rereading (it is structurally impossible to view text you just wrote objectively). When running multiple scenarios in parallel, place multiple Agent calls in a single message. For environments where dispatch is unavailable, see the "Environment constraints" section.
+2. **Bias-free read**: have a "blank" executor read the instructions. **Dispatch a fresh subagent** via the Agent tool. Do not settle for self-rereading (it is structurally impossible to view text you just wrote objectively). When running multiple scenarios in parallel, place multiple Agent tool calls in a single message. For environments where dispatch is unavailable, see the "Environment constraints" section.
 3. **Execution**: hand the subagent a prompt that follows the **subagent invocation contract** below and have it run the scenario. The executor produces an implementation or output, then returns a self-report at the end.
 4. **Two-sided evaluation**: from the returned result, record the following.
    - **Executor self-report** (extracted from the body of the subagent's report): ambiguities / discretionary completions / spots where template application got stuck
    - **Instruction-side metrics** (judgement rules are defined in this section as the single source of truth; other places reference back here):
      - Success/failure: success (○) only when **all** items tagged `[critical]` are ○. If even one is × or partial, it is failure (×). Labels are binary, ○ / × only.
      - Accuracy (achievement rate of the requirements checklist, as %. ○ = full mark, × = 0, partial = 0.5; sum and divide by total items)
-     - Step count (use the `tool_uses` value in the usage metadata returned by the Task tool as is. Include Read / Grep — do not exclude them.)
-     - Duration (`duration_ms` from the Task tool usage metadata)
+     - Step count (use the `tool_uses` value in the usage metadata returned by the Agent tool as is. Include Read / Grep — do not exclude them.)
+     - Duration (`duration_ms` from the Agent tool usage metadata)
      - Retry count (how many times the subagent redid the same judgement. Extracted from the subagent's self-report; not measurable on the instruction side.)
      - **On failure, add a one-liner under "ambiguities" in the presentation format saying which `[critical]` item dropped** (for cause tracking)
    - The requirements checklist must contain **at least one** `[critical]`-tagged item (with zero, the success judgement becomes vacuous). Do not add or remove `[critical]` after the fact.
@@ -76,6 +76,9 @@ The prompt handed to the executor takes the following structure. This is the inp
 ```
 You are an executor reading <target prompt name> with a blank slate.
 
+## Mode
+empirical  # change to "structural" for textual consistency check only (see "Environment constraints: Structural review mode")
+
 ## Target prompt
 <paste the full body of the target prompt, or specify the path to Read>
 
@@ -87,7 +90,6 @@ You are an executor reading <target prompt name> with a blank slate.
 2. <regular item>
 3. <regular item>
 ...
-(Judgement rules are defined as the single source of truth in "Workflow 4. Two-sided evaluation / Instruction-side metrics". At least one [critical] is required.)
 
 ## Task
 1. Follow the target prompt to execute the scenario and produce the deliverable.
@@ -101,11 +103,13 @@ You are an executor reading <target prompt name> with a blank slate.
 - Retries: how many times you redid the same judgement, and why
 ```
 
+> Judgement rules are defined as the single source of truth in "Workflow 4. Two-sided evaluation / Instruction-side metrics". At least one [critical] is required.
+
 The caller extracts the self-report portion from the report and pulls `tool_uses` / `duration_ms` from the Agent tool's usage metadata to fill in the evaluation axes table.
 
 ## Environment constraints
 
-In environments where dispatching a fresh subagent is not possible (already running as a subagent, the Task tool is disabled, etc.), this skill **does not apply**.
+In environments where dispatching a fresh subagent is not possible (already running as a subagent, the Agent tool is disabled, etc.), this skill **does not apply**.
 - Alternative 1: ask the user of the parent session to launch a separate Claude Code session and run it
 - Alternative 2: skip the evaluation and explicitly report to the user "empirical evaluation skipped: dispatch unavailable"
 - **NG**: substituting self-rereading (bias creeps in, so the evaluation result cannot be trusted)
@@ -116,10 +120,10 @@ In environments where dispatching a fresh subagent is not possible (already runn
 
 - **Convergence (stop)**: two consecutive rounds satisfying **all** of:
   - New ambiguities: 0
-  - Accuracy improvement vs. previous: +3 points or less (saturation, like 5% → 8%)
-  - Step-count change vs. previous: within ±10%
+  - Accuracy improvement vs. previous: +3 percentage points or less (saturation, like 5% → 8%)
+  - Step-count change vs. previous: within ±10% (or ±1 step, whichever is larger)
   - Duration change vs. previous: within ±15%
-  - **Overfitting check**: at convergence, add one previously-unused hold-out scenario and evaluate. If accuracy drops 15 points or more from the recent average, that is overfitting. Go back to baseline scenario design and add edge cases.
+  - **Overfitting check**: at convergence, add one previously-unused hold-out scenario and evaluate. If accuracy drops 15 percentage points or more from the recent average, that is overfitting. Go back to baseline scenario design and add edge cases.
 - **Divergence (suspect the design)**: if 3+ iterations fail to reduce new ambiguities → the prompt's design direction itself may be wrong. Stop patching and rewrite the structure.
 - **Resource cutoff**: when importance and improvement cost no longer balance, stop (the call to ship at 80%).
 
