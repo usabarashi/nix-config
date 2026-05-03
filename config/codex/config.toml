@@ -1,7 +1,7 @@
 # See: https://developers.openai.com/codex/config-reference
 
 # Model
-model = "gpt-5.4"
+model = "gpt-5.5"
 model_reasoning_effort = "medium"
 model_reasoning_summary = "auto"
 model_verbosity = "medium"

@@ -1,4 +1,5 @@
 {
+  "model": "opusplan",
   "cleanupPeriodDays": 30,
   "env": {
     "BASH_DEFAULT_TIMEOUT_MS": "300000",
@@ -7,11 +8,42 @@
     "CLAUDE_CODE_DISABLE_LOCATION": "1",
     "CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC": "1",
     "CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS": "1",
+    "CLAUDE_CODE_SUBPROCESS_ENV_SCRUB": "1",
     "DISABLE_AUTOUPDATER": "1",
     "DISABLE_BUG_COMMAND": "1",
     "DISABLE_ERROR_REPORTING": "1"
   },
   "includeCoAuthoredBy": false,
+  "sandbox": {
+    "enabled": false,
+    "failIfUnavailable": true,
+    "autoAllowBashIfSandboxed": true,
+    "allowUnsandboxedCommands": false,
+    "network": {
+      "allowedDomains": [
+        "github.com",
+        "*.github.com",
+        "*.githubusercontent.com",
+        "api.anthropic.com"
+      ],
+      "deniedDomains": [],
+      "allowManagedDomainsOnly": false,
+      "allowUnixSockets": [],
+      "allowAllUnixSockets": false,
+      "allowLocalBinding": false,
+      "allowMachLookup": []
+    },
+    "filesystem": {
+      "denyWrite": [],
+      "allowWrite": [],
+      "denyRead": [],
+      "allowRead": [],
+      "allowManagedReadPathsOnly": false
+    },
+    "enableWeakerNestedSandbox": false,
+    "enableWeakerNetworkIsolation": false,
+    "excludedCommands": []
+  },
   "permissions": {
     "allow": [
       "Bash(awk:*)",
@@ -169,13 +201,11 @@
       "Bash(git reset:*)",
       "Bash(git restore:*)",
       "Bash(git revert:*)",
-      "Bash(git rm:*)",
       "Bash(git stash:*)",
       "Bash(git switch:*)",
       "Bash(git tag:*)",
       "Bash(git worktree:*)",
       "Bash(op:*)",
-      "Bash(rm:*)",
       "Bash(security:*)",
       "Bash(sudo:*)",
       "Read(.env.*)",
@@ -189,7 +219,8 @@
       "Write(/etc/*)",
       "Edit(~/.ssh/*)",
       "Edit(/etc/*)"
-    ]
+    ],
+    "defaultMode": "default"
   },
   "hooks": {
     "PreToolUse": [
@@ -225,5 +256,12 @@
         ]
       }
     ]
-  }
+  },
+  "language": "japanese",
+  "tui": "fullscreen",
+  "voice": {
+    "enabled": false,
+    "mode": "hold"
+  },
+  "voiceEnabled": false
 }
