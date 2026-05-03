@@ -1,7 +1,22 @@
 # see: https://github.com/nix-community/home-manager/blob/master/modules/programs/git.nix
-{ pkgs, ... }:
+{ config, pkgs, ... }:
 
 let
+  preCommitHook = pkgs.writeShellScript "global-pre-commit" ''
+    set -eu
+
+    # Run the repository's own pre-commit hook first; it may rewrite and re-stage
+    # files (formatters, codegen), so we must scan the resulting index, not the
+    # one the user originally staged. --git-path resolves to the common git dir
+    # (so worktrees are handled) and is not affected by core.hooksPath.
+    repo_hook=$(git rev-parse --git-path hooks/pre-commit 2>/dev/null || true)
+    if [ -n "$repo_hook" ] && [ -x "$repo_hook" ]; then
+      "$repo_hook" "$@"
+    fi
+
+    exec ${pkgs.gitleaks}/bin/gitleaks protect --staged --redact --verbose
+  '';
+
   git-clean = pkgs.writeShellScriptBin "git-clean" ''
     #!/bin/sh
 
@@ -35,8 +50,11 @@ in
   home.packages = with pkgs; [
     gh
     ghq
+    gitleaks
     git-clean
   ];
+
+  xdg.configFile."git/hooks/pre-commit".source = preCommitHook;
 
   programs.git = {
     enable = true;
@@ -45,7 +63,10 @@ in
         name = "usabarashi";
         email = "19676305+usabarashi@users.noreply.github.com";
       };
-      core.autocrlf = "input";
+      core = {
+        autocrlf = "input";
+        hooksPath = "${config.xdg.configHome}/git/hooks";
+      };
       credential.helper = "osxkeychain";
     };
     ignores = [
@@ -54,6 +75,7 @@ in
       ".DS_Store"
       ".direnv"
       ".env"
+      ".envrc"
       ".claude/settings.local.json"
       ".serena"
     ];
