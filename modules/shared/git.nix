@@ -1,7 +1,20 @@
 # see: https://github.com/nix-community/home-manager/blob/master/modules/programs/git.nix
-{ pkgs, ... }:
+{ config, pkgs, ... }:
 
 let
+  preCommitHook = pkgs.writeShellScript "global-pre-commit" ''
+    set -eu
+
+    ${pkgs.gitleaks}/bin/gitleaks protect --staged --redact --verbose
+
+    # Delegate to the repository's own pre-commit hook so per-repo setups keep working.
+    git_dir=$(git rev-parse --git-dir 2>/dev/null) || exit 0
+    repo_hook="$git_dir/hooks/pre-commit"
+    if [ -x "$repo_hook" ]; then
+      exec "$repo_hook"
+    fi
+  '';
+
   git-clean = pkgs.writeShellScriptBin "git-clean" ''
     #!/bin/sh
 
@@ -35,8 +48,11 @@ in
   home.packages = with pkgs; [
     gh
     ghq
+    gitleaks
     git-clean
   ];
+
+  xdg.configFile."git/hooks/pre-commit".source = preCommitHook;
 
   programs.git = {
     enable = true;
@@ -45,7 +61,10 @@ in
         name = "usabarashi";
         email = "19676305+usabarashi@users.noreply.github.com";
       };
-      core.autocrlf = "input";
+      core = {
+        autocrlf = "input";
+        hooksPath = "${config.xdg.configHome}/git/hooks";
+      };
       credential.helper = "osxkeychain";
     };
     ignores = [
@@ -54,6 +73,7 @@ in
       ".DS_Store"
       ".direnv"
       ".env"
+      ".envrc"
       ".claude/settings.local.json"
       ".serena"
     ];
