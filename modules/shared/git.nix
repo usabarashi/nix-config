@@ -5,13 +5,13 @@ let
   preCommitHook = pkgs.writeShellScript "global-pre-commit" ''
     set -eu
 
-    # Run the repository's own pre-commit hook first; it may rewrite and re-stage
-    # files (formatters, codegen), so we must scan the resulting index, not the
-    # one the user originally staged. --git-path resolves to the common git dir
-    # (so worktrees are handled) and is not affected by core.hooksPath.
-    repo_hook=$(git rev-parse --git-path hooks/pre-commit 2>/dev/null || true)
-    if [ -n "$repo_hook" ] && [ -x "$repo_hook" ]; then
-      "$repo_hook" "$@"
+    # Run the repository's own pre-commit hook first if present. We must use
+    # --git-common-dir (not --git-path hooks/pre-commit) because the latter
+    # honors core.hooksPath and would resolve to this script itself, causing
+    # infinite recursion / fork bomb.
+    git_common_dir=$(git rev-parse --git-common-dir 2>/dev/null || true)
+    if [ -n "$git_common_dir" ] && [ -x "$git_common_dir/hooks/pre-commit" ]; then
+      "$git_common_dir/hooks/pre-commit" "$@"
     fi
 
     exec ${pkgs.gitleaks}/bin/gitleaks protect --staged --redact --verbose
