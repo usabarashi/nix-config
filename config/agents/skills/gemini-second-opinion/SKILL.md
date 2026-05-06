@@ -23,9 +23,10 @@ Question:
 Provide your independent analysis. If you disagree with the current approach, explain why and suggest alternatives.
 ```
 
-2. Run Gemini CLI with three invariants:
+2. Run Gemini CLI with four invariants:
    - `GEMINI_SANDBOX=false` (nested sandbox-exec is prohibited on macOS).
    - **Isolated `HOME`** to prevent MCP servers, IDE companion integration, and persona/voice extensions from deadlocking Gemini in the non-TTY Bash subshell. Gemini CLI 0.38.2+ spawns MCP children and opens an IDE-companion socket on startup that hang indefinitely in Claude Code's Bash sandbox (no PTY; `openpty` is prohibited). The older `--allowed-mcp-server-names ""` / `-e ""` approach is now rejected by 0.38.2 as an invalid policy rule (`mcpName is required if specified (cannot be empty)`). An isolated `HOME` with a minimal `settings.json` is the only reliable way to run Gemini headlessly from Claude Code Bash; it also prevents persona voices and prior-session state from leaking into the response.
+   - `GEMINI_CLI_TRUST_WORKSPACE=true` to bypass the trusted-folder gate. Gemini CLI 0.38.2+ refuses to start in `-p` headless mode when the CWD is not registered in `trustedFolders.json`, exiting with code 55 before emitting any output. The isolated `HOME` does not carry over the host's trust list, so this gate fires on essentially every invocation. Setting this env var is harmless when the folder is already trusted.
    - Redirect output to a tempfile so it survives regardless of retrieval path.
 
 **Pre-choose the output path yourself** (used by both code branches below). Pick a unique literal filesystem path in advance — e.g., `/tmp/gemini-opinion-<unix-timestamp>-<random>.log`, assembled in your working context (not via `mktemp` inside the snippet, because that binds the path to a shell variable you cannot retrieve later). Reuse the exact same literal path verbatim in the Bash invocation and in the follow-up `Read`. This avoids any dependency on a harness-specific output-capture tool (`BashOutput`, task output files, etc.). Pick a similarly unique literal path for the isolated `HOME` directory — e.g., `/tmp/gemini-skill-home-<unix-timestamp>-<random>`.
@@ -58,7 +59,7 @@ cp "$HOME/.config/gcloud/application_default_credentials.json" "$ISO/.config/gcl
 ISO=<ISOLATED_HOME>
 trap 'rm -rf "$ISO"' EXIT
 # ... (inline the Isolated HOME preamble here) ...
-HOME="$ISO" GEMINI_SANDBOX=false gemini -p "$(cat <<'GEMINI_PROMPT'
+HOME="$ISO" GEMINI_SANDBOX=false GEMINI_CLI_TRUST_WORKSPACE=true gemini -p "$(cat <<'GEMINI_PROMPT'
 <constructed prompt>
 GEMINI_PROMPT
 )" -o text < /dev/null > <TMPFILE> 2>&1
@@ -71,7 +72,7 @@ Wait for the background task to finish, then `Read <TMPFILE>`. Do NOT add `sleep
 ISO=<ISOLATED_HOME>
 trap 'rm -rf "$ISO"' EXIT
 # ... (inline the Isolated HOME preamble here) ...
-HOME="$ISO" GEMINI_SANDBOX=false gemini -p "$(cat <<'GEMINI_PROMPT'
+HOME="$ISO" GEMINI_SANDBOX=false GEMINI_CLI_TRUST_WORKSPACE=true gemini -p "$(cat <<'GEMINI_PROMPT'
 <constructed prompt>
 GEMINI_PROMPT
 )" -o text < /dev/null > <TMPFILE> 2>&1
@@ -89,6 +90,7 @@ Always close stdin with `< /dev/null`. Without it, Gemini may block waiting for 
 On any failure — `gemini` not found, auth error (`ADC must be`, `gcloud.auth`), network error, or timeout — report the reason to the user and proceed with your own analysis only. Discard partial output on timeout as unreliable. The `trap 'rm -rf "$ISO"' EXIT` in the snippets above handles cleanup on both success and error paths; verify it is present if you inline the snippet manually.
 
 Specific failure modes:
+- `Gemini CLI is not running in a trusted directory` (exit 55) — the snippet is missing `GEMINI_CLI_TRUST_WORKSPACE=true`. Add it to the `gemini` invocation. Do not rely on `--skip-trust` alone — verify the env var path works on the installed Gemini CLI version, since flag/env semantics have shifted between releases.
 - `ADC must be external_account, authorized_user, or external_account_authorized_user` — the ADC file was not copied into the isolated `HOME`. Verify `~/.config/gcloud/application_default_credentials.json` exists on the real `HOME`.
 - `Invalid policy rule: mcpName is required if specified (cannot be empty)` — you passed `--allowed-mcp-server-names ""` or `-e ""`. Remove those flags; this skill uses isolated `HOME` for isolation, not flags.
 - Timeout with 0 bytes output — the isolated `HOME` was not applied, or its `settings.json` still has `ide.enabled: true` / non-empty `mcpServers`. Double-check the preamble was inlined verbatim.
