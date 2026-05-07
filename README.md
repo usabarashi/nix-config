@@ -7,7 +7,7 @@ Define your entire development and daily-use software stack as code.
 
 ```bash
 # Install Nix (NixOS fork; --enable-flakes is required for `nix run`)
-curl -sSfL https://artifacts.nixos.org/nix-installer | sh -s -- install --enable-flakes
+curl --proto '=https' --tlsv1.2 -sSfL https://artifacts.nixos.org/nix-installer | sh -s -- install --enable-flakes
 
 # Clone and apply
 git clone https://github.com/usabarashi/nix-config.git
