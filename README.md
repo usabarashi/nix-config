@@ -6,8 +6,8 @@ Define your entire development and daily-use software stack as code.
 ## Quick Start
 
 ```bash
-# Install Nix
-curl --proto '=https' --tlsv1.2 -sSf -L https://install.determinate.systems/nix | sh -s -- install
+# Install Nix (NixOS fork; --enable-flakes is required for `nix run`)
+curl --proto '=https' --tlsv1.2 -sSfL https://artifacts.nixos.org/nix-installer | sh -s -- install --enable-flakes
 
 # Clone and apply
 git clone https://github.com/usabarashi/nix-config.git
@@ -72,7 +72,7 @@ Supports plain module (`default.nix`) or flake (`flake.nix`) with two optional o
 
 ## References
 
-- [Nix](https://nixos.org/) | [Manual](https://nixos.org/manual/nix/stable/) | [Installer](https://github.com/DeterminateSystems/nix-installer)
+- [Nix](https://nixos.org/) | [Manual](https://nixos.org/manual/nix/stable/) | [Installer](https://github.com/NixOS/nix-installer)
 - [NixOS Search](https://search.nixos.org/packages) | [NixHub](https://www.nixhub.io/) | [Versions](https://lazamar.co.uk/nix-versions/)
 - [home-manager](https://github.com/nix-community/home-manager) | [Manual](https://nix-community.github.io/home-manager/)
 - [nix-darwin](https://github.com/LnL7/nix-darwin) | [Options](https://daiderd.com/nix-darwin/manual/)
