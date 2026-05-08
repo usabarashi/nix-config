@@ -1,7 +1,19 @@
 # see: https://github.com/nix-community/home-manager/blob/master/modules/programs/git.nix
-{ config, pkgs, ... }:
+{
+  config,
+  pkgs,
+  ...
+}:
 
 let
+  userName = "usabarashi";
+  userEmail = "19676305+usabarashi@users.noreply.github.com";
+
+  # Paths only; the file contents are populated manually because the keys are
+  # random data tied to a specific Secure Enclave and not reproducible by Nix.
+  signingKeyPath = "${config.xdg.configHome}/git/signing-key.pub";
+  allowedSignersPath = "${config.xdg.configHome}/git/allowed_signers";
+
   preCommitHook = pkgs.writeShellScript "global-pre-commit" ''
     set -eu
 
@@ -60,14 +72,31 @@ in
     enable = true;
     settings = {
       user = {
-        name = "usabarashi";
-        email = "19676305+usabarashi@users.noreply.github.com";
+        name = userName;
+        email = userEmail;
+        signingKey = signingKeyPath;
       };
       core = {
         autocrlf = "input";
         hooksPath = "${config.xdg.configHome}/git/hooks";
       };
       credential.helper = "osxkeychain";
+
+      commit.gpgsign = true;
+      tag.gpgsign = true;
+      push.gpgSign = "if-asked";
+
+      gpg = {
+        format = "ssh";
+        ssh.allowedSignersFile = allowedSignersPath;
+      };
+
+      transfer.fsckObjects = true;
+      fetch.fsckObjects = true;
+      receive.fsckObjects = true;
+
+      init.defaultBranch = "main";
+      pull.ff = "only";
     };
     ignores = [
       "*~"
