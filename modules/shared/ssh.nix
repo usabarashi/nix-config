@@ -41,6 +41,7 @@ in
       "github.com" = {
         identityFile = githubAuthKeyPath;
         identitiesOnly = true;
+        user = "git";
       };
     };
   };

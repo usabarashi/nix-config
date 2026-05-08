@@ -82,9 +82,8 @@ in
       };
       credential.helper = "osxkeychain";
 
-      commit.gpgsign = true;
-      tag.gpgsign = true;
-      push.gpgSign = "if-asked";
+      commit.gpgSign = true;
+      tag.gpgSign = true;
 
       gpg = {
         format = "ssh";
