@@ -26,22 +26,6 @@
     "voicevox": {
       "command": "voicevox-mcp-server",
       "args": []
-    },
-    "serena": {
-      "command": "serena",
-      "args": [
-        "start-mcp-server",
-        "--context",
-        "ide",
-        "--project-from-cwd",
-        "--enable-web-dashboard",
-        "False",
-        "--enable-gui-log-window",
-        "False"
-      ],
-      "env": {
-        "SERENA_HOME": ".serena"
-      }
     }
   },
   "general": {
