@@ -34,20 +34,3 @@ command = "voicevox-mcp-server"
 args = []
 startup_timeout_sec = 20
 tool_timeout_sec = 120
-
-[mcp_servers.serena]
-type = "stdio"
-command = "serena"
-args = [
-    "start-mcp-server",
-    "--context",
-    "codex",
-    "--project-from-cwd",
-    "--enable-web-dashboard",
-    "False",
-    "--enable-gui-log-window",
-    "False",
-]
-
-[mcp_servers.serena.env]
-SERENA_HOME = ".serena"
