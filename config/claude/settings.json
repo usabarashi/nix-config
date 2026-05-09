@@ -1,5 +1,4 @@
 {
-  "model": "opusplan",
   "cleanupPeriodDays": 30,
   "env": {
     "BASH_DEFAULT_TIMEOUT_MS": "300000",
@@ -14,36 +13,6 @@
     "DISABLE_ERROR_REPORTING": "1"
   },
   "includeCoAuthoredBy": false,
-  "sandbox": {
-    "enabled": false,
-    "failIfUnavailable": true,
-    "autoAllowBashIfSandboxed": true,
-    "allowUnsandboxedCommands": false,
-    "network": {
-      "allowedDomains": [
-        "github.com",
-        "*.github.com",
-        "*.githubusercontent.com",
-        "api.anthropic.com"
-      ],
-      "deniedDomains": [],
-      "allowManagedDomainsOnly": false,
-      "allowUnixSockets": [],
-      "allowAllUnixSockets": false,
-      "allowLocalBinding": false,
-      "allowMachLookup": []
-    },
-    "filesystem": {
-      "denyWrite": [],
-      "allowWrite": [],
-      "denyRead": [],
-      "allowRead": [],
-      "allowManagedReadPathsOnly": false
-    },
-    "enableWeakerNestedSandbox": false,
-    "enableWeakerNetworkIsolation": false,
-    "excludedCommands": []
-  },
   "permissions": {
     "allow": [
       "Bash(awk:*)",
@@ -220,7 +189,7 @@
       "Edit(~/.ssh/*)",
       "Edit(/etc/*)"
     ],
-    "defaultMode": "default"
+    "defaultMode": "auto"
   },
   "hooks": {
     "PreToolUse": [
@@ -258,10 +227,41 @@
     ]
   },
   "language": "japanese",
+  "sandbox": {
+    "enabled": false,
+    "failIfUnavailable": true,
+    "autoAllowBashIfSandboxed": true,
+    "allowUnsandboxedCommands": false,
+    "network": {
+      "allowedDomains": [
+        "github.com",
+        "*.github.com",
+        "*.githubusercontent.com",
+        "api.anthropic.com"
+      ],
+      "deniedDomains": [],
+      "allowManagedDomainsOnly": false,
+      "allowUnixSockets": [],
+      "allowAllUnixSockets": false,
+      "allowLocalBinding": false,
+      "allowMachLookup": []
+    },
+    "filesystem": {
+      "allowWrite": [],
+      "denyWrite": [],
+      "denyRead": [],
+      "allowRead": [],
+      "allowManagedReadPathsOnly": false
+    },
+    "enableWeakerNestedSandbox": false,
+    "enableWeakerNetworkIsolation": false,
+    "excludedCommands": []
+  },
   "tui": "fullscreen",
   "voice": {
     "enabled": false,
     "mode": "hold"
   },
-  "voiceEnabled": false
+  "voiceEnabled": false,
+  "skipAutoPermissionPrompt": true
 }
