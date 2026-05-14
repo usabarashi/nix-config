@@ -30,6 +30,7 @@
     ../../modules/shared/gcloud.nix
     ../../modules/shared/git.nix
     ../../modules/shared/neovim.nix
+    ../../modules/shared/node.nix
     ../../modules/shared/ssh.nix
     ../../modules/shared/terminal.nix
     ../../modules/shared/terraform.nix
