@@ -1,7 +1,6 @@
 { userName, ... }:
 {
   imports = [
-    ../../modules/darwin/blackhole.nix
     ../../modules/darwin/nix-maintenance.nix
     ../../modules/darwin/nix-settings.nix
   ];
@@ -62,7 +61,4 @@
     reattach = true;
   };
   time.timeZone = "Asia/Tokyo";
-
-  # BlackHole 2ch Audio Driver
-  programs.blackhole.enable = true;
 }

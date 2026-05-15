@@ -31,13 +31,13 @@ lib/
   builders.nix         mkDarwinSystem - composes nix-darwin + home-manager
   overlays.nix         Custom package overlays
 hosts/                 System-level nix-darwin config per environment
-  private/             PRIVATE: system defaults, blackhole, nix-maintenance
+  private/             PRIVATE: system defaults, nix-maintenance
   work/                WORK: system defaults, nix-maintenance
 home/                  User-level home-manager config per environment
   private/             PRIVATE: personal packages and modules
   work/                WORK: work packages and modules
 modules/
-  darwin/              nix-darwin modules (blackhole, karabiner, nix-maintenance, nix-settings)
+  darwin/              nix-darwin modules (karabiner, nix-maintenance, nix-settings)
   shared/              home-manager modules (git, terminal, neovim, vscode, agents, ...)
 packages/              Custom package definitions
 ```
