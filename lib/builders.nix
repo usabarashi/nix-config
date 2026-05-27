@@ -28,6 +28,7 @@
         }:
         {
           ids.gids.nixbld = 350; # Use fixed GID instead of runtime detection
+          nixpkgs.hostPlatform = system;
           nixpkgs.overlays = import ../lib/overlays.nix;
           nixpkgs.config.allowUnfree = true;
           users.users.${userName} = {
@@ -37,7 +38,6 @@
         };
     in
     nix-darwin.lib.darwinSystem {
-      inherit system;
       specialArgs = {
         inherit userName homeDirectory;
       };

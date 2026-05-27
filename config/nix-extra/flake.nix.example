@@ -34,7 +34,7 @@
         { pkgs, ... }:
         {
           home.packages = [
-            # some-tool.packages.${pkgs.system}.default
+            # some-tool.packages.${pkgs.stdenv.hostPlatform.system}.default
           ];
         };
     };

@@ -10,7 +10,8 @@
   home = {
     username = userName;
     inherit homeDirectory;
-    stateVersion = "25.11";
+    stateVersion = "26.05";
+    enableNixpkgsReleaseCheck = false;
   };
 
   targets.darwin.copyApps = {
