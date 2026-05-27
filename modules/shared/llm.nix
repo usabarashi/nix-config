@@ -70,9 +70,27 @@
     # with quantized KV, else dequantize round-trips erase the savings.
     # `--no-mmproj` skips the bundled vision projector. `--slot-save-path`
     # only exposes /slots/X?action=save|restore — prefix caches must be
-    # persisted explicitly, not on shutdown. Speculative decoding is
-    # unsupported: the model's Mamba SSM state cannot be rolled back on
-    # draft rejection.
+    # persisted explicitly, not on shutdown.
+    #
+    # MTP (Multi Token Prediction) speculative decoding via `--spec-type
+    # draft-mtp` (llama.cpp b9190+, PR ggml-org/llama.cpp#22673). The MTP
+    # head loads from the same GGUF but llama.cpp allocates it as a separate
+    # model with its own context/KV; recurrent-state rollback landed in the
+    # same PR, which is what makes this viable for Qwen3.6's Mamba/SSM
+    # layers. Memory delta is NOT free: the extra KV alone is ~67 MiB
+    # (1 MTP layer at 65k q8), but PR user data shows a Qwen3.6-27B Q6 run
+    # going from 22.47 -> 24.96 GiB (+2.49 GiB) with MTP enabled, attributed
+    # to the second-context allocation plus runtime buffers. Treat resident
+    # memory as the gating signal, not theoretical KV math.
+    #
+    # `--spec-draft-n-max 2` chosen for Apple Silicon UMA: PR's Strix Point
+    # APU sweep (closest UMA analog) shows n=2 -> 1.199x, n=3 -> 1.153x.
+    # MoE A3B's already-cheap baseline decode amortizes MTP less than dense
+    # models do, and deeper drafts add verification cost on UMA. Note:
+    # parallel decoding with MTP is "not fully optimized" per the PR, so
+    # OpenCode-subagent concurrent calls may not see single-stream gains.
+    # Prompt processing takes a hit (D2H embedding transfers); watch long
+    # prefills.
     llama-server = {
       enable = true;
       config = {
@@ -82,17 +100,18 @@
           # `exec`s its arguments. See `config/llama-server/wrapper.sh`.
           "${homeDirectory}/.config/llama-server/wrapper.sh"
           "${pkgs.llama-cpp}/bin/llama-server"
-          # Bartowski mirror is a pragmatic workaround, not a permanent fix:
-          # when HF migrated unsloth/Qwen3.6-35B-A3B-GGUF to Xet storage, the
-          # tree API briefly returned masked `lfs.oid` (64 asterisks) instead
-          # of valid SHA256, which llama.cpp's `is_valid_oid` rejects, causing
-          # `get_repo_files` to drop every GGUF and report "no GGUF files
-          # found". HF has since restored valid OIDs for this repo, but the
-          # next Xet-induced regression could hit any mirror — durable fix
-          # belongs upstream in llama.cpp (Xet-aware repo listing). Revisit
-          # this pin if you want the marginally smaller UD-IQ4_XS quant.
+          # unsloth MTP GGUF: contains both the base model and the MTP head
+          # in one file. UD-IQ4_XS matches the prior bartowski IQ4_XS quant
+          # in resident size (~18 GiB). The earlier Xet-OID regression that
+          # forced the bartowski mirror was resolved upstream on HF; if it
+          # returns, the symptom is `get_repo_files` reporting "no GGUF
+          # files found" and the fix is either a mirror or a direct URL.
           "-hf"
-          "bartowski/Qwen_Qwen3.6-35B-A3B-GGUF:IQ4_XS"
+          "unsloth/Qwen3.6-35B-A3B-MTP-GGUF:UD-IQ4_XS"
+          "--spec-type"
+          "draft-mtp"
+          "--spec-draft-n-max"
+          "2"
           "--no-mmproj"
           "--alias"
           "qwen3.6-35b-a3b"
