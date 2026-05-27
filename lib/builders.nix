@@ -28,9 +28,11 @@
         }:
         {
           ids.gids.nixbld = 350; # Use fixed GID instead of runtime detection
-          nixpkgs.hostPlatform = system;
-          nixpkgs.overlays = import ../lib/overlays.nix;
-          nixpkgs.config.allowUnfree = true;
+          nixpkgs = {
+            hostPlatform = system;
+            overlays = import ../lib/overlays.nix;
+            config.allowUnfree = true;
+          };
           users.users.${userName} = {
             home = homeDirectory;
             shell = pkgs.zsh;
