@@ -28,20 +28,17 @@ in
       extraConfigPath
     ];
 
-    matchBlocks = {
+    settings = {
       "*" = {
-        # Default SSH configuration
-        serverAliveInterval = 60;
-        serverAliveCountMax = 3;
-        extraOptions = {
-          IdentityAgent = secretiveSocket;
-        };
+        ServerAliveInterval = 60;
+        ServerAliveCountMax = 3;
+        IdentityAgent = secretiveSocket;
       };
 
       "github.com" = {
-        identityFile = githubAuthKeyPath;
-        identitiesOnly = true;
-        user = "git";
+        IdentityFile = githubAuthKeyPath;
+        IdentitiesOnly = true;
+        User = "git";
       };
     };
   };

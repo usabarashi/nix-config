@@ -9,6 +9,8 @@
     viAlias = true;
     vimAlias = true;
     defaultEditor = true;
+    withRuby = false;
+    withPython3 = false;
 
     extraConfig = ''
       " Set leader key to Space
