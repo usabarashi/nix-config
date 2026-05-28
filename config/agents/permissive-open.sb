@@ -11,11 +11,7 @@
 
   ;; Locations other than the project directory where writes are allowed
   (regex (string-append "^" (param "HOME_DIR") "/.claude*"))
-  (subpath (string-append (param "HOME_DIR") "/.cargo/registry"))
-  (subpath (string-append (param "HOME_DIR") "/.cargo/git"))
-  (subpath (string-append (param "HOME_DIR") "/.cargo/.global-cache"))
   (subpath (string-append (param "HOME_DIR") "/.codex"))
-  (subpath (string-append (param "HOME_DIR") "/.terraform.d/plugin-cache"))
   (subpath (string-append (param "HOME_DIR") "/Library/Keychains"))
 
   ;; XDG Base Directory specification paths
@@ -30,7 +26,13 @@
   (regex #"^/private/var/folders/[^/]+/[^/]+/[CT]")
 
   ;; Other tool-related. Please adjust according to the tool you are using
+  (subpath (string-append (param "HOME_DIR") "/.cargo/registry"))
+  (subpath (string-append (param "HOME_DIR") "/.cargo/git"))
+  (subpath (string-append (param "HOME_DIR") "/.cargo/.global-cache"))
+  (subpath (string-append (param "HOME_DIR") "/.ivy2"))
   (subpath (string-append (param "HOME_DIR") "/.npm"))
+  (subpath (string-append (param "HOME_DIR") "/.sbt"))
+  (subpath (string-append (param "HOME_DIR") "/.terraform.d/plugin-cache"))
 
   ;; Like STDOUT.
   (literal "/dev/stdout")
