@@ -29,7 +29,7 @@
   (subpath (string-append (param "HOME_DIR") "/.cargo/registry"))
   (subpath (string-append (param "HOME_DIR") "/.cargo/git"))
   (subpath (string-append (param "HOME_DIR") "/.cargo/.global-cache"))
-  (subpath (string-append (param "HOME_DIR") "/.ivy"))
+  (subpath (string-append (param "HOME_DIR") "/.ivy2"))
   (subpath (string-append (param "HOME_DIR") "/.npm"))
   (subpath (string-append (param "HOME_DIR") "/.sbt"))
   (subpath (string-append (param "HOME_DIR") "/.terraform.d/plugin-cache"))
