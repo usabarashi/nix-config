@@ -18,6 +18,10 @@ project_doc_fallback_filenames = ["CLAUDE.md", "GEMINI.md"]
 [features]
 memories = true
 
+# Telemetry: disable anonymous usage/health metrics sent to OpenAI (on by default since v0.128.0)
+[analytics]
+enabled = false
+
 # Session history
 [history]
 persistence = "save-all"
