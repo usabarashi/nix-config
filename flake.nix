@@ -4,7 +4,10 @@
   inputs = {
     nixpkgs.url = "github:nixos/nixpkgs/nixpkgs-unstable";
     nix-darwin = {
-      url = "github:lnl7/nix-darwin";
+      # git+https (not github:) so the flake fetches via the git protocol instead
+      # of GitHub's archive/codeload endpoint, which intermittently 404s on
+      # SHA-addressed tarball requests. Tracks the renamed nix-darwin/nix-darwin repo.
+      url = "git+https://github.com/nix-darwin/nix-darwin";
       inputs.nixpkgs.follows = "nixpkgs";
     };
     home-manager = {
