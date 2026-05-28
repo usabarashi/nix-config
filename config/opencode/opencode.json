@@ -85,5 +85,6 @@
       }
     }
   },
-  "model": "llamacpp-local/qwen3.6-35b-a3b"
+  "model": "llamacpp-local/qwen3.6-35b-a3b",
+  "small_model": "llamacpp-local/qwen3.6-35b-a3b"
 }
