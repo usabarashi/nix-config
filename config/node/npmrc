@@ -3,5 +3,8 @@
 # Identity tracking and breach notifications are not provided in this mode.
 registry=https://npm.flatt.tech/
 # Client-side install cooldown in days, enforced by npm v11.10.0+.
-# pnpm/yarn use different keys (minimumReleaseAge) and ignore this harmlessly.
+# pnpm/yarn ignore this key and gate cooldown via their own config files,
+# so it cannot be enabled from ~/.npmrc:
+#   - pnpm: minimumReleaseAge (minutes) in pnpm-workspace.yaml; v11 defaults to 1440 (1d)
+#   - yarn berry: npmMinimalAgeGate (e.g. "1d") in .yarnrc.yml
 min-release-age=7
