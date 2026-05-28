@@ -146,5 +146,7 @@
   ],
   "githubPullRequests.pullBranch": "never",
   "diffEditor.codeLens": true,
-  "lean4.alwaysAskBeforeInstallingLeanVersions": true
+  "lean4.alwaysAskBeforeInstallingLeanVersions": true,
+  "security.promptForLocalFileProtocolHandling": false,
+  "security.workspace.trust.untrustedFiles": "open"
 }
