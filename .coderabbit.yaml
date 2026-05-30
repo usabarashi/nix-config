@@ -118,7 +118,7 @@ reviews:
         issue; this is a personal single-user macOS machine.
         Additionally, this is host-specific nix-darwin system configuration.
         Check for correct system defaults, proper module imports, and
-        consistency across host configurations (mac14-9, work).
+        consistency across host configurations (mac14-9, mac14-10).
 
     - path: "home/**/*.nix"
       instructions: |

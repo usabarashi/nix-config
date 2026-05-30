@@ -12,7 +12,7 @@ curl --proto '=https' --tlsv1.2 -sSfL https://artifacts.nixos.org/nix-installer 
 # Clone and apply
 git clone https://github.com/usabarashi/nix-config.git
 cd nix-config
-nix run .#mac14-9  # or: nix run .#work
+nix run .#mac14-9  # or: nix run .#mac14-10
 ```
 
 ## Commands
@@ -20,7 +20,7 @@ nix run .#mac14-9  # or: nix run .#work
 | Command | Description |
 |---------|-------------|
 | `nix run .#mac14-9` | Build and apply MAC14,9 configuration |
-| `nix run .#work` | Build and apply WORK configuration |
+| `nix run .#mac14-10` | Build and apply MAC14,10 configuration |
 | `nix fmt` | Auto-format all Nix files |
 | `nix fmt -- --fail-on-change` | Check formatting without modifying |
 | `nix flake check --impure` | Validate flake syntax |
