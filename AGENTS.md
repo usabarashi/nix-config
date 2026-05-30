@@ -18,8 +18,9 @@ Personal Nix Flake configuration for macOS using **nix-darwin** + **home-manager
 # Deploy
 nix run .#mac14-9  # or: nix run .#work
 
-# Build test (without applying)
-nix build .#darwinConfigurations.mac14-9.system --impure --dry-run
+# Build test (without applying) — env vars required for --impure eval
+CURRENT_USER=$(whoami) REPOSITORY_PATH=$(pwd) \
+  nix build .#darwinConfigurations.mac14-9.system --impure --dry-run
 ```
 
 ## Architecture
