@@ -32,7 +32,7 @@ let
       custom = [
         # Custom Alloy extension with updated JAR file (Alloy 6.2.0)
         # After changing this extension, you need to manually update ~/.vscode/extensions/extensions.json:
-        # 1. Build: nix run .#private  (or: nix run .#work)
+        # 1. Build: nix run .#mac14-9  (or: nix run .#work)
         # 2. Find new path: readlink ~/.vscode/extensions/usabarashi.alloy-custom
         # 3. Quit VSCode: Cmd+Q
         # 4. Backup: cp ~/.vscode/extensions/extensions.json /tmp/extensions.json.backup

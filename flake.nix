@@ -44,11 +44,11 @@
       };
 
       homeModules = {
-        private = import ./home/private;
+        mac14-9 = import ./home/mac14-9;
         work = import ./home/work;
       };
       hostPaths = {
-        private = ./hosts/private;
+        mac14-9 = ./hosts/mac14-9;
         work = ./hosts/work;
       };
 
@@ -74,7 +74,7 @@
       in
       {
         apps = {
-          private = mkApplyApp "private";
+          mac14-9 = mkApplyApp "mac14-9";
           work = mkApplyApp "work";
         };
 
@@ -90,12 +90,12 @@
     )
     // {
       darwinConfigurations = {
-        private = builders.mkDarwinSystem {
+        mac14-9 = builders.mkDarwinSystem {
           system = "aarch64-darwin";
           userName = env.currentUser;
           inherit (env) repoPath;
-          homeModule = homeModules.private;
-          hostPath = hostPaths.private;
+          homeModule = homeModules.mac14-9;
+          hostPath = hostPaths.mac14-9;
           flakeInputs = mkFlakeInputs "aarch64-darwin";
         };
         work = builders.mkDarwinSystem {
