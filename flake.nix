@@ -48,11 +48,11 @@
 
       homeModules = {
         mac14-9 = import ./home/mac14-9;
-        work = import ./home/work;
+        mac14-10 = import ./home/mac14-10;
       };
       hostPaths = {
         mac14-9 = ./hosts/mac14-9;
-        work = ./hosts/work;
+        mac14-10 = ./hosts/mac14-10;
       };
 
     in
@@ -78,7 +78,7 @@
       {
         apps = {
           mac14-9 = mkApplyApp "mac14-9";
-          work = mkApplyApp "work";
+          mac14-10 = mkApplyApp "mac14-10";
         };
 
         formatter = pkgs.nixfmt-tree;
@@ -101,12 +101,12 @@
           hostPath = hostPaths.mac14-9;
           flakeInputs = mkFlakeInputs "aarch64-darwin";
         };
-        work = builders.mkDarwinSystem {
+        mac14-10 = builders.mkDarwinSystem {
           system = "aarch64-darwin";
           userName = env.currentUser;
           inherit (env) repoPath;
-          homeModule = homeModules.work;
-          hostPath = hostPaths.work;
+          homeModule = homeModules.mac14-10;
+          hostPath = hostPaths.mac14-10;
           flakeInputs = mkFlakeInputs "aarch64-darwin";
         };
       };

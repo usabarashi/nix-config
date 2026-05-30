@@ -1,9 +1,9 @@
 _: {
   # Combined CA certificate bundle for Netskope SSL inspection.
-  # Requires bootstrap: generate the bundle before first `nix run .#work`.
+  # Requires bootstrap: generate the bundle before first `nix run .#mac14-10`.
   # See activation script below for auto-regeneration on subsequent applies.
   #
-  # Bootstrap (one-time, before first `nix run .#work`):
+  # Bootstrap (one-time, before first `nix run .#mac14-10`):
   #   security find-certificate -a -p \
   #     /System/Library/Keychains/SystemRootCertificates.keychain \
   #     /Library/Keychains/System.keychain \
@@ -12,7 +12,7 @@ _: {
   #     "/Library/Application Support/Netskope/STAgent/data/nscacert.pem" \
   #     | sudo tee /etc/nix/ca_cert.pem > /dev/null
   #   rm /tmp/nix_ca_combined.pem
-  # After bootstrap, `nix run .#work` manages ssl-cert-file and daemon restarts.
+  # After bootstrap, `nix run .#mac14-10` manages ssl-cert-file and daemon restarts.
   nix.settings."ssl-cert-file" = "/etc/nix/ca_cert.pem";
 
   # Expose the combined CA bundle to user-space tools (Rust/rustls, Python requests, curl, etc.)

@@ -7,7 +7,7 @@ Personal Nix Flake configuration for macOS using **nix-darwin** + **home-manager
 | Command | Description |
 |---------|-------------|
 | `nix run .#mac14-9` | Build and deploy MAC14,9 configuration |
-| `nix run .#work` | Build and deploy WORK configuration |
+| `nix run .#mac14-10` | Build and deploy MAC14,10 configuration |
 | `nix fmt` | Auto-format all `*.nix` files |
 | `nix fmt -- --fail-on-change` | Check formatting without modifying |
 | `nix flake check --impure` | Validate flake syntax |
@@ -16,7 +16,7 @@ Personal Nix Flake configuration for macOS using **nix-darwin** + **home-manager
 
 ```bash
 # Deploy
-nix run .#mac14-9  # or: nix run .#work
+nix run .#mac14-9  # or: nix run .#mac14-10
 
 # Build test (without applying) — env vars required for --impure eval
 CURRENT_USER=$(whoami) REPOSITORY_PATH=$(pwd) \
@@ -26,17 +26,17 @@ CURRENT_USER=$(whoami) REPOSITORY_PATH=$(pwd) \
 ## Architecture
 
 ```text
-flake.nix              Entry point - assembles system (mac14-9/work configs)
+flake.nix              Entry point - assembles system (mac14-9/mac14-10 configs)
 lib/
   env.nix              Environment variable resolution
   builders.nix         mkDarwinSystem - composes nix-darwin + home-manager
   overlays.nix         Custom package overlays
 hosts/                 System-level nix-darwin config per host (model identifier)
   mac14-9/             MacBook Pro 14" 2023 (M2 Pro): system defaults, nix-maintenance, hardware.md, firmware.md
-  work/                WORK: system defaults, nix-maintenance
+  mac14-10/            MAC14,10: system defaults, nix-maintenance
 home/                  User-level home-manager config per host (model identifier)
   mac14-9/             MAC14,9: personal packages and modules
-  work/                WORK: work packages and modules
+  mac14-10/            MAC14,10: work packages and modules
 modules/
   darwin/              nix-darwin modules (karabiner, nix-maintenance, nix-settings)
   shared/              home-manager modules (git, terminal, neovim, vscode, agents, ...)
