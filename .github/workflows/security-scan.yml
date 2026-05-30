@@ -25,7 +25,7 @@ jobs:
     timeout-minutes: 120
     strategy:
       matrix:
-        config_name: [private, work]
+        config_name: [mac14-9, work]
     steps:
     - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 

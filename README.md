@@ -12,14 +12,14 @@ curl --proto '=https' --tlsv1.2 -sSfL https://artifacts.nixos.org/nix-installer 
 # Clone and apply
 git clone https://github.com/usabarashi/nix-config.git
 cd nix-config
-nix run .#private  # or: nix run .#work
+nix run .#mac14-9  # or: nix run .#work
 ```
 
 ## Commands
 
 | Command | Description |
 |---------|-------------|
-| `nix run .#private` | Build and apply PRIVATE configuration |
+| `nix run .#mac14-9` | Build and apply MAC14,9 configuration |
 | `nix run .#work` | Build and apply WORK configuration |
 | `nix fmt` | Auto-format all Nix files |
 | `nix fmt -- --fail-on-change` | Check formatting without modifying |
@@ -30,7 +30,8 @@ nix run .#private  # or: nix run .#work
 ### Dry Run
 
 ```bash
-nix build .#darwinConfigurations.private.system --impure --dry-run
+CURRENT_USER=$(whoami) REPOSITORY_PATH=$(pwd) \
+  nix build .#darwinConfigurations.mac14-9.system --impure --dry-run
 ```
 
 ### Manual GC

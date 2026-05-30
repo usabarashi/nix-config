@@ -6,7 +6,7 @@ Personal Nix Flake configuration for macOS using **nix-darwin** + **home-manager
 
 | Command | Description |
 |---------|-------------|
-| `nix run .#private` | Build and deploy PRIVATE configuration |
+| `nix run .#mac14-9` | Build and deploy MAC14,9 configuration |
 | `nix run .#work` | Build and deploy WORK configuration |
 | `nix fmt` | Auto-format all `*.nix` files |
 | `nix fmt -- --fail-on-change` | Check formatting without modifying |
@@ -16,25 +16,26 @@ Personal Nix Flake configuration for macOS using **nix-darwin** + **home-manager
 
 ```bash
 # Deploy
-nix run .#private  # or: nix run .#work
+nix run .#mac14-9  # or: nix run .#work
 
-# Build test (without applying)
-nix build .#darwinConfigurations.private.system --impure --dry-run
+# Build test (without applying) — env vars required for --impure eval
+CURRENT_USER=$(whoami) REPOSITORY_PATH=$(pwd) \
+  nix build .#darwinConfigurations.mac14-9.system --impure --dry-run
 ```
 
 ## Architecture
 
 ```text
-flake.nix              Entry point - assembles system (private/work configs)
+flake.nix              Entry point - assembles system (mac14-9/work configs)
 lib/
   env.nix              Environment variable resolution
   builders.nix         mkDarwinSystem - composes nix-darwin + home-manager
   overlays.nix         Custom package overlays
-hosts/                 System-level nix-darwin config per environment
-  private/             PRIVATE: system defaults, nix-maintenance
+hosts/                 System-level nix-darwin config per host (model identifier)
+  mac14-9/             MacBook Pro 14" 2023 (M2 Pro): system defaults, nix-maintenance, hardware.md, firmware.md
   work/                WORK: system defaults, nix-maintenance
-home/                  User-level home-manager config per environment
-  private/             PRIVATE: personal packages and modules
+home/                  User-level home-manager config per host (model identifier)
+  mac14-9/             MAC14,9: personal packages and modules
   work/                WORK: work packages and modules
 modules/
   darwin/              nix-darwin modules (karabiner, nix-maintenance, nix-settings)
