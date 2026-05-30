@@ -72,13 +72,13 @@ sudo bputil -d                          # current system
 
 ## NVRAM
 
-NVRAM is still present and used by macOS for things like `boot-args` and the chosen startup disk. There is no boot-time key combo to clear it; use the CLI from a booted system:
+NVRAM is still present and used by macOS for things like `boot-args` and the chosen startup disk. There is no boot-time key combo to clear it; use the CLI from a booted system. Note that on Apple Silicon many protected variables (including `boot-args`) and the full clear are blocked under Full Security; lower the security policy via `bputil` in recoveryOS first, or perform the change from recoveryOS:
 
 ```sh
-nvram -p                 # list
-sudo nvram boot-args="-v"
-sudo nvram -d boot-args  # delete one
-sudo nvram -c            # clear all (use with caution)
+nvram -p                 # list (always allowed)
+sudo nvram boot-args="-v"  # protected: needs Reduced/Permissive Security or recoveryOS
+sudo nvram -d boot-args    # protected: same as above
+sudo nvram -c              # clear all: typically blocked by SIP; run from recoveryOS
 ```
 
 `csr-active-config` (SIP) is **not** managed via `csrutil` alone on Apple Silicon for some operations — major SIP changes route through the LocalPolicy and require recoveryOS.
