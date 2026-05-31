@@ -40,6 +40,7 @@
     "plan": {
       "description": "Use only for non-trivial changes: unfamiliar subsystem, multi-file edits, unclear design, or risky behavior changes. Read code, identify existing patterns/utilities, and return a concise implementation plan. Do not edit files.",
       "mode": "primary",
+      "model": "opencode-go/kimi-k2.6",
       "steps": 10,
       "temperature": 0.1,
       "permission": {
@@ -61,6 +62,7 @@
     "review": {
       "description": "Read-only code reviewer. Inspect the current git diff first, then read touched files as needed. Flag correctness risks, regressions, security issues, and missing tests. Do not edit files.",
       "mode": "subagent",
+      "model": "opencode-go/kimi-k2.6",
       "steps": 8,
       "temperature": 0.1,
       "permission": {
@@ -85,6 +87,6 @@
       }
     }
   },
-  "model": "llamacpp-local/qwen3.6-35b-a3b",
+  "model": "opencode-go/glm-5.1",
   "small_model": "llamacpp-local/qwen3.6-35b-a3b"
 }
