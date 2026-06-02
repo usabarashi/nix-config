@@ -11,6 +11,7 @@ rec {
   gemini-cli-workforce = pkgs.callPackage ./gemini-cli-workforce {
     inherit gemini-cli-bin;
   };
+  git-tools-bin = pkgs.callPackage ./git-tools-bin { };
   opencode-bin = pkgs.callPackage ./opencode-bin { };
   opencode-sandboxed = pkgs.callPackage ./opencode-sandboxed {
     inherit opencode-bin;
