@@ -1,0 +1,11 @@
+# Yarn Berry global config (~/.yarnrc.yml). Yarn does NOT read ~/.npmrc, so the
+# Takumi Guard proxy and release-age gate defined in config/node/npmrc do not
+# reach yarn -- they must be restated here.
+
+# Takumi Guard registry proxy (https://flatt.tech/takumi/features/guard).
+# Anonymous mode -- no token required for the package-blocking feature.
+npmRegistryServer: "https://npm.flatt.tech/"
+
+# Minimum publish age before a version is installable. Mirrors npm's
+# min-release-age=7 (7 days) from config/node/npmrc.
+npmMinimalAgeGate: "7d"

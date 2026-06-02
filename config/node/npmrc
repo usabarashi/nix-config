@@ -5,6 +5,8 @@ registry=https://npm.flatt.tech/
 # Client-side install cooldown in days, enforced by npm v11.10.0+.
 # pnpm/yarn ignore this key and gate cooldown via their own config files,
 # so it cannot be enabled from ~/.npmrc:
-#   - pnpm: minimumReleaseAge (minutes) in pnpm-workspace.yaml; v11 defaults to 1440 (1d)
-#   - yarn berry: npmMinimalAgeGate (e.g. "1d") in .yarnrc.yml
+#   - pnpm: minimumReleaseAge (minutes) in pnpm-workspace.yaml ONLY -- pnpm
+#     docs state it cannot be set globally; per-project file required.
+#     v11+ already defaults to 1440 (1d).
+#   - yarn berry: npmMinimalAgeGate set to "7d" in config/node/yarnrc.yml
 min-release-age=7
