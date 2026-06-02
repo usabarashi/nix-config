@@ -17,7 +17,6 @@
     "allow": [
       "Bash(awk:*)",
       "Bash(find:*)",
-      "Bash(gemini:*)",
       "Bash(gh browse:*)",
       "Bash(gh issue list:*)",
       "Bash(gh issue status:*)",

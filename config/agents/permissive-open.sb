@@ -12,6 +12,7 @@
   ;; Locations other than the project directory where writes are allowed
   (regex (string-append "^" (param "HOME_DIR") "/.claude*"))
   (subpath (string-append (param "HOME_DIR") "/.codex"))
+  (subpath (string-append (param "HOME_DIR") "/.gemini"))
   (subpath (string-append (param "HOME_DIR") "/Library/Keychains"))
 
   ;; XDG Base Directory specification paths

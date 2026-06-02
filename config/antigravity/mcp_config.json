@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "voicevox": {
+      "command": "voicevox-mcp-server",
+      "args": []
+    }
+  }
+}
