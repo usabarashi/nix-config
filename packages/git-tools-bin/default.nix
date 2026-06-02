@@ -8,9 +8,9 @@
 #
 # Update workflow: update `version` and `hash` below, then deploy.
 {
-  fetchurl,
   lib,
   stdenvNoCC,
+  fetchurl,
 }:
 let
   version = "20260602-033259";
@@ -34,6 +34,7 @@ stdenvNoCC.mkDerivation {
   meta = {
     description = "Pre-built git-tools binaries (darwin-arm64): Git subcommands generating Conventional Commits messages and branch names, cleaning merged branches, and scanning staged changes for secrets via Apple's on-device model";
     homepage = "https://github.com/usabarashi/git-tools";
+    license = lib.licenses.unfree;
     sourceProvenance = with lib.sourceTypes; [ binaryNativeCode ];
     platforms = [ "aarch64-darwin" ];
   };
