@@ -82,9 +82,6 @@
       ".gemini/scripts" = agentScripts;
       ".gemini/skills" = agentSkills;
 
-      # GitHub Copilot settings
-      ".copilot/skills" = agentSkills;
-
       # opencode settings (XDG-style location)
       ".config/opencode/opencode.json" = {
         source = config.lib.file.mkOutOfStoreSymlink "${repoPath}/config/opencode/opencode.json";

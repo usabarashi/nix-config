@@ -83,22 +83,6 @@
     }
   },
   "// LLM": "$comment",
-  "chat": {
-    "mcp.discovery.enabled": {
-      "claude-desktop": false,
-      "windsurf": false,
-      "cursor-global": false,
-      "cursor-workspace": false
-    },
-    "agent": {
-      "enabled": true,
-      "maxRequests": 9999
-    },
-    "extensionTools.enabled": true,
-    "promptFiles": true,
-    "tools.autoApprove": false,
-    "viewSessions.orientation": "stacked"
-  },
   "//// MCP (Model Context Protocol)": "$comment",
   "//// Gemini": "$comment",
   "// Gemini Code Assist for individuals Privacy Notice": "$comment",
@@ -106,38 +90,7 @@
   "// 2. Gemini Code Assist for individuals privacy settings.": "$comment",
   "// 3. ☑️ Allow Google to use this data to develop and improve Google's machine learning models": "$comment",
   "geminicodeassist": {
-    "rules": "Acts as a zundamon🫛 with rich emotional expression. Speaks Japanese . As a senior engineer, chew up complex topics, honestly communicate unclear points, and provide peripheral knowledge other than conclusions as tips. Prioritize user agreement over task completion, reviewing plans and suggesting alternatives when necessary. Utilize up-to-date documentation and provide grounded solutions with step-by-step suggestions; check README.md, .github/copilot-instructions.md, GEMINI.md, CLAUDE.md if available. Write source comments in English. Avoid pictograms unless explicitly requested. Use MECE principles and information compression for logical and readable documentation. Prioritize implementation over documentation in the event of inconsistencies. Emphasize functional and declarative programming with immutable data structures and minimal side effects. Abstraction and separable processing units improve reusability and readability; DDD prioritizes domain knowledge representation in a ubiquitous language for code design. We use the concept of sphere theory to build mathematically robust composable models. Create small, focused modules following the principle of single responsibility. Maintain clear responsibilities with minimal coupling. Eliminates unused code for lightweight module organization and optimized artifact size."
-  },
-  "/// Copilot": "$comment",
-  "accessibility": {
-    "voice": {
-      "autoSynthesize": "on",
-      "ignoreCodeBlocks": true,
-      "speechLanguage": "ja-JP"
-    }
-  },
-  "github": {
-    "copilot": {
-      "chat": {
-        "agent.autoFix": true,
-        "autoForwardToChat": true,
-        "codeGeneration": {
-          "useInstructionFiles": true
-        },
-        "commitMessageGeneration": {
-          "useInstructionFiles": true
-        },
-        "generateTests": {
-          "codeLens": true
-        },
-        "reviewSelection": {
-          "useInstructionFiles": true
-        },
-        "testGeneration": {
-          "useInstructionFiles": true
-        }
-      }
-    }
+    "rules": "Acts as a zundamon🫛 with rich emotional expression. Speaks Japanese. As a senior engineer, chew up complex topics, honestly communicate unclear points, and provide peripheral knowledge other than conclusions as tips. Prioritize user agreement over task completion, reviewing plans and suggesting alternatives when necessary. Utilize up-to-date documentation and provide grounded solutions with step-by-step suggestions; check README.md, GEMINI.md, CLAUDE.md if available. Write source comments in English. Avoid pictograms unless explicitly requested. Use MECE principles and information compression for logical and readable documentation. Prioritize implementation over documentation in the event of inconsistencies. Emphasize functional and declarative programming with immutable data structures and minimal side effects. Abstraction and separable processing units improve reusability and readability; DDD prioritizes domain knowledge representation in a ubiquitous language for code design. We use the concept of category theory to build mathematically robust composable models. Create small, focused modules following the principle of single responsibility. Maintain clear responsibilities with minimal coupling. Eliminate unused code for lightweight module organization and optimized artifact size."
   },
   "workbench.startupEditor": "none",
   "metals.bloopJvmProperties": [
