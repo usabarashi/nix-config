@@ -38,11 +38,12 @@ stdenvNoCC.mkDerivation {
     runHook postInstall
   '';
 
-  meta = with lib; {
+  meta = {
     description = "Antigravity CLI (agy) - Google's Go-based terminal coding agent, successor to Gemini CLI";
     homepage = "https://antigravity.google/";
-    license = licenses.unfree;
+    license = lib.licenses.unfree;
+    sourceProvenance = with lib.sourceTypes; [ binaryNativeCode ];
     platforms = [ "aarch64-darwin" ];
-    mainProgram = "antigravity";
+    mainProgram = "agy";
   };
 }
