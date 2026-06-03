@@ -20,9 +20,6 @@
     // AI Claude Code
     "anthropic.claude-code",
     // AI Codex
-    "openai.chatgpt",
-    // AI Gemini
-    "google.gemini-cli-vscode-ide-companion",
-    "google.geminicodeassist"
+    "openai.chatgpt"
   ]
 }
