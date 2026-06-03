@@ -34,9 +34,9 @@ lib/
 hosts/                 System-level nix-darwin config per host (model identifier)
   mac14-9/             MacBook Pro 14" 2023 (M2 Pro): system defaults, nix-maintenance, hardware.md, firmware.md
   mac14-10/            MAC14,10: system defaults, nix-maintenance
-home/                  User-level home-manager config per host (model identifier)
-  mac14-9/             MAC14,9: personal packages and modules
-  mac14-10/            MAC14,10: work packages and modules
+home/                  User-level home-manager config per role
+  private/             Personal packages and modules
+  work/                Work packages and modules
 modules/
   darwin/              nix-darwin modules (karabiner, nix-maintenance, nix-settings)
   shared/              home-manager modules (git, terminal, neovim, vscode, agents, ...)

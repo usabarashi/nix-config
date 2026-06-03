@@ -20,16 +20,23 @@
   };
 
   home.packages = with pkgs; [
-    gmailctl
+    discord
+    iina
+    ripgrep
+    slack
+    zoom-us
   ];
 
   imports = [
     ../../modules/darwin/karabiner.nix
-    ../../modules/shared/agents.nix
-    ../../modules/shared/container.nix
+    ../../modules/shared/agents-common.nix
+    ../../modules/shared/agents-antigravity.nix
+    ../../modules/shared/agents-codex.nix
+    ../../modules/shared/agents-opencode.nix
     ../../modules/shared/extra.nix
     ../../modules/shared/gcloud.nix
     ../../modules/shared/git.nix
+    ../../modules/shared/llm.nix
     ../../modules/shared/neovim.nix
     ../../modules/shared/node.nix
     ../../modules/shared/ssh.nix

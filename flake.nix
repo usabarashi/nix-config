@@ -47,8 +47,8 @@
       };
 
       homeModules = {
-        mac14-9 = import ./home/mac14-9;
-        mac14-10 = import ./home/mac14-10;
+        mac14-9 = import ./home/private;
+        mac14-10 = import ./home/work;
       };
       hostPaths = {
         mac14-9 = ./hosts/mac14-9;
