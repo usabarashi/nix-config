@@ -19,20 +19,16 @@ let
   };
 in
 {
-  home.packages =
-    with pkgs;
-    [
-      # Used by config/agents/scripts/notify.sh (symlinked into .claude/scripts).
-      terminal-notifier
-    ]
-    ++ [
-      # MCP server launched via ~/.claude.json (not Nix-managed); only Claude
-      # Code wires serena as an MCP server, so it is owned here.
-      flakeInputs.serena
-    ]
-    ++ [
-      customPackages.claude-code-sandboxed
-    ];
+  imports = [ ./agents-common.nix ];
+
+  home.packages = [
+    # Used by config/agents/scripts/notify.sh (symlinked into .claude/scripts).
+    pkgs.terminal-notifier
+    # MCP server launched via ~/.claude.json (not Nix-managed); only Claude
+    # Code wires serena as an MCP server, so it is owned here.
+    flakeInputs.serena
+    pkgs.customPackages.claude-code-sandboxed
+  ];
 
   home.file = {
     ".claude/permissive-open.sb" = {

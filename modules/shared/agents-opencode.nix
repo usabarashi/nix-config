@@ -6,6 +6,8 @@
 }:
 
 {
+  imports = [ ./agents-common.nix ];
+
   home.packages = [
     pkgs.customPackages.opencode-sandboxed
   ];

@@ -13,6 +13,8 @@ let
   };
 in
 {
+  imports = [ ./agents-common.nix ];
+
   home.packages = [
     pkgs.customPackages.antigravity-cli-bin
   ];

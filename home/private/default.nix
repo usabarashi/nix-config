@@ -29,7 +29,6 @@
 
   imports = [
     ../../modules/darwin/karabiner.nix
-    ../../modules/shared/agents-common.nix
     ../../modules/shared/agents-antigravity.nix
     ../../modules/shared/agents-codex.nix
     ../../modules/shared/agents-opencode.nix
