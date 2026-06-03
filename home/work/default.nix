@@ -20,20 +20,17 @@
   };
 
   home.packages = with pkgs; [
-    discord
-    iina
-    ripgrep
-    slack
-    zoom-us
+    gmailctl
   ];
 
   imports = [
     ../../modules/darwin/karabiner.nix
-    ../../modules/shared/agents.nix
+    ../../modules/shared/agents-antigravity.nix
+    ../../modules/shared/agents-claude-code.nix
+    ../../modules/shared/container.nix
     ../../modules/shared/extra.nix
     ../../modules/shared/gcloud.nix
     ../../modules/shared/git.nix
-    ../../modules/shared/llm.nix
     ../../modules/shared/neovim.nix
     ../../modules/shared/node.nix
     ../../modules/shared/ssh.nix
