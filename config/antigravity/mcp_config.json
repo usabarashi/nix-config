@@ -3,6 +3,10 @@
     "voicevox": {
       "command": "voicevox-mcp-server",
       "args": []
+    },
+    "chrome-devtools": {
+      "command": "chrome-devtools-mcp",
+      "args": ["--autoConnect", "--channel=stable"]
     }
   }
 }
