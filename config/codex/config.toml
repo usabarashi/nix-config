@@ -39,18 +39,16 @@ args = []
 startup_timeout_sec = 20
 tool_timeout_sec = 120
 
-# chrome-devtools-mcp drives the system Google Chrome via puppeteer-core.
-# Provided on PATH by modules/shared/agents-common.nix (Node hidden in the
-# Nix store; only `chrome-devtools-mcp` reaches PATH).
-#
-# --autoConnect attaches to the already-running stable Chrome (Chrome 144+)
-# instead of launching a fresh instance; this avoids the launch crash that
-# happens when the on-disk Chrome was just auto-updated to a newer version
-# than the still-running one. Requires remote debugging enabled in Chrome
-# (chrome://inspect/#remote-debugging).
+# chrome-devtools-mcp drives Google Chrome via puppeteer-core; on PATH via
+# modules/shared/agents-common.nix. Flags (non-obvious reasons only):
+# - --isolated: ephemeral profile, never attaches to the real logged-in Chrome.
+# - --headless: avoids the singleton crash when the user's Chrome is running.
+# - --chromeArg=--no-sandbox: required here, else Chrome's sandbox init fails
+#   ("Operation not permitted") and every tool call times out.
+# - --no-usage-statistics / --no-performance-crux: opt out of Google telemetry.
 [mcp_servers.chrome-devtools]
 type = "stdio"
 command = "chrome-devtools-mcp"
-args = ["--autoConnect", "--channel=stable"]
+args = ["--isolated", "--headless", "--channel=stable", "--no-usage-statistics", "--no-performance-crux", "--chromeArg=--no-sandbox"]
 startup_timeout_sec = 30
 tool_timeout_sec = 120
