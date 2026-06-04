@@ -17,7 +17,7 @@
     },
     "chrome-devtools": {
       "type": "local",
-      "command": ["chrome-devtools-mcp", "--autoConnect", "--channel=stable"],
+      "command": ["chrome-devtools-mcp", "--isolated", "--headless", "--channel=stable", "--no-usage-statistics", "--no-performance-crux", "--chromeArg=--no-sandbox"],
       "timeout": 120000
     }
   },
