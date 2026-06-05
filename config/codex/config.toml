@@ -43,12 +43,10 @@ tool_timeout_sec = 120
 # modules/shared/agents-common.nix. Flags (non-obvious reasons only):
 # - --isolated: ephemeral profile, never attaches to the real logged-in Chrome.
 # - --headless: avoids the singleton crash when the user's Chrome is running.
-# - --chromeArg=--no-sandbox: required here, else Chrome's sandbox init fails
-#   ("Operation not permitted") and every tool call times out.
 # - --no-usage-statistics / --no-performance-crux: opt out of Google telemetry.
 [mcp_servers.chrome-devtools]
 type = "stdio"
 command = "chrome-devtools-mcp"
-args = ["--isolated", "--headless", "--channel=stable", "--no-usage-statistics", "--no-performance-crux", "--chromeArg=--no-sandbox"]
+args = ["--isolated", "--headless", "--channel=stable", "--no-usage-statistics", "--no-performance-crux"]
 startup_timeout_sec = 30
 tool_timeout_sec = 120
