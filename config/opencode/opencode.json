@@ -7,21 +7,34 @@
     "edit": "ask",
     "read": "allow",
     "webfetch": "ask",
-    "task": "ask"
+    "task": "allow",
+    "external_directory": "ask"
   },
   "mcp": {
     "voicevox": {
       "type": "local",
-      "command": ["voicevox-mcp-server"],
+      "command": [
+        "voicevox-mcp-server"
+      ],
       "timeout": 120000
     },
     "chrome-devtools": {
       "type": "local",
-      "command": ["chrome-devtools-mcp", "--isolated", "--headless", "--channel=stable", "--no-usage-statistics", "--no-performance-crux", "--chromeArg=--no-sandbox"],
+      "command": [
+        "chrome-devtools-mcp",
+        "--isolated",
+        "--headless",
+        "--channel=stable",
+        "--no-usage-statistics",
+        "--no-performance-crux"
+      ],
       "timeout": 120000
     }
   },
   "provider": {
+    // llamacpp-local: local llama.cpp model for evaluation/testing only — not a default.
+    // To use it, point "small_model" (or "model") below at "llamacpp-local/qwen3.6-35b-a3b".
+    // Requires a llama.cpp server listening at http://127.0.0.1:8080/v1.
     "llamacpp-local": {
       "npm": "@ai-sdk/openai-compatible",
       "name": "llama.cpp (local)",
@@ -42,8 +55,8 @@
     }
   },
   "agent": {
-    "plan": {
-      "description": "Use only for non-trivial changes: unfamiliar subsystem, multi-file edits, unclear design, or risky behavior changes. Read code, identify existing patterns/utilities, and return a concise implementation plan. Do not edit files.",
+    "math": {
+      "description": "Math consultation agent. Solves mathematical problems, explains concepts, and verifies proofs. Read-only access to codebase for math-related code analysis.",
       "mode": "primary",
       "model": "opencode-go/kimi-k2.6",
       "steps": 10,
@@ -55,13 +68,8 @@
         "list": "allow",
         "edit": "deny",
         "webfetch": "ask",
-        "task": "deny",
-        "bash": {
-          "*": "deny",
-          "git grep *": "allow",
-          "git ls-files": "allow",
-          "git ls-files *": "allow"
-        }
+        "task": "allow",
+        "bash": "ask"
       }
     },
     "review": {
@@ -92,6 +100,6 @@
       }
     }
   },
-  "model": "opencode-go/glm-5.1",
-  "small_model": "llamacpp-local/qwen3.6-35b-a3b"
+  "model": "opencode-go/qwen3.7-plus",
+  "small_model": "opencode/deepseek-v4-flash-free"
 }
