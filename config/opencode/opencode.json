@@ -32,9 +32,6 @@
     }
   },
   "provider": {
-    // llamacpp-local: local llama.cpp model for evaluation/testing only — not a default.
-    // To use it, point "small_model" (or "model") below at "llamacpp-local/qwen3.6-35b-a3b".
-    // Requires a llama.cpp server listening at http://127.0.0.1:8080/v1.
     "llamacpp-local": {
       "npm": "@ai-sdk/openai-compatible",
       "name": "llama.cpp (local)",
@@ -56,7 +53,7 @@
   },
   "agent": {
     "math": {
-      "description": "Math consultation agent. Solves mathematical problems, explains concepts, and verifies proofs. Read-only access to codebase for math-related code analysis.",
+      "description": "Math consultation agent. Solves mathematical problems, explains concepts, and verifies proofs. Cannot edit files; may read the codebase, run commands (with confirmation), and delegate tasks for math-related code analysis.",
       "mode": "primary",
       "model": "opencode-go/kimi-k2.6",
       "steps": 10,
