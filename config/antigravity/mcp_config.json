@@ -6,7 +6,7 @@
     },
     "chrome-devtools": {
       "command": "chrome-devtools-mcp",
-      "args": ["--isolated", "--headless", "--channel=stable", "--no-usage-statistics", "--no-performance-crux", "--chromeArg=--no-sandbox"]
+      "args": ["--isolated", "--headless", "--channel=stable", "--no-usage-statistics", "--no-performance-crux"]
     }
   }
 }
