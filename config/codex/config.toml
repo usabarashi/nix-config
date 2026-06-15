@@ -10,9 +10,10 @@ model_verbosity = "medium"
 approval_policy = "on-request"
 sandbox_mode = "workspace-write"
 web_search = "live"
-notify = ["bash", "-lc", "afplay /System/Library/Sounds/Ping.aiff"]
 personality = "pragmatic"
 project_doc_fallback_filenames = ["CLAUDE.md", "GEMINI.md"]
+
+notify = ["bash", "-lc", "afplay /System/Library/Sounds/Ping.aiff"]
 
 # Features
 [features]

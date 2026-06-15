@@ -10,13 +10,13 @@
 # https://antigravity-cli-auto-updater-974169037036.us-central1.run.app/manifests/darwin_arm64.json
 # Pinned here so `agy update` cannot drift the store path out from under Nix.
 let
-  version = "1.0.6";
+  version = "1.0.8";
   # GCS build ID appended to the version in the bucket path; published alongside
   # `version` in the auto-updater manifest and bumped together with it.
-  buildId = "6458082025406464";
+  buildId = "5963827121094656";
   src = fetchurl {
     url = "https://storage.googleapis.com/antigravity-public/antigravity-cli/${version}-${buildId}/darwin-arm/cli_mac_arm64.tar.gz";
-    hash = "sha512-3k/XXkeDPPHxRYu492NI49zD+GKjvGHxgb+MRNlQPImAy2m2hxUfgOIveaVc/AfqeUq1T2ZY2XqsKzk6OCKiuw==";
+    hash = "sha512-j8ZX7qOhPAZixhS6QFHwQFDLCrunVVUYqts22I2n070hKuTMbPQ5IDiyFlaJaXmuqzL4vwXIDmn8cgx2UQNGNg==";
   };
 in
 stdenvNoCC.mkDerivation {
