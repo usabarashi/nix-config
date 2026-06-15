@@ -39,8 +39,8 @@
         "baseURL": "http://127.0.0.1:8080/v1"
       },
       "models": {
-        "qwen3.6-35b-a3b": {
-          "name": "Qwen3.6 35B-A3B MoE UD-IQ4_XS (local)",
+        "gemma-4-26b-a4b": {
+          "name": "Gemma 4 26B-A4B MoE QAT Q4_K_XL (local)",
           "tool_call": true,
           "reasoning": true,
           "limit": {
@@ -72,7 +72,7 @@
     "review": {
       "description": "Read-only code reviewer. Inspect the current git diff first, then read touched files as needed. Flag correctness risks, regressions, security issues, and missing tests. Do not edit files.",
       "mode": "subagent",
-      "model": "opencode-go/kimi-k2.6",
+      "model": "opencode-go/kimi-k2.7-code",
       "steps": 8,
       "temperature": 0.1,
       "permission": {

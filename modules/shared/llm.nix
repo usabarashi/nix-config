@@ -62,35 +62,31 @@
       };
     };
 
-    # llama-server hosts Qwen3.6-35B-A3B (MoE, 3B active) for OpenCode.
-    # On-demand because the 22 GiB resident model would otherwise pin unified
-    # memory; SwiftBar plugin (config/swiftbar/) exposes menu-bar Start/Stop.
-    # Sparse attention (full_attention_interval=4, 10/40 layers full) keeps
-    # q8 KV at 64k under ~700 MiB on Metal. `--flash-attn on` is required
-    # with quantized KV, else dequantize round-trips erase the savings.
-    # `--no-mmproj` skips the bundled vision projector. `--slot-save-path`
-    # only exposes /slots/X?action=save|restore — prefix caches must be
-    # persisted explicitly, not on shutdown.
+    # llama-server hosts Gemma 4 26B-A4B (MoE, 3.8B active) QAT for OpenCode.
+    # On-demand via SwiftBar plugin (config/swiftbar/) to keep unified memory
+    # free when idle. QAT (quantization-aware training) preserves bf16-class
+    # quality at Q4 memory, so the Q4_K_XL file (~14.2 GiB on disk) is the
+    # recommended quant — plain Q4 quants of the same model carry a measurable
+    # accuracy hit that QAT trains out.
     #
-    # MTP (Multi Token Prediction) speculative decoding via `--spec-type
-    # draft-mtp` (llama.cpp b9190+, PR ggml-org/llama.cpp#22673). The MTP
-    # head loads from the same GGUF but llama.cpp allocates it as a separate
-    # model with its own context/KV; recurrent-state rollback landed in the
-    # same PR, which is what makes this viable for Qwen3.6's Mamba/SSM
-    # layers. Memory delta is NOT free: the extra KV alone is ~67 MiB
-    # (1 MTP layer at 65k q8), but PR user data shows a Qwen3.6-27B Q6 run
-    # going from 22.47 -> 24.96 GiB (+2.49 GiB) with MTP enabled, attributed
-    # to the second-context allocation plus runtime buffers. Treat resident
-    # memory as the gating signal, not theoretical KV math.
+    # Sliding-window attention (1024-token window across most layers) keeps
+    # q8 KV growth modest even at 65k context — substantially smaller than
+    # a dense full-attention model of the same parameter count. `--flash-attn
+    # on` is still required with quantized KV, else dequantize round-trips
+    # erase the savings. `--no-mmproj` skips the bundled vision projector
+    # (gemma-4 ships multimodal variants; OpenCode is text-only).
+    # `--slot-save-path` only exposes /slots/X?action=save|restore — prefix
+    # caches must be persisted explicitly, not on shutdown.
     #
-    # `--spec-draft-n-max 2` chosen for Apple Silicon UMA: PR's Strix Point
-    # APU sweep (closest UMA analog) shows n=2 -> 1.199x, n=3 -> 1.153x.
-    # MoE A3B's already-cheap baseline decode amortizes MTP less than dense
-    # models do, and deeper drafts add verification cost on UMA. Note:
-    # parallel decoding with MTP is "not fully optimized" per the PR, so
-    # OpenCode-subagent concurrent calls may not see single-stream gains.
-    # Prompt processing takes a hit (D2H embedding transfers); watch long
-    # prefills.
+    # No MTP head: gemma-4 does not ship multi-token-prediction weights, so
+    # `--spec-type draft-mtp` is removed. A draft-model speculative path
+    # (e.g. gemma-4-E2B via `--model-draft`) is possible but A4B's 3.8B
+    # active decode is already fast enough for OpenCode interactive use on
+    # M2 Pro; revisit if long-form generation feels slow.
+    #
+    # Sampling defaults follow the gemma-4 model card (temp=1.0, top_p=0.95,
+    # top_k=64) — these differ markedly from Qwen3 conventions, in particular
+    # presence_penalty is unset (gemma is sensitive to repetition penalties).
     llama-server = {
       enable = true;
       config = {
@@ -100,21 +96,11 @@
           # `exec`s its arguments. See `config/llama-server/wrapper.sh`.
           "${homeDirectory}/.config/llama-server/wrapper.sh"
           "${pkgs.llama-cpp}/bin/llama-server"
-          # unsloth MTP GGUF: contains both the base model and the MTP head
-          # in one file. UD-IQ4_XS matches the prior bartowski IQ4_XS quant
-          # in resident size (~18 GiB). The earlier Xet-OID regression that
-          # forced the bartowski mirror was resolved upstream on HF; if it
-          # returns, the symptom is `get_repo_files` reporting "no GGUF
-          # files found" and the fix is either a mirror or a direct URL.
           "-hf"
-          "unsloth/Qwen3.6-35B-A3B-MTP-GGUF:UD-IQ4_XS"
-          "--spec-type"
-          "draft-mtp"
-          "--spec-draft-n-max"
-          "2"
+          "unsloth/gemma-4-26B-A4B-it-qat-GGUF:Q4_K_XL"
           "--no-mmproj"
           "--alias"
-          "qwen3.6-35b-a3b"
+          "gemma-4-26b-a4b"
           "-c"
           "65536"
           "-ngl"
@@ -134,13 +120,11 @@
           "--port"
           "8080"
           "--temp"
-          "0.6"
+          "1.0"
           "--top-p"
           "0.95"
           "--top-k"
-          "20"
-          "--presence-penalty"
-          "1.5"
+          "64"
           "--min-p"
           "0.00"
           "--jinja"
