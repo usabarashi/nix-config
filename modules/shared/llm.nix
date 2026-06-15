@@ -78,11 +78,33 @@
     # `--slot-save-path` only exposes /slots/X?action=save|restore — prefix
     # caches must be persisted explicitly, not on shutdown.
     #
-    # No MTP head: gemma-4 does not ship multi-token-prediction weights, so
-    # `--spec-type draft-mtp` is removed. A draft-model speculative path
-    # (e.g. gemma-4-E2B via `--model-draft`) is possible but A4B's 3.8B
-    # active decode is already fast enough for OpenCode interactive use on
-    # M2 Pro; revisit if long-form generation feels slow.
+    # Speculative decoding intentionally disabled. An external gemma-4-E2B
+    # draft was measured at ~42% acceptance with `--spec-draft-n-max 4` on
+    # this hardware, yielding ~17 t/s decode vs ~46 t/s baseline — the
+    # draft inference cost and verify overhead outweighed the gain. The
+    # E2B and 26B-A4B share family/tokenizer/template but are trained
+    # independently, so they lack the in-model agreement that MTP-style
+    # heads (e.g. Qwen3.6's bundled MTP) provide. Revisit only with a
+    # same-family trained spec head (MTP / EAGLE-3 variant) or a
+    # benchmarked draft config that demonstrably beats baseline.
+    #
+    # Reasoning controls: gemma-4 has interleaved thinking. `-rea on`
+    # forces thinking on (vs. model-default auto, the only non-default
+    # here). `--reasoning-format auto` keeps the default extraction mode
+    # explicit; when the model emits recognized thought tags they are
+    # separated into the API `reasoning_content` field (vs. mixed into
+    # `content`), which lets OpenCode fold them in its UI.
+    # `--reasoning-budget 4096` caps per-turn thinking tokens to bound
+    # latency on simple queries — unrestricted (-1) lets the model run
+    # away on trivial questions before producing visible output.
+    #
+    # `--cache-ram 4096` caps the host-memory prompt cache below its
+    # 8192 MiB default to leave ~4 GiB of system headroom on this 32 GiB
+    # machine. This is distinct from KV cache (sized by `-c` and
+    # `--cache-type-*`); gemma-4's SWA already keeps KV modest, and the
+    # prompt cache itself rarely needs the full 8 GiB for interactive
+    # use. If OpenCode begins reprocessing large repeated prefixes (long
+    # agentic sessions), this is the first knob to raise back to 8192.
     #
     # Sampling defaults follow the gemma-4 model card (temp=1.0, top_p=0.95,
     # top_k=64) — these differ markedly from Qwen3 conventions, in particular
@@ -113,8 +135,16 @@
           "q8_0"
           "--cache-reuse"
           "256"
+          "--cache-ram"
+          "4096"
           "--slot-save-path"
           "${homeDirectory}/.cache/llama-server-slots"
+          "-rea"
+          "on"
+          "--reasoning-format"
+          "auto"
+          "--reasoning-budget"
+          "4096"
           "--host"
           "127.0.0.1"
           "--port"
