@@ -14,4 +14,5 @@ rec {
   opencode-sandboxed = pkgs.callPackage ./opencode-sandboxed {
     inherit opencode-bin;
   };
+  terminal-notifier = pkgs.callPackage ./terminal-notifier { };
 }
