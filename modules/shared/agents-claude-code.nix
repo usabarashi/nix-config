@@ -23,7 +23,8 @@ in
 
   home.packages = [
     # Used by config/agents/scripts/notify.sh (symlinked into .claude/scripts).
-    pkgs.terminal-notifier
+    # customPackages override: nixpkgs ships Intel-only zip, this builds arm64 from source.
+    pkgs.customPackages.terminal-notifier
     # MCP server launched via ~/.claude.json (not Nix-managed); only Claude
     # Code wires serena as an MCP server, so it is owned here.
     flakeInputs.serena
