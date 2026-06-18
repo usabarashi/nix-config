@@ -9,12 +9,12 @@
 # Remove this override and switch back to pkgs.terminal-notifier once one
 # of the upstream PRs (#515280 / #529756) lands.
 {
-  apple-sdk,
-  fetchFromGitHub,
-  ibtool,
   lib,
-  makeBinaryWrapper,
   stdenv,
+  fetchFromGitHub,
+  apple-sdk,
+  ibtool,
+  makeBinaryWrapper,
   xcbuildHook,
 }:
 
