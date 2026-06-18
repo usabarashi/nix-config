@@ -41,7 +41,7 @@ Respond to review comments on the current GitHub Pull Request by fixing code and
    On push failure:
    - STOP immediately. Do not call any reply API with a hash that is not on the remote.
    - Do NOT run `git push --force`, `git push --force-with-lease`, `git reset --hard`, or any other history-rewriting command on your own — they can silently overwrite a teammate's work.
-   - Surface the raw error to the user, then offer read-only diagnostics (e.g. `git fetch && git log --oneline HEAD..@{u}` and the reverse, to inspect divergence). The user investigates the divergence and decides how to recover; do not enumerate recovery commands on their behalf.
+   - Surface the raw error to the user, then offer read-only diagnostics. Start with `git fetch && git status -sb` to confirm whether an upstream is configured (a missing upstream is a common cause when pushing a new branch for the first time, and `@{u}` errors when no upstream is set). When an upstream exists, follow up with `git log --oneline HEAD..@{u}` and the reverse to inspect divergence. The user investigates and decides how to recover; do not enumerate recovery commands on their behalf.
 
 5. **Reply via API** (do not use `gh pr review`):
    ```sh
