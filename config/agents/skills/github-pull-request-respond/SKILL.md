@@ -30,9 +30,9 @@ Respond to review comments on the current GitHub Pull Request by fixing code and
 
 3. **For each unreplied comment**:
    - Read the referenced code and understand the reviewer's concern
-   - Code fix needed: fix and commit (full 40-char hash captured via `git log -1 --format='%H'`)
+   - Code fix needed: fix and commit. Capture the full 40-char hash **immediately after each commit**, labeled by the comment ID it addresses (e.g. `HASH_<commentID>=$(git log -1 --format='%H')`). Do NOT defer hash capture to after the loop — `git log -1` always points at the most recent commit, so deferring loses every earlier hash in the batch.
    - No fix needed: prepare concrete rationale for why the current code is correct
-   - One commit per fix (multiple minor fixes may share one commit)
+   - One commit per fix (multiple minor fixes may share one commit; if multiple comments share a commit, label the same hash under each comment's ID)
 
 4. **Push all commits for this batch** before replying so the hashes are reachable from GitHub:
    ```sh
