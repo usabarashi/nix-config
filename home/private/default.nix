@@ -20,11 +20,9 @@
   };
 
   home.packages = with pkgs; [
-    discord
     iina
     ripgrep
     slack
-    zoom-us
   ];
 
   imports = [
