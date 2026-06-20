@@ -23,10 +23,10 @@ Respond to review comments on the current GitHub Pull Request by fixing code and
      ( [.[] | select(.in_reply_to_id == null and .user?.login != \"${MY_LOGIN}\") | .id] ) as \$roots |
      ( [.[] | select(.user?.login == \"${MY_LOGIN}\" and .in_reply_to_id != null) | .in_reply_to_id] ) as \$replied |
      (\$roots - \$replied) as \$unreplied_ids |
-     [.[] | select(.id | IN(\$unreplied_ids[])) | {id, user: (.user?.login // \"ghost\"), path, line, body}]
+     [.[] | select(.id | IN(\$unreplied_ids[])) | {id, user: (.user?.login // \"ghost\"), user_type: (.user?.type // \"\"), path, line, body}]
    "
    ```
-   This returns an array of unreplied comment objects. If the array is empty (`[]`), all comments have been addressed. The `user` field is required by Step 5's `@<login>` rule and `[bot]`/`ghost` check — keep it in the projection. Optional chaining (`.user?.login`) and the `"ghost"` fallback are required: GitHub returns `null` for `.user` when an account has been deleted, and a bare `.user.login` would crash jq.
+   This returns an array of unreplied comment objects. If the array is empty (`[]`), all comments have been addressed. The `user` and `user_type` fields are required by Step 5's `@<login>` rule and bot/ghost check — keep both in the projection. Optional chaining (`.user?.login`, `.user?.type`) and the `"ghost"` / `""` fallbacks are required: GitHub returns `null` for `.user` when an account has been deleted, and a bare `.user.login` would crash jq.
 
 3. **For each unreplied comment**:
    - Read the referenced code and understand the reviewer's concern
@@ -48,7 +48,7 @@ Respond to review comments on the current GitHub Pull Request by fixing code and
    gh api "repos/${OWNER_REPO}/pulls/${PR_NUM}/comments/<ROOT_ID>/replies" \
      -f body="<reply text>"
    ```
-   Address the reviewer with `@<login>` at the top of the reply so they get notified. Skip the mention when the login (a) ends with `[bot]` (e.g. `copilot-pull-request-reviewer[bot]`, `coderabbitai[bot]`) — bots are not notified by mentions; or (b) is exactly `ghost` — this is the GitHub placeholder for a deleted account, and mentioning it would notify an unrelated real user named `ghost`.
+   Address the reviewer with `@<login>` at the top of the reply so they get notified. Skip the mention when (a) `user_type == "Bot"` — bots are not notified by mentions, and the `[bot]` suffix is unreliable as a marker because GitHub returns the bare login `Copilot` (no suffix) for the Copilot reviewer while still setting `type == "Bot"`; or (b) the login is exactly `ghost` — this is the GitHub placeholder for a deleted account, and mentioning it would notify an unrelated real user named `ghost`. Reply itself is still required for bots (including Copilot) — only the leading mention is omitted.
 
 6. **Summarize** all changes and replies
 
