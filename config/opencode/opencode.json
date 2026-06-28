@@ -66,8 +66,8 @@
         "webfetch": "allow",
         "task": "allow",
         "external_directory": {
-          "*": "ask",
-          "/tmp/**": "allow"
+          "/tmp/**": "allow",
+          "*": "ask"
         }
       }
     },
