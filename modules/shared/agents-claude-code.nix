@@ -17,6 +17,11 @@ let
     force = true;
     recursive = true;
   };
+  agentCommands = {
+    source = config.lib.file.mkOutOfStoreSymlink "${repoPath}/config/agents/commands";
+    force = true;
+    recursive = true;
+  };
 in
 {
   imports = [ ./agents-common.nix ];
@@ -44,6 +49,7 @@ in
       source = config.lib.file.mkOutOfStoreSymlink "${repoPath}/config/claude/settings.json";
       force = true;
     };
+    ".claude/commands" = agentCommands;
     ".claude/scripts" = agentScripts;
     ".claude/skills" = agentSkills;
   };
