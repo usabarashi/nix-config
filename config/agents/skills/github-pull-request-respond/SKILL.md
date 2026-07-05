@@ -33,7 +33,7 @@ Respond to review comments on the current GitHub Pull Request by fixing code and
    - **Decide from evidence:**
      - Evidence supports the concern: fix and commit. Capture the full 40-char hash **immediately after each commit**, labeled by the comment ID it addresses (e.g. `HASH_<commentID>=$(git log -1 --format='%H')`). Do NOT defer hash capture to after the loop — `git log -1` always points at the most recent commit, so deferring loses every earlier hash in the batch.
      - Evidence refutes the concern: do not change the code; reply with concrete rationale and cite the evidence.
-     - Evidence is inconclusive: do not make a speculative fix; surface the uncertainty to the user or reply with the limits of verification.
+     - Evidence is inconclusive: do not make a speculative fix; reply with the limits of verification and surface the uncertainty to the user.
    - One commit per fix (multiple minor fixes may share one commit; if multiple comments share a commit, label the same hash under each comment's ID)
 
 4. **Push all commits for this batch** before replying so the hashes are reachable from GitHub:
