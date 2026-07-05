@@ -29,9 +29,10 @@ Respond to review comments on the current GitHub Pull Request by fixing code and
    This returns an array of unreplied comment objects. If the array is empty (`[]`), all comments have been addressed. The `user` and `user_type` fields are required by Step 5's `@<login>` rule and bot/ghost check — keep both in the projection. The trailing `?` in `.user?.login` / `.user?.type` is jq's error-suppression operator (not JavaScript-style optional chaining); combined with the `"ghost"` / `""` defaults via `//`, it keeps the pipeline safe when GitHub returns `null` for `.user` (deleted account) — a bare `.user.login` against `null` would crash jq with `Cannot index null with "login"`. Default fallbacks: missing login → `"ghost"`, missing user type → `""`.
 
 3. **For each unreplied comment**:
+   - **Verify the reviewer's claim against actual codebase behavior.** Read the referenced code, check runtime state (symlinks, logs, etc.), and confirm the concern is valid before acting. Reviewers — including automated ones — can be incorrect. Do not assume the reviewer is right without evidence.
    - Read the referenced code and understand the reviewer's concern
    - Code fix needed: fix and commit. Capture the full 40-char hash **immediately after each commit**, labeled by the comment ID it addresses (e.g. `HASH_<commentID>=$(git log -1 --format='%H')`). Do NOT defer hash capture to after the loop — `git log -1` always points at the most recent commit, so deferring loses every earlier hash in the batch.
-   - No fix needed: prepare concrete rationale for why the current code is correct
+   - No fix needed: prepare concrete rationale for why the current code is correct, citing the evidence gathered during verification
    - One commit per fix (multiple minor fixes may share one commit; if multiple comments share a commit, label the same hash under each comment's ID)
 
 4. **Push all commits for this batch** before replying so the hashes are reachable from GitHub:
