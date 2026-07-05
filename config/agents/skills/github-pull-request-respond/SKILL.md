@@ -29,10 +29,11 @@ Respond to review comments on the current GitHub Pull Request by fixing code and
    This returns an array of unreplied comment objects. If the array is empty (`[]`), all comments have been addressed. The `user` and `user_type` fields are required by Step 5's `@<login>` rule and bot/ghost check — keep both in the projection. The trailing `?` in `.user?.login` / `.user?.type` is jq's error-suppression operator (not JavaScript-style optional chaining); combined with the `"ghost"` / `""` defaults via `//`, it keeps the pipeline safe when GitHub returns `null` for `.user` (deleted account) — a bare `.user.login` against `null` would crash jq with `Cannot index null with "login"`. Default fallbacks: missing login → `"ghost"`, missing user type → `""`.
 
 3. **For each unreplied comment**:
-   - **Verify the reviewer's claim against actual codebase behavior.** Read the referenced code, check runtime state (symlinks, logs, etc.), and confirm the concern is valid before acting. Reviewers — including automated ones — can be incorrect. Do not assume the reviewer is right without evidence.
-   - Read the referenced code and understand the reviewer's concern
-   - Code fix needed: fix and commit. Capture the full 40-char hash **immediately after each commit**, labeled by the comment ID it addresses (e.g. `HASH_<commentID>=$(git log -1 --format='%H')`). Do NOT defer hash capture to after the loop — `git log -1` always points at the most recent commit, so deferring loses every earlier hash in the batch.
-   - No fix needed: prepare concrete rationale for why the current code is correct, citing the evidence gathered during verification
+   - **Verify before accepting the reviewer's claim.** Treat review comments as hypotheses, not facts. Read the referenced code and surrounding call/configuration paths, compare with existing working patterns in the repo, and run the smallest relevant check when feasible (test, build, eval, log/runtime inspection, etc.). Automated reviewers can be wrong.
+   - **Decide from evidence:**
+     - Evidence supports the concern: fix and commit. Capture the full 40-char hash **immediately after each commit**, labeled by the comment ID it addresses (e.g. `HASH_<commentID>=$(git log -1 --format='%H')`). Do NOT defer hash capture to after the loop — `git log -1` always points at the most recent commit, so deferring loses every earlier hash in the batch.
+     - Evidence refutes the concern: do not change the code; reply with concrete rationale and cite the evidence.
+     - Evidence is inconclusive: do not make a speculative fix; surface the uncertainty to the user or reply with the limits of verification.
    - One commit per fix (multiple minor fixes may share one commit; if multiple comments share a commit, label the same hash under each comment's ID)
 
 4. **Push all commits for this batch** before replying so the hashes are reachable from GitHub:
@@ -58,6 +59,7 @@ Respond to review comments on the current GitHub Pull Request by fixing code and
 - Reply only; do not approve, request changes, or submit a review
 - Push committed fixes before replying so the referenced commit hash is reachable from GitHub
 - Reply in the same language as the reviewer's comment
+- Do not make code changes solely because a reviewer asserted a problem. Every fix/no-fix decision must be backed by local evidence from the codebase, runtime state, or documented behavior.
 - Always use `--paginate` when fetching comments (PRs may have 30+ comments)
 - Use `git log -1 --format='%H'` to get the full commit hash for GitHub autolink
 - Separate the commit hash and any `#NNN` issue/PR reference from surrounding text with an ASCII space or a newline on both sides. In Japanese or other non-space-delimited languages, GitHub's autolink detection will not fire if the hash is adjacent to a non-ASCII character (e.g. `修正しました。deadbeef...` stays as plain text). Safest format: put the hash on its own line.
