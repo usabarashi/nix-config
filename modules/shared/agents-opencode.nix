@@ -26,6 +26,11 @@ in
       force = true;
     };
     ".config/opencode/commands" = agentCommands;
+    ".config/opencode/skills" = {
+      source = config.lib.file.mkOutOfStoreSymlink "${repoPath}/config/agents/skills";
+      force = true;
+      recursive = true;
+    };
     ".config/opencode/permissive-open.sb" = {
       source = config.lib.file.mkOutOfStoreSymlink "${repoPath}/config/agents/permissive-open.sb";
       force = true;
