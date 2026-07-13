@@ -23,6 +23,7 @@
       SoftwareUpdate.AutomaticallyInstallMacOSUpdates = false;
 
       dock = {
+        appswitcher-all-displays = true;
         autohide = true;
         launchanim = false;
         mru-spaces = false;
