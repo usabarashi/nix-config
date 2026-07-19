@@ -1,8 +1,10 @@
 { userName, ... }:
 {
   imports = [
+    ../../modules/darwin/karabiner.nix
     ../../modules/darwin/nix-maintenance.nix
     ../../modules/darwin/nix-settings.nix
+    ../../modules/darwin/sleepctl.nix
   ];
 
   # See: https://daiderd.com/nix-darwin/manual/
@@ -52,7 +54,6 @@
 
     keyboard = {
       enableKeyMapping = true;
-      remapCapsLockToControl = true;
     };
   };
 

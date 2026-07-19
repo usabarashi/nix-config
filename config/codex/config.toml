@@ -13,11 +13,13 @@ web_search = "live"
 personality = "pragmatic"
 project_doc_fallback_filenames = ["CLAUDE.md", "GEMINI.md"]
 
-notify = ["bash", "-lc", "afplay /System/Library/Sounds/Ping.aiff"]
 
 # Features
+notify = ["/Users/gen/.codex/computer-use/Codex Computer Use.app/Contents/SharedSupport/SkyComputerUseClient.app/Contents/MacOS/SkyComputerUseClient", "turn-ended", "--previous-notify", "[\"bash\",\"-lc\",\"afplay \\/System\\/Library\\/Sounds\\/Ping.aiff\"]"]
+
 [features]
 memories = true
+js_repl = false
 
 # Telemetry: disable anonymous usage/health metrics sent to OpenAI (on by default since v0.128.0)
 [analytics]
@@ -51,3 +53,65 @@ command = "chrome-devtools-mcp"
 args = ["--isolated", "--headless", "--channel=stable", "--no-usage-statistics", "--no-performance-crux"]
 startup_timeout_sec = 30
 tool_timeout_sec = 120
+
+[mcp_servers.node_repl]
+args = []
+command = "/Users/gen/Applications/Codex.app/Contents/Resources/cua_node/bin/node_repl"
+startup_timeout_sec = 120
+
+[mcp_servers.node_repl.env]
+NODE_REPL_NATIVE_PIPE_CONNECT_TIMEOUT_MS = "1000"
+NODE_REPL_NODE_MODULE_DIRS = "/Users/gen/Applications/Codex.app/Contents/Resources/cua_node/lib/node_modules"
+NODE_REPL_NODE_PATH = "/Users/gen/Applications/Codex.app/Contents/Resources/cua_node/bin/node"
+NODE_REPL_TRUSTED_CODE_PATHS = "/Users/gen/.codex"
+CODEX_HOME = "/Users/gen/.codex"
+NODE_REPL_TRUSTED_BROWSER_CLIENT_SHA256S = "feca4d852d7d18eab5e217b18c8c80099fe667c330e836640fd7a48f362de525"
+BROWSER_USE_AVAILABLE_BACKENDS = "chrome,iab"
+NODE_REPL_INSTRUCTIONS_USE_CASE_BROWSER = "Control the in-app browser in conjunction with the Browser Plugin."
+NODE_REPL_INSTRUCTIONS_USE_CASE_CHROME = "Control the Chrome browser in conjunction with the Chrome Plugin. Prefer this method of controlling Chrome over alternatives (such as Computer Use) unless the user explicitly mentions an alternative."
+BROWSER_USE_CODEX_APP_BUILD_FLAVOR = "prod"
+BROWSER_USE_CODEX_APP_VERSION = "26.616.32156"
+CODEX_CLI_PATH = "/Users/gen/Applications/Codex.app/Contents/Resources/codex"
+
+[marketplaces.openai-bundled]
+last_updated = "2026-06-19T13:04:21Z"
+source_type = "local"
+source = "/Users/gen/.codex/.tmp/bundled-marketplaces/openai-bundled"
+
+[marketplaces.openai-primary-runtime]
+last_updated = "2026-06-20T04:11:12Z"
+source_type = "local"
+source = "/Users/gen/.cache/codex-runtimes/codex-primary-runtime/plugins/openai-primary-runtime"
+
+[plugins."browser@openai-bundled"]
+enabled = true
+
+[plugins."documents@openai-primary-runtime"]
+enabled = true
+
+[plugins."pdf@openai-primary-runtime"]
+enabled = true
+
+[plugins."spreadsheets@openai-primary-runtime"]
+enabled = true
+
+[plugins."presentations@openai-primary-runtime"]
+enabled = true
+
+[projects."/Users/gen/ghq/github.com/usabarashi/library"]
+trust_level = "trusted"
+
+[projects."/Users/gen/ghq/github.com/usabarashi/infrastructure"]
+trust_level = "trusted"
+
+[projects."/Users/gen/Documents/Codex/2026-06-19/opencode-web-terminal"]
+trust_level = "trusted"
+
+[projects."/Users/gen/ghq/github.com/usabarashi/openai-usage-tracker"]
+trust_level = "trusted"
+
+[projects."/Users/gen/ghq/github.com/usabarashi/nix-config"]
+trust_level = "trusted"
+
+[tui.model_availability_nux]
+"gpt-5.5" = 4
