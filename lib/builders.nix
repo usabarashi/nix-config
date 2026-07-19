@@ -41,7 +41,11 @@
     in
     nix-darwin.lib.darwinSystem {
       specialArgs = {
-        inherit userName homeDirectory;
+        inherit
+          userName
+          homeDirectory
+          repoPath
+          ;
       };
       modules = [
         hostConfig

@@ -24,7 +24,6 @@
   ];
 
   imports = [
-    ../../modules/darwin/karabiner.nix
     ../../modules/shared/agents-antigravity.nix
     ../../modules/shared/agents-claude-code.nix
     ../../modules/shared/container.nix
