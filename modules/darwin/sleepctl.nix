@@ -12,6 +12,12 @@ let
     last_capslock=""
     lid_fired=0
 
+    # Read initial state once; track it locally to avoid polling pmset -g
+    # every 250ms in the loop below.
+    sleep_disabled=$(/usr/bin/pmset -g \
+      | /usr/bin/awk '$1 == "SleepDisabled" { print $2; exit }')
+    [ "$sleep_disabled" = "1" ] || sleep_disabled=0
+
     while :; do
       # ---- Caps Lock polling ----
       # Read HIDCapsLockState from IOHIDSystem (returns Yes/No or true/false).
@@ -22,23 +28,22 @@ let
       if [ -n "$capslock" ] && [ "$capslock" != "$last_capslock" ]; then
         if [ "$capslock" = "Yes" ] || [ "$capslock" = "true" ]; then
           /usr/bin/sudo -n /usr/bin/pmset -a disablesleep 1 \
-            && /usr/bin/logger -t sleepctl-daemon "disablesleep=1 (caps lock on)" \
+            && { /usr/bin/logger -t sleepctl-daemon "disablesleep=1 (caps lock on)"; sleep_disabled=1; } \
             || /usr/bin/logger -t sleepctl-daemon "ERROR: pmset disablesleep 1 failed"
         else
           /usr/bin/sudo -n /usr/bin/pmset -a disablesleep 0 \
-            && /usr/bin/logger -t sleepctl-daemon "disablesleep=0 (caps lock off)" \
+            && { /usr/bin/logger -t sleepctl-daemon "disablesleep=0 (caps lock off)"; sleep_disabled=0; } \
             || /usr/bin/logger -t sleepctl-daemon "ERROR: pmset disablesleep 0 failed"
         fi
         last_capslock="$capslock"
       fi
 
       # ---- Lid-closed display sleep ----
-      # Only active when disablesleep=1. When the lid closes while sleep is
-      # disabled, the internal display stays on; this sends displaysleepnow
-      # once per close event to turn it off. No-op when disablesleep=0.
-      disabled=$(/usr/bin/pmset -g | /usr/bin/awk '$1 == "SleepDisabled" { print $2; exit }')
-
-      if [ "$disabled" = "1" ]; then
+      # Uses local sleep_disabled variable instead of polling pmset -g
+      # each iteration. Since this daemon is the sole controller of
+      # disablesleep, the variable stays in sync. Only when Caps Lock
+      # is toggled externally would it drift — unlikely in practice.
+      if [ "$sleep_disabled" = "1" ]; then
         state=$(/usr/sbin/ioreg -r -k AppleClamshellState -d 1 \
           | /usr/bin/awk -F' = ' '$1 ~ /"AppleClamshellState"$/ { gsub(/[^a-zA-Z]/,"",$2); print $2; exit }')
 
@@ -64,19 +69,29 @@ let
   # (not just zsh), since the physical Caps Lock key is the only
   # control surface. Use -v or --verbose to show raw ioreg values.
   sleepctlCmd = pkgs.writeShellScriptBin "sleepctl" ''
-    case "$1" in
-      -v|--verbose)
-        verbose=1
-        shift
-        ;;
-      status)
-        verbose=0
-        ;;
-      *)
-        echo "usage: sleepctl status [-v|--verbose]" >&2
-        exit 1
-        ;;
-    esac
+    verbose=0
+    action=""
+
+    while [ $# -gt 0 ]; do
+      case "$1" in
+        -v|--verbose)
+          verbose=1
+          ;;
+        status)
+          action="status"
+          ;;
+        *)
+          echo "usage: sleepctl status [-v|--verbose]" >&2
+          exit 1
+          ;;
+      esac
+      shift
+    done
+
+    if [ "$action" != "status" ]; then
+      echo "usage: sleepctl status [-v|--verbose]" >&2
+      exit 1
+    fi
 
     disabled=$(/usr/bin/pmset -g | /usr/bin/awk "\$1 == \"SleepDisabled\" { print \$2; exit }")
     if [ "$disabled" = "1" ]; then

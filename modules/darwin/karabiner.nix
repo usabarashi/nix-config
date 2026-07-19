@@ -1,8 +1,10 @@
 { userName, repoPath, ... }:
 
 {
-  home-manager.users.${userName}.home.file.".config/karabiner/karabiner.json" = {
-    source = builtins.path { path = "${repoPath}/config/karabiner/karabiner.json"; };
-    force = true;
+  home-manager.users.${userName} = { config, ... }: {
+    home.file.".config/karabiner/karabiner.json" = {
+      source = config.lib.file.mkOutOfStoreSymlink "${repoPath}/config/karabiner/karabiner.json";
+      force = true;
+    };
   };
 }
