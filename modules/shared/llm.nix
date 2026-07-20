@@ -65,28 +65,49 @@
     # llama-server hosts Gemma 4 26B-A4B (MoE, 3.8B active) QAT for OpenCode.
     # On-demand via SwiftBar plugin (config/swiftbar/) to keep unified memory
     # free when idle. QAT (quantization-aware training) preserves bf16-class
-    # quality at Q4 memory, so the Q4_K_XL file (~14.2 GiB on disk) is the
-    # recommended quant — plain Q4 quants of the same model carry a measurable
-    # accuracy hit that QAT trains out.
+    # quality at Q4 memory; the UD-Q4_K_XL file (~13.3 GiB loaded) is the
+    # only main-model quant in the repo and fits this 32 GiB machine.
     #
-    # Sliding-window attention (1024-token window across most layers) keeps
-    # q8 KV growth modest even at 65k context — substantially smaller than
-    # a dense full-attention model of the same parameter count. `--flash-attn
-    # on` is still required with quantized KV, else dequantize round-trips
-    # erase the savings. `--no-mmproj` skips the bundled vision projector
-    # (gemma-4 ships multimodal variants; OpenCode is text-only).
-    # `--slot-save-path` only exposes /slots/X?action=save|restore — prefix
-    # caches must be persisted explicitly, not on shutdown.
+    # Model selection — benchmarked 2026-07-20 on this Mac14,9 (M2 Pro,
+    # 32 GiB, llama.cpp b9608) against the current 30B-class coding field:
+    # - GLM-4.7-Flash UD-Q4_K_XL (30B-A3B, MLA; SWE-bench 59.2 vs gemma's
+    #   stronger LCB): 37.8 t/s decode short ctx collapsing to 12.5 t/s at
+    #   17k ctx (llama.cpp's Metal MLA path scales poorly), pp 92 t/s at
+    #   17k, and ~3 GiB heavier. Better agentic scores on paper, clearly
+    #   slower on this hardware.
+    # - Qwen3-Coder-Next (80B-A3B): smallest usable quant exceeds the
+    #   memory budget — excluded.
+    # - gemma-4 26B-A4B: 55 t/s short ctx, 37.8 t/s at 20k ctx, pp 218
+    #   t/s at 20k — fastest of the class here, and the QAT quant keeps
+    #   quality at bf16 level.
     #
-    # Speculative decoding intentionally disabled. An external gemma-4-E2B
-    # draft was measured at ~42% acceptance with `--spec-draft-n-max 4` on
-    # this hardware, yielding ~17 t/s decode vs ~46 t/s baseline — the
-    # draft inference cost and verify overhead outweighed the gain. The
-    # E2B and 26B-A4B share family/tokenizer/template but are trained
-    # independently, so they lack the in-model agreement that MTP-style
-    # heads (e.g. Qwen3.6's bundled MTP) provide. Revisit only with a
-    # same-family trained spec head (MTP / EAGLE-3 variant) or a
-    # benchmarked draft config that demonstrably beats baseline.
+    # KV cache stays f16/f16 — do NOT quantize on this backend. Measured:
+    # q8_0 KV dequant collapses decode as context grows (44 -> 6.4 t/s at
+    # 20k ctx) and is even slower at short ctx (44 vs 55 t/s). Mixed K/V
+    # types (e.g. K=f16,V=q8_0) disable the Metal flash-attention fast
+    # path and tank prompt processing to ~30 t/s; keep both identical.
+    # f16 KV costs ~0.22 MiB/token (1024-token SWA on most layers plus
+    # unified-KV global layers), so `-c 49152` allocates ~10.6 GiB KV;
+    # model + KV + buffers ~= 25 GiB sits just under Metal's 25.56 GiB
+    # working-set limit. `-c 65536` with f16 KV would exceed it. If other
+    # GPU workloads (external displays, games) start competing for that
+    # budget, drop to `-c 40960` to reclaim ~1.9 GiB.
+    # `--no-mmproj` skips the bundled vision projector (gemma-4 ships
+    # multimodal variants; OpenCode is text-only). `--slot-save-path`
+    # only exposes /slots/X?action=save|restore — prefix caches must be
+    # persisted explicitly, not on shutdown.
+    #
+    # Speculative decoding uses the official MTP drafter
+    # (mtp-gemma-4-26B-A4B-it.gguf, smart Q4_0, auto-discovered by `-hf`
+    # on llama.cpp >= the 2026-06-07 MTP merge). Measured here with
+    # `--spec-draft-n-max 4`: acceptance ~0.75-0.8 on code/tool output,
+    # +13-18% decode (66 t/s short ctx, 42.6 t/s at 20k ctx). The MTP
+    # head shares the target's KV cache and the target verifies every
+    # drafted token, so output distribution is unchanged. Do NOT
+    # substitute an external draft model: a gemma-4-E2B draft measured
+    # ~42% acceptance and ~17 t/s vs ~46 t/s baseline — independently
+    # trained drafts lack in-model agreement and lose on this
+    # bandwidth-bound hardware.
     #
     # Reasoning controls: gemma-4 has interleaved thinking. `-rea on`
     # forces thinking on (vs. model-default auto, the only non-default
@@ -101,10 +122,11 @@
     # `--cache-ram 4096` caps the host-memory prompt cache below its
     # 8192 MiB default to leave ~4 GiB of system headroom on this 32 GiB
     # machine. This is distinct from KV cache (sized by `-c` and
-    # `--cache-type-*`); gemma-4's SWA already keeps KV modest, and the
-    # prompt cache itself rarely needs the full 8 GiB for interactive
-    # use. If OpenCode begins reprocessing large repeated prefixes (long
-    # agentic sessions), this is the first knob to raise back to 8192.
+    # `--cache-type-*`). With f16 KV, checkpoint state runs ~0.22
+    # MiB/token, so 4096 MiB holds ~18k tokens of cached prefixes —
+    # ample for interactive use. If OpenCode begins reprocessing large
+    # repeated prefixes (long agentic sessions), this is the first knob
+    # to raise back to 8192.
     #
     # Sampling defaults follow the gemma-4 model card (temp=1.0, top_p=0.95,
     # top_k=64) — these differ markedly from Qwen3 conventions, in particular
@@ -124,17 +146,21 @@
           "--alias"
           "gemma-4-26b-a4b"
           "-c"
-          "65536"
+          "49152"
           "-ngl"
           "99"
           "--flash-attn"
           "on"
           "--cache-type-k"
-          "q8_0"
+          "f16"
           "--cache-type-v"
-          "q8_0"
+          "f16"
           "--cache-reuse"
           "256"
+          "--spec-type"
+          "draft-mtp"
+          "--spec-draft-n-max"
+          "4"
           "--cache-ram"
           "4096"
           "--slot-save-path"
