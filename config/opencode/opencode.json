@@ -59,7 +59,7 @@
           "tool_call": true,
           "reasoning": true,
           "limit": {
-            "context": 65536,
+            "context": 49152,
             "output": 8192
           }
         }
