@@ -138,7 +138,7 @@ case "$STATE" in
             GEN_TPS=$(printf '%s\n' "$TIMINGS" | grep -E '\|[[:space:]]+eval time' | tail -1 | sed -nE 's/.*,[[:space:]]*([0-9.]+) tokens per second.*/\1/p')
             DRAFT_ACC=$(printf '%s\n' "$TIMINGS" | grep 'draft acceptance' | tail -1 | sed -nE 's/.*draft acceptance = ([0-9.]+).*/\1/p')
             [ -n "$GEN_TPS" ] && echo "Last: ${GEN_TPS} t/s gen, ${PP_TPS:-?} t/s prompt"
-            [ -n "$DRAFT_ACC" ] && echo "Draft: $(awk "BEGIN { printf \"%.0f\", ${DRAFT_ACC} * 100 }")% accepted (last request)"
+            [ -n "$DRAFT_ACC" ] && echo "Draft: $(LC_NUMERIC=C awk -v acc="$DRAFT_ACC" 'BEGIN { printf "%.0f", acc * 100 }')% accepted (last request)"
         fi
         echo "---"
         echo "Stop | bash=/bin/launchctl param1=kill param2=SIGTERM param3=$LABEL terminal=false refresh=true"
