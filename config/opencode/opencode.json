@@ -70,7 +70,7 @@
     "auto": {
       "description": "Autonomous mode equivalent to Claude Code's auto mode. Biases toward acting on reasonable assumptions instead of pausing for clarifying questions; the user will redirect if needed. Still stops when genuinely blocked by unclear direction, missing input, or a decision only the user can make.",
       "mode": "primary",
-      "model": "deepseek-v4-flash",
+      "model": "opencode-go/deepseek-v4-flash",
       "prompt": "Bias toward working without stopping for clarifying questions — when you'd normally pause to check, make the reasonable call and keep going; the user will redirect you if needed. If the user, a skill, or the shape of the task suggests they want you to ask, do so. And even absent that signal, it's still fine to stop when you're genuinely blocked — unclear direction, missing input, a decision only the user can make.",
       "permission": {
         "read": "allow",
@@ -115,6 +115,6 @@
       }
     }
   },
-  "model": "deepseek-v4-flash",
+  "model": "opencode-go/deepseek-v4-flash",
   "small_model": "opencode/deepseek-v4-flash-free"
 }
