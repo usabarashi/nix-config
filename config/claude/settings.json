@@ -190,6 +190,7 @@
     ],
     "defaultMode": "auto"
   },
+  "model": "claude-sonnet-5",
   "hooks": {
     "PreToolUse": [
       {
@@ -258,10 +259,9 @@
   },
   "tui": "fullscreen",
   "voice": {
-    "enabled": false,
+    "enabled": true,
     "mode": "hold"
   },
   "skipAutoPermissionPrompt": true,
-  "voiceEnabled": false,
-  "model": "claude-opus-4-7"
+  "voiceEnabled": true
 }

@@ -7,6 +7,13 @@
 }:
 
 let
+  # Claude-specific (unlike the config/agents/* bindings below), mirrors how
+  # CLAUDE.md and settings.json are sourced from config/claude/ in this file.
+  claudeAgents = {
+    source = config.lib.file.mkOutOfStoreSymlink "${repoPath}/config/claude/agents";
+    force = true;
+    recursive = true;
+  };
   agentScripts = {
     source = config.lib.file.mkOutOfStoreSymlink "${repoPath}/config/agents/scripts";
     force = true;
@@ -49,6 +56,7 @@ in
       source = config.lib.file.mkOutOfStoreSymlink "${repoPath}/config/claude/settings.json";
       force = true;
     };
+    ".claude/agents" = claudeAgents;
     ".claude/commands" = agentCommands;
     ".claude/scripts" = agentScripts;
     ".claude/skills" = agentSkills;
