@@ -5,7 +5,6 @@
     "BASH_MAX_TIMEOUT_MS": "1200000",
     "CLAUDE_CODE_DISABLE_FEEDBACK_SURVEY": "1",
     "CLAUDE_CODE_DISABLE_LOCATION": "1",
-    "CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC": "1",
     "CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS": "1",
     "CLAUDE_CODE_SUBPROCESS_ENV_SCRUB": "1",
     "DISABLE_AUTOUPDATER": "1",
@@ -191,6 +190,7 @@
     "defaultMode": "auto"
   },
   "model": "claude-sonnet-5",
+  "advisorModel": "opus",
   "hooks": {
     "PreToolUse": [
       {
