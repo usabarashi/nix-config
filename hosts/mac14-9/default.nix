@@ -5,6 +5,8 @@
     ../../modules/darwin/nix-maintenance.nix
     ../../modules/darwin/nix-settings.nix
     ../../modules/darwin/sleepctl.nix
+    ../../modules/darwin/llama-server.nix
+    ../../modules/darwin/swiftbar.nix
   ];
 
   # See: https://daiderd.com/nix-darwin/manual/
