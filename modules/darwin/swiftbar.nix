@@ -1,4 +1,4 @@
-{ pkgs, homeDirectory, ... }:
+{ homeDirectory, ... }:
 
 {
   launchd.user.agents.swiftbar = {
