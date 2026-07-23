@@ -29,12 +29,12 @@ is_running() {
 
 # Process exists (by command-line match) but port not yet listening = transitioning
 is_transitioning() {
-    pgrep -qf llama-server >/dev/null 2>&1 && [ -z "$(get_pid)" ]
+    pgrep -qf '(^|/)[l]lama-server([[:space:]]|$)' >/dev/null 2>&1 && [ -z "$(get_pid)" ]
 }
 
 get_cpu() {
     local pid=$1
-    ps -o %cpu= -p "$pid" 2>/dev/null | awk '{printf "%.1f", $1}'
+    ps -o %cpu= -p "$pid" 2>/dev/null | awk '{printf "%.1f", $1}' || true
 }
 
 get_model_alias() {
@@ -49,6 +49,10 @@ up() { printf '%s' "$1" | tr '[:lower:]' '[:upper:]'; }
 PID=$(get_pid)
 
 if is_running; then
+    # Re-fetch PID — the process may have cycled between initial fetch and
+    # health check above. Use the confirmed-listening PID for all downstream
+    # operations (CPU, warmup).
+    PID=$(get_pid)
     # Warmup: one throwaway request per server PID to pre-compile Metal
     # pipelines and fault model pages into memory.
     if [ -n "${PID:-}" ]; then

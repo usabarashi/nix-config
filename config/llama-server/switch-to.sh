@@ -89,7 +89,8 @@ start_model_local() {
 
 # ------- dispatch -------
 # SwiftBar passes parameters as param1=xxx, param2=yyy, etc.
-first_param=${1#param1=}
+first_param=${1:-}
+first_param=${first_param#param1=}
 case "${first_param:-gemma}" in
     gemma)
         start_model \
@@ -103,6 +104,7 @@ case "${first_param:-gemma}" in
         ;;
     qwen)
         # Clear old slot state (incompatible between model architectures)
+        kill_server
         rm -f "$HOME/.cache/llama-server-slots"/*
         start_model \
             "unsloth/Qwen3.6-35B-A3B-MTP-GGUF:UD-Q4_K_S" \

@@ -10,6 +10,7 @@
           "-c"
           ''
             out="${homeDirectory}/Library/Logs/llm/disk-snapshot-$(/bin/date +%Y-%m).log"
+            mkdir -p "$(dirname "$out")"
             {
               echo "=== $(/bin/date) ==="
               /usr/bin/du -sh "${homeDirectory}/.cache/huggingface/hub" 2>&1 || true
