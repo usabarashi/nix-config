@@ -127,8 +127,7 @@ case "${first_param:-gemma}" in
             "gemma-4-26b-a4b" \
             -c 49152 \
             --temp 0.6 --top-p 0.85 --top-k 30 --min-p 0.1 \
-            -rea off \
-            --no-mmproj
+            -rea on --reasoning-format auto --reasoning-budget 2048
         warmup_server
         ;;
     qwen)

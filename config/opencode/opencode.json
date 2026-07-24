@@ -66,7 +66,7 @@
         "gemma-4-26b-a4b": {
           "name": "Gemma 4 26B-A4B MoE UD-IQ4_NL (local)",
           "tool_call": true,
-          "reasoning": false,
+          "reasoning": true,
           "limit": {
             "context": 49152,
             "output": 8192
