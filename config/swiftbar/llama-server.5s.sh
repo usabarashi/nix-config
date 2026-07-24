@@ -70,7 +70,7 @@ if is_running; then
 
     if [ -n "$ALIAS" ]; then
         case "$ALIAS" in
-            gemma*) DISPLAY="GEMMA" ;;
+            gemma*) DISPLAY="GEMMA 4 26B" ;;
             qwen*)  DISPLAY="QWEN3.6 35B" ;;
             *)      DISPLAY=$(echo "$ALIAS" | grep -oE '^[[:alpha:]]+' | tr '[:lower:]' '[:upper:]') ;;
         esac
@@ -81,9 +81,10 @@ if is_running; then
     echo "$DISPLAY | sfimage=brain.fill"
     echo "---"
     echo "$DISPLAY"
-    echo "Memory: ~21 GB | size=12"
+    echo "Memory: ~18 GB | size=12"
     echo "CPU: ${CPU}% | size=12"
     echo "Port: ${PORT} | size=12"
+    echo "Open Web UI | href=http://127.0.0.1:${PORT}"
     echo "---"
 
     # Gray out the currently active model
@@ -93,7 +94,7 @@ if is_running; then
         *)       qwen_gray="" ; gemma_gray="" ;;
     esac
     echo "Switch to Qwen3.6 35B | bash=$SWITCH_TO param1=qwen terminal=false refresh=5s ${qwen_gray}"
-    echo "Switch to Gemma 4 | bash=$SWITCH_TO param1=gemma terminal=false refresh=5s ${gemma_gray}"
+    echo "Switch to Gemma 4 26B | bash=$SWITCH_TO param1=gemma terminal=false refresh=5s ${gemma_gray}"
     echo "Stop | bash=$SWITCH_TO param1=stopped terminal=false refresh=5s"
 
 elif is_transitioning; then
@@ -104,7 +105,7 @@ elif is_transitioning; then
     # All actions grayed out during transition
     all="color=gray"
     echo "Start Qwen3.6 35B | bash=$SWITCH_TO param1=qwen terminal=false refresh=5s $all"
-    echo "Start Gemma 4 | bash=$SWITCH_TO param1=gemma terminal=false refresh=5s $all"
+    echo "Start Gemma 4 26B | bash=$SWITCH_TO param1=gemma terminal=false refresh=5s $all"
     echo "Stop | bash=$SWITCH_TO param1=stopped terminal=false refresh=5s $all"
 
 else
@@ -113,5 +114,5 @@ else
     echo "Stopped"
     echo "---"
     echo "Start Qwen3.6 35B | bash=$SWITCH_TO param1=qwen terminal=false refresh=5s"
-    echo "Start Gemma 4 | bash=$SWITCH_TO param1=gemma terminal=false refresh=5s"
+    echo "Start Gemma 4 26B | bash=$SWITCH_TO param1=gemma terminal=false refresh=5s"
 fi

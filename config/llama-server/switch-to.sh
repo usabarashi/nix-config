@@ -37,6 +37,35 @@ kill_server() {
     fi
 }
 
+# Warmup: pre-compile Metal pipelines and fault model pages into memory
+warmup_server() {
+    local pid
+    echo "$(date) warmup: waiting for server..." >> "$LOG"
+    for i in $(seq 1 120); do
+        pid=$(lsof -tiTCP:$PORT -sTCP:LISTEN 2>/dev/null || true)
+        if [ -n "$pid" ]; then
+            break
+        fi
+        sleep 1
+    done
+    if [ -z "$pid" ]; then
+        echo "$(date) warmup: timeout waiting for server" >> "$LOG"
+        return 1
+    fi
+    local warmed_pid=""
+    read -r warmed_pid < "$HOME/.cache/llama-server/.warmed" 2>/dev/null || true
+    if [ "${warmed_pid:-}" = "$pid" ]; then
+        echo "$(date) warmup: already warmed (pid $pid)" >> "$LOG"
+        return 0
+    fi
+    echo "$(date) warmup: sending request (pid $pid)..." >> "$LOG"
+    curl -sS --max-time 300 -H "Content-Type: application/json" \
+        -d '{"messages":[{"role":"system","content":"You are a helpful assistant."},{"role":"user","content":"Hello"}],"max_tokens":256,"temperature":0}' \
+        "http://127.0.0.1:$PORT/v1/chat/completions" >/dev/null 2>&1
+    printf "%s\n" "$pid" > "$HOME/.cache/llama-server/.warmed"
+    echo "$(date) warmup: done" >> "$LOG"
+}
+
 # Start model by HuggingFace repo (auto-download)
 start_model() {
     local hf_repo=$1
@@ -51,7 +80,7 @@ start_model() {
         --alias "$alias" \
         "$@" \
         -ngl 99 --flash-attn on \
-        --cache-type-k f16 --cache-type-v f16 \
+        --cache-type-k q4_0 --cache-type-v q4_0 \
         --cache-reuse 0 --cache-ram 0 \
         --slot-save-path "$HOME/.cache/llama-server-slots" \
         -b 4096 -ub 1024 \
@@ -78,7 +107,7 @@ start_model_local() {
         --alias "$alias" \
         "$@" \
         -ngl 99 --flash-attn on \
-        --cache-type-k f16 --cache-type-v f16 \
+        --cache-type-k q4_0 --cache-type-v q4_0 \
         --cache-reuse 0 --cache-ram 0 \
         --slot-save-path "$HOME/.cache/llama-server-slots" \
         -b 4096 -ub 1024 \
@@ -94,26 +123,26 @@ first_param=${first_param#param1=}
 case "${first_param:-gemma}" in
     gemma)
         start_model \
-            "unsloth/gemma-4-26B-A4B-it-qat-GGUF:Q4_K_XL" \
+            "unsloth/gemma-4-26B-A4B-it-GGUF:UD-IQ4_NL" \
             "gemma-4-26b-a4b" \
             -c 49152 \
-            --spec-type draft-mtp --spec-draft-n-max 4 \
-            --temp 1.0 --top-p 0.95 --top-k 64 --min-p 0.00 \
-            -rea on --reasoning-format auto --reasoning-budget 4096 \
+            --temp 0.6 --top-p 0.85 --top-k 30 --min-p 0.1 \
+            -rea off \
             --no-mmproj
+        warmup_server
         ;;
     qwen)
-        # Clear old slot state (incompatible between model architectures)
         kill_server
         rm -f "$HOME/.cache/llama-server-slots"/*
         start_model \
-            "unsloth/Qwen3.6-35B-A3B-MTP-GGUF:UD-Q4_K_S" \
+            "unsloth/Qwen3.6-35B-A3B-MTP-GGUF:UD-IQ4_NL" \
             "qwen3.6-35b-a3b" \
-            -c 131072 \
+            -c 65536 \
             --spec-type draft-mtp --spec-draft-n-max 2 \
             --temp 0.6 --top-p 0.85 --top-k 30 --min-p 0.1 \
             -rea off \
             --no-mmproj
+        warmup_server
         ;;
     stopped)
         kill_server
