@@ -37,6 +37,8 @@ kill_server() {
     fi
 }
 
+WARMUP_MARKER="/tmp/llama-server-warmup.${UID}"
+
 # Warmup: pre-compile Metal pipelines and fault model pages into memory
 warmup_server() {
     local pid
@@ -53,17 +55,21 @@ warmup_server() {
         return 1
     fi
     local warmed_pid=""
-    read -r warmed_pid < "$HOME/.cache/llama-server/.warmed" 2>/dev/null || true
+    read -r warmed_pid < "$WARMUP_MARKER" 2>/dev/null || true
     if [ "${warmed_pid:-}" = "$pid" ]; then
         echo "$(date) warmup: already warmed (pid $pid)" >> "$LOG"
         return 0
     fi
     echo "$(date) warmup: sending request (pid $pid)..." >> "$LOG"
-    curl -sS --max-time 300 -H "Content-Type: application/json" \
+    if curl --fail -sS --max-time 300 -H "Content-Type: application/json" \
         -d '{"messages":[{"role":"system","content":"You are a helpful assistant."},{"role":"user","content":"Hello"}],"max_tokens":256,"temperature":0}' \
-        "http://127.0.0.1:$PORT/v1/chat/completions" >/dev/null 2>&1
-    printf "%s\n" "$pid" > "$HOME/.cache/llama-server/.warmed"
-    echo "$(date) warmup: done" >> "$LOG"
+        "http://127.0.0.1:$PORT/v1/chat/completions" >/dev/null 2>&1; then
+        printf "%s\n" "$pid" > "$WARMUP_MARKER"
+        echo "$(date) warmup: done" >> "$LOG"
+        return 0
+    fi
+    echo "$(date) warmup: failed" >> "$LOG"
+    return 1
 }
 
 # Start model by HuggingFace repo (auto-download)
