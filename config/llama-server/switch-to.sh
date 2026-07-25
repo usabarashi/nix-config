@@ -7,6 +7,50 @@ LLAMA_BIN="@llamaServer@"
 PORT=18080
 LOG="$HOME/.cache/llama-server/llama-server.log"
 MAX_LOG_SIZE=104857600  # 100 MB
+WEBUI_CONFIG="$HOME/.config/llama-server/webui.json"
+WEBUI_DEFAULTS="$HOME/.config/llama-server/webui-defaults.json"
+
+# Generate WebUI config with today's date in the system prompt, so the model
+# knows the current date and doesn't anchor to its training cutoff.
+# Merges defaults from webui-defaults.json (symlink, repo-managed) with any
+# existing runtime webui.json (user/MCP settings), injects the date, and
+# writes the result to webui.json (regular file, writable).
+webui_config() {
+    local today time
+    today=$(date '+%Y-%m-%d')
+    time=$(date '+%H:%M')
+
+    mkdir -p "$(dirname "$WEBUI_CONFIG")"
+    /usr/bin/python3 -c "
+import json, os
+
+defaults_path = '$WEBUI_DEFAULTS'
+runtime_path = '$WEBUI_CONFIG'
+
+# Start with defaults from repo-managed symlink
+if os.path.exists(defaults_path):
+    with open(defaults_path) as f:
+        cfg = json.load(f)
+else:
+    cfg = {}
+
+# Add any runtime-only keys (e.g., mcpServers configured via Web UI)
+# that don't exist in defaults — defaults always take priority.
+if os.path.exists(runtime_path):
+    with open(runtime_path) as f:
+        existing = json.load(f)
+    for k, v in existing.items():
+        if k not in cfg:
+            cfg[k] = v
+
+# Inject current date as systemMessage (always wins)
+cfg['systemMessage'] = 'Today is $today. The current time is approximately $time. Treat this as the current date and time for all references.'
+
+with open(runtime_path, 'w') as f:
+    json.dump(cfg, f, indent=2)
+    f.write('\n')
+" && [ -f "$WEBUI_CONFIG" ]
+}
 
 # ------- helpers -------
 
@@ -81,6 +125,10 @@ start_model() {
     sleep 1
     mkdir -p "$(dirname "$LOG")"
     rotate_log
+    if ! webui_config; then
+        echo "ERROR: failed to generate WebUI config" >> "$LOG"
+        return 1
+    fi
     nohup "$LLAMA_BIN" \
         -hf "$hf_repo" \
         --alias "$alias" \
@@ -92,6 +140,8 @@ start_model() {
         -b 4096 -ub 1024 \
         --jinja \
         --host 127.0.0.1 --port $PORT \
+        --webui-mcp-proxy --webui-config-file "$WEBUI_CONFIG" \
+        --tools read_file \
         >> "$LOG" 2>&1 &
 }
 
@@ -108,6 +158,10 @@ start_model_local() {
     sleep 1
     mkdir -p "$(dirname "$LOG")"
     rotate_log
+    if ! webui_config; then
+        echo "ERROR: failed to generate WebUI config" >> "$LOG"
+        return 1
+    fi
     nohup "$LLAMA_BIN" \
         -m "$model_file" \
         --alias "$alias" \
@@ -119,6 +173,8 @@ start_model_local() {
         -b 4096 -ub 1024 \
         --jinja \
         --host 127.0.0.1 --port $PORT \
+        --webui-mcp-proxy --webui-config-file "$WEBUI_CONFIG" \
+        --tools read_file \
         >> "$LOG" 2>&1 &
 }
 
