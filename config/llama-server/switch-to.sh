@@ -141,6 +141,7 @@ start_model() {
         --jinja \
         --host 127.0.0.1 --port $PORT \
         --webui-mcp-proxy --webui-config-file "$WEBUI_CONFIG" \
+        --tools read_file \
         >> "$LOG" 2>&1 &
 }
 
@@ -173,6 +174,7 @@ start_model_local() {
         --jinja \
         --host 127.0.0.1 --port $PORT \
         --webui-mcp-proxy --webui-config-file "$WEBUI_CONFIG" \
+        --tools read_file \
         >> "$LOG" 2>&1 &
 }
 
