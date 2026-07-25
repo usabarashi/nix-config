@@ -125,7 +125,10 @@ start_model() {
     sleep 1
     mkdir -p "$(dirname "$LOG")"
     rotate_log
-    webui_config
+    if ! webui_config; then
+        echo "ERROR: failed to generate WebUI config" >> "$LOG"
+        return 1
+    fi
     nohup "$LLAMA_BIN" \
         -hf "$hf_repo" \
         --alias "$alias" \
@@ -154,7 +157,10 @@ start_model_local() {
     sleep 1
     mkdir -p "$(dirname "$LOG")"
     rotate_log
-    webui_config
+    if ! webui_config; then
+        echo "ERROR: failed to generate WebUI config" >> "$LOG"
+        return 1
+    fi
     nohup "$LLAMA_BIN" \
         -m "$model_file" \
         --alias "$alias" \
