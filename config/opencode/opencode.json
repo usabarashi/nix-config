@@ -55,16 +55,16 @@
       },
       "models": {
         "qwen3.6-35b-a3b": {
-          "name": "Qwen3.6 35B-A3B MoE UD-Q4_K_S (local)",
+          "name": "Qwen3.6 35B-A3B MoE UD-IQ4_NL (local)",
           "tool_call": true,
           "reasoning": false,
           "limit": {
-            "context": 131072,
+            "context": 65536,
             "output": 8192
           }
         },
         "gemma-4-26b-a4b": {
-          "name": "Gemma 4 26B-A4B MoE QAT Q4_K_XL (local)",
+          "name": "Gemma 4 26B-A4B MoE UD-IQ4_NL (local)",
           "tool_call": true,
           "reasoning": true,
           "limit": {
