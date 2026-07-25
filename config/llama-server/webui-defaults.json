@@ -1,0 +1,10 @@
+{
+  "systemMessage": "Overwritten on startup",
+  "theme": "system",
+  "showSystemMessage": false,
+  "showThoughtInProgress": false,
+  "disableReasoningParsing": false,
+  "keepStatsVisible": true,
+  "showToolCallInProgress": true,
+  "alwaysShowAgenticTurns": true
+}

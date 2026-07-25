@@ -50,6 +50,9 @@ in
     );
 
     file = {
+      ".config/llama-server/webui-defaults.json" = {
+        source = ../../config/llama-server/webui-defaults.json;
+      };
       ".config/llama-server/switch-to.sh" = {
         source = switchTo;
         executable = true;

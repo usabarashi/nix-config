@@ -84,6 +84,7 @@ if is_running; then
     echo "Memory: ~21 GB | size=12"
     echo "CPU: ${CPU}% | size=12"
     echo "Port: ${PORT} | size=12"
+    echo "Open Web UI | href=http://127.0.0.1:${PORT}"
     echo "---"
 
     # Gray out the currently active model
@@ -103,6 +104,7 @@ elif is_transitioning; then
     echo "---"
     # All actions grayed out during transition
     all="color=gray"
+    echo "Open Web UI (starting...) | href=http://127.0.0.1:${PORT} $all"
     echo "Start Qwen3.6 35B | bash=$SWITCH_TO param1=qwen terminal=false refresh=5s $all"
     echo "Start Gemma 4 | bash=$SWITCH_TO param1=gemma terminal=false refresh=5s $all"
     echo "Stop | bash=$SWITCH_TO param1=stopped terminal=false refresh=5s $all"
@@ -114,4 +116,6 @@ else
     echo "---"
     echo "Start Qwen3.6 35B | bash=$SWITCH_TO param1=qwen terminal=false refresh=5s"
     echo "Start Gemma 4 | bash=$SWITCH_TO param1=gemma terminal=false refresh=5s"
+    all="color=gray"
+    echo "Open Web UI | href=http://127.0.0.1:${PORT} $all"
 fi
