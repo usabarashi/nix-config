@@ -31,10 +31,10 @@
   makeWrapper,
 }:
 let
-  version = "1.2.0";
+  version = "1.6.0";
   src = fetchurl {
     url = "https://registry.npmjs.org/chrome-devtools-mcp/-/chrome-devtools-mcp-${version}.tgz";
-    hash = "sha256-r2qGlCRLSzDbSAM8sOClDBO7cIZkSEcJn571zHYgigU=";
+    hash = "sha512-VZX6f/OjQSYhy2BGGRs+y3LsrsAQAz/HwZCWKBLVyST/4r/3zjVEjjVW7gMCVbRDuspnVdcp5hQDPrQ5UFrdZw==";
   };
 in
 stdenvNoCC.mkDerivation {
