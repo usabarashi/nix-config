@@ -31,6 +31,11 @@ in
       force = true;
       recursive = true;
     };
+    ".config/opencode/plugins" = {
+      source = config.lib.file.mkOutOfStoreSymlink "${repoPath}/config/opencode/plugins";
+      force = true;
+      recursive = true;
+    };
     ".config/opencode/permissive-open.sb" = {
       source = config.lib.file.mkOutOfStoreSymlink "${repoPath}/config/agents/permissive-open.sb";
       force = true;
