@@ -9,11 +9,11 @@
   unzip,
 }:
 let
-  version = "1.18.10";
+  version = "1.18.15";
   asset = "opencode-darwin-arm64";
   src = fetchurl {
     url = "https://github.com/sst/opencode/releases/download/v${version}/${asset}.zip";
-    hash = "sha256-ZB/i5l5C23bC0y21+FVzw2gqjHL4LQFWipIqj+zMRlg=";
+    hash = "sha256-vWC1fLn+BJSlNSyAdCTTbW14U89tvduXBlx8zTxdORw=";
   };
 in
 stdenvNoCC.mkDerivation {

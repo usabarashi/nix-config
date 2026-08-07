@@ -23,6 +23,15 @@
       ],
       "timeout": 120000
     },
+    "library": {
+      "type": "remote",
+      "url": "https://library.usabarashi.net/mcp",
+      "headers": {
+        "Authorization": "Bearer {env:LIBRARY_API_KEY}"
+      },
+      "oauth": false,
+      "timeout": 120000
+    },
     "chrome-devtools": {
       "type": "local",
       "command": [
