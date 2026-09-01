@@ -11,6 +11,19 @@ let
     force = true;
     recursive = true;
   };
+  seatbeltEntries = builtins.readDir "${repoPath}/config/agents";
+  seatbeltProfileNames = builtins.filter (
+    name: pkgs.lib.hasSuffix ".sb" name && seatbeltEntries.${name} != "directory"
+  ) (builtins.attrNames seatbeltEntries);
+  seatbeltProfiles = builtins.listToAttrs (
+    map (name: {
+      name = ".config/opencode/${name}";
+      value = {
+        source = config.lib.file.mkOutOfStoreSymlink "${repoPath}/config/agents/${name}";
+        force = true;
+      };
+    }) seatbeltProfileNames
+  );
 in
 {
   imports = [ ./agents-common.nix ];
@@ -36,9 +49,6 @@ in
       force = true;
       recursive = true;
     };
-    ".config/opencode/permissive-open.sb" = {
-      source = config.lib.file.mkOutOfStoreSymlink "${repoPath}/config/agents/permissive-open.sb";
-      force = true;
-    };
-  };
+  }
+  // seatbeltProfiles;
 }

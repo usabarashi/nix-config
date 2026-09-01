@@ -1,0 +1,31 @@
+(version 1)
+
+;; Deny every operation unless it is explicitly allowed below.
+(deny default)
+
+;; Let the agent run commands, but do not grant those commands any additional
+;; filesystem, network, IPC, or service access.
+(deny process-exec
+  (regex #"/(ssh|gh)$"))
+(allow process-exec
+       process-fork)
+
+;; macOS processes read the root vnode while starting. This permits that one
+;; read without granting access to any file or directory below it.
+(allow file-read-data (literal "/"))
+
+;; The target directory is the only filesystem tree visible to the agent.
+(allow file-read*
+       file-write*
+  (subpath (param "TARGET_DIR")))
+
+;; Standard streams and terminal devices are not part of the target directory,
+;; but are required for command input and output.
+(allow file-read*
+       file-write*
+  (literal "/dev/stdin")
+  (literal "/dev/stdout")
+  (literal "/dev/stderr")
+  (literal "/dev/null")
+  (literal "/dev/dtracehelper")
+  (regex #"^/dev/tty*"))

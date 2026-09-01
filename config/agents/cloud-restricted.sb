@@ -1,0 +1,104 @@
+(version 1)
+
+;; Cloud-model profile. Keep the host closed except for the current project,
+;; the agent's own runtime state, and HTTPS model APIs.
+(deny default)
+
+;; Block commands that can directly access remotes. This is defense in depth;
+;; network access below is also limited to TCP port 443.
+(deny process-exec
+  (regex #"/(ssh|scp|sftp|gh|curl|wget|nc|ncat|netcat|ftp|rsync|git-remote-http|git-remote-https|git-remote-ssh)$"))
+(allow process-exec
+       process-fork)
+
+;; macOS processes read the root vnode while starting.
+(allow file-read-data
+       file-read-metadata
+  (literal "/"))
+
+;; Read-only operating-system and Nix runtimes. Commands need to load their own
+;; binaries, libraries, locale data, and certificates after the sandbox starts.
+(allow file-read*
+  (subpath "/nix/store")
+  (subpath "/System/Library")
+  (subpath "/System/Volumes/Preboot/Cryptexes/OS")
+  (subpath "/usr/lib")
+  (subpath "/usr/share/icu")
+  (subpath "/bin")
+  (subpath "/sbin")
+  (subpath "/usr/bin")
+  (subpath "/usr/sbin")
+  (subpath "/etc/profiles")
+  (subpath "/private/etc/profiles")
+  (subpath "/run/current-system/sw")
+  (subpath "/etc/ssl")
+  (subpath "/private/etc/ssl")
+  (literal "/private/var/select/sh")
+  (subpath (string-append (param "HOME_DIR") "/.nix-profile")))
+(allow file-read-metadata
+  (literal "/nix")
+  (literal "/nix/var")
+  (literal "/nix/var/nix")
+  (literal "/nix/var/nix/profiles")
+  (literal "/etc")
+  (literal "/private")
+  (literal "/private/etc")
+  (literal "/Users")
+  (subpath (param "HOME_DIR"))
+  (literal "/run")
+  (literal "/run/current-system")
+  (literal "/var")
+  (subpath "/System/Cryptexes"))
+
+;; Project files remain the only general-purpose filesystem tree available to
+;; the model and its commands.
+(allow file-read*
+       file-write*
+  (subpath (param "TARGET_DIR")))
+
+;; Each wrapper supplies only the paths its agent needs. Configuration is
+;; read-only; state and cache directories are writable.
+(allow file-read*
+  (subpath (param "AGENT_CONFIG_DIR"))
+  (subpath (param "AGENT_STATE_DIR"))
+  (subpath (param "AGENT_AUX_STATE_DIR"))
+  (subpath (param "AGENT_CACHE_DIR"))
+  (subpath (string-append (param "HOME_DIR") "/.config/git"))
+  (literal (string-append (param "HOME_DIR") "/.gitconfig")))
+(allow file-read*
+  (literal (param "CODEX_AUTH_FILE")))
+(allow file-write*
+  (subpath (param "AGENT_STATE_DIR"))
+  (subpath (param "AGENT_AUX_STATE_DIR"))
+  (subpath (param "AGENT_CACHE_DIR")))
+
+;; Temporary files and standard terminal I/O.
+(allow file-read*
+       file-write*
+  (subpath "/private/tmp")
+  (subpath "/private/var/tmp")
+  (regex #"^/private/var/folders/[^/]+/[^/]+/[CT]")
+  (literal "/dev/stdin")
+  (literal "/dev/stdout")
+  (literal "/dev/stderr")
+  (literal "/dev/null")
+  (literal "/dev/dtracehelper")
+  (regex #"^/dev/tty.*"))
+(allow file-ioctl
+  (literal "/dev/dtracehelper")
+  ;; Interactive TUIs use ioctl(2) on the controlling terminal to enter raw
+  ;; mode. Without this, OpenCode fails at startup with setRawMode errno 1.
+  (regex #"^/dev/tty.*"))
+
+;; Seatbelt accepts only "*" or "localhost" as a host filter. Restrict
+;; transport to HTTPS here; wrappers separately disable or approval-gate
+;; unnecessary network-capable tools.
+(allow network-outbound
+  (literal "/private/var/run/mDNSResponder")
+  (remote tcp "*:443"))
+
+;; Runtime feature detection is harmless and avoids failures in native code.
+(allow sysctl-read)
+(allow mach-lookup
+  (global-name "com.apple.logd")
+  (global-name "com.apple.system.notification_center"))
