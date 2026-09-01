@@ -1,5 +1,3 @@
-import { tool } from "@opencode-ai/plugin";
-
 const DEFAULT_TIMEOUT_MS = 300_000;
 const MAX_TIMEOUT_MS = 1_800_000;
 const MAX_OUTPUT_CHARS = 1_000_000;
@@ -13,29 +11,29 @@ const TOOL_DESCRIPTION =
   "a focused, neutral question. Do not use for routine low-risk edits, simple factual questions, " +
   "decisions already settled by decisive evidence, or as a substitute for normal tests and inspection.";
 
-export const CodexSecondOpinionPlugin = async () => ({
-  tool: {
-    codex_second_opinion: tool({
-      description: TOOL_DESCRIPTION,
-      args: {
-        question: tool.schema
-          .string()
-          .min(1)
-          .max(20_000)
-          .describe(
-            "A focused, neutrally framed engineering question with relevant context, constraints, and the current proposal.",
-          ),
-      },
-      async execute({ question }, context) {
-        return executeCodex(question, context.worktree ?? context.directory);
-      },
-    }),
+export default {
+  description: TOOL_DESCRIPTION,
+  args: {
+    question: {
+      type: "string",
+      minLength: 1,
+      maxLength: 20_000,
+      description:
+        "A focused, neutrally framed engineering question with relevant context, constraints, and the current proposal.",
+    },
   },
-});
+  async execute({ question }, context) {
+    return executeCodex(question, context.worktree ?? context.directory);
+  },
+};
 
 async function executeCodex(question, directory) {
   if (process.env.OPENCODE_CODEX_OUTER_SANDBOX !== "cloud-restricted") {
     return "codex second opinion unavailable: OpenCode is not running inside the cloud-restricted outer sandbox";
+  }
+  const codexHome = process.env.OPENCODE_CODEX_HOME;
+  if (!codexHome) {
+    return "codex second opinion unavailable: isolated Codex home is not configured";
   }
 
   const timeoutMs = readTimeout();
@@ -64,12 +62,20 @@ async function executeCodex(question, directory) {
         "--config",
         'approval_policy="never"',
         "--config",
+        'cli_auth_credentials_store="keyring"',
+        "--config",
+        'shell_environment_policy.inherit="none"',
+        "--config",
         'web_search="live"',
         "--sandbox",
         "danger-full-access",
         prompt,
       ],
       cwd: directory,
+      env: {
+        ...process.env,
+        CODEX_HOME: codexHome,
+      },
       stdin: "ignore",
       stdout: "pipe",
       stderr: "pipe",

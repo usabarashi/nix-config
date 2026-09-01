@@ -44,8 +44,8 @@ in
       force = true;
       recursive = true;
     };
-    ".config/opencode/plugins" = {
-      source = config.lib.file.mkOutOfStoreSymlink "${repoPath}/config/opencode/plugins";
+    ".config/opencode/tools" = {
+      source = config.lib.file.mkOutOfStoreSymlink "${repoPath}/config/opencode/tools";
       force = true;
       recursive = true;
     };
