@@ -13,6 +13,7 @@
   ripgrep,
   jq,
   git,
+  gh,
 }:
 let
   codexAuthKeyringImport = stdenv.mkDerivation {
@@ -39,6 +40,7 @@ writeShellScriptBin "opencode" ''
       ripgrep
       jq
       git
+      gh
       codex-bin
       coreutils
     ]

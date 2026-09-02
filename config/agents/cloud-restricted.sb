@@ -4,10 +4,11 @@
 ;; the agent's own runtime state, and HTTPS model APIs.
 (deny default)
 
-;; Block commands that can directly access remotes. This is defense in depth;
-;; network access below is also limited to TCP port 443.
+;; Block commands that can directly access remotes, except gh and curl which
+;; are permitted for GitHub API interaction over HTTPS. This is defense in
+;; depth; network access below is also limited to TCP port 443.
 (deny process-exec
-  (regex #"/(ssh|scp|sftp|gh|curl|wget|nc|ncat|netcat|ftp|rsync|git-remote-http|git-remote-https|git-remote-ssh)$"))
+  (regex #"/(ssh|scp|sftp|wget|nc|ncat|netcat|ftp|rsync|git-remote-http|git-remote-https|git-remote-ssh)$"))
 (allow process-exec
        process-fork)
 
@@ -69,6 +70,7 @@
   (subpath (param "AGENT_AUX_STATE_DIR"))
   (subpath (param "AGENT_CACHE_DIR"))
   (subpath (string-append (param "HOME_DIR") "/.config/git"))
+  (subpath (string-append (param "HOME_DIR") "/.config/gh"))
   (literal (string-append (param "HOME_DIR") "/.gitconfig")))
 (allow file-read*
   (literal "/Library/Preferences/com.apple.security.plist")
@@ -149,4 +151,5 @@
   (global-name "com.apple.securityd")
   (global-name "com.apple.securityd.xpc")
   (global-name "com.apple.SystemConfiguration.configd")
+  (global-name "com.apple.trustd.agent")
   (global-name "com.apple.system.opendirectoryd.libinfo"))
