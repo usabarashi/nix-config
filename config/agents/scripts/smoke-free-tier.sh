@@ -17,7 +17,7 @@ set -euo pipefail
 
 OPENCODE="${OPENCODE:-opencode}"
 MODEL="${MODEL:-}"
-TMPLOG="$(mktemp /tmp/free-tier-smoke.XXXXXX.log)"
+TMPLOG="$(mktemp /tmp/free-tier-smoke.XXXXXX)"
 trap 'rm -f "$TMPLOG"' EXIT
 
 fail() { echo "FAIL: $*" >&2; exit 1; }
@@ -25,9 +25,12 @@ pass() { echo "ok: $*"; }
 
 echo "== free-tier smoke: static phase =="
 
-# 1. --list-seatbelts shows the expected profiles.
+# 1. --list-seatbelts shows the expected profiles. claude-code.sb lives in a
+#    separate change (claude default tuning) and is intentionally NOT
+#    expected here; the profiles asserted below are those shipped by the
+#    free-tier change set (config/agents/*.sb committed alongside).
 profiles="$($OPENCODE --list-seatbelts 2>&1 || true)"
-for want in free-tier.sb claude-code.sb cloud-restricted.sb permissive-open.sb; do
+for want in free-tier.sb cloud-restricted.sb permissive-open.sb; do
     echo "$profiles" | grep -qx "$want" || fail "--list-seatbelts missing $want"
 done
 echo "$profiles" | grep -qx "strict-closed.sb" && fail "strict-closed.sb still present"
@@ -95,7 +98,7 @@ if [ "${1:-}" = "--live" ]; then
         "$ALLOWLIST" 2>/dev/null || true)"
     [ -n "$EXPECTED_API_ID" ] && [ "$EXPECTED_API_ID" != "null" ] \
         || fail "cannot resolve a unique api_id for model $MODEL from allowlist"
-    "$OPENCODE" --seatbelt free-tier.sb -m "$MODEL" run "" \
+    "$OPENCODE" --seatbelt free-tier.sb -m "$MODEL" run \
         "Reply with exactly: livetest-ok" >"$TMPLOG" 2>&1 \
         || fail "live request failed (see $TMPLOG)"
     grep -q "livetest-ok" "$TMPLOG" || fail "live reply not received"
