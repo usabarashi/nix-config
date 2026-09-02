@@ -544,10 +544,10 @@ writeShellScriptBin "opencode" ''
       SANDBOX_ENV_SPEC=(
           "PATH=$FREE_PATH"
           "HOME=$HOME"
-          "TERM=$''{TERM:-xterm-256color}"
+          "TERM=''${TERM:-xterm-256color}"
           "USER=$USER"
           "LOGNAME=$LOGNAME"
-          "SHELL=$''{SHELL:-/bin/zsh}"
+          "SHELL=''${SHELL:-/bin/zsh}"
           "TMPDIR=$AGENT_TMP_DIR/"
           "TMP=$AGENT_TMP_DIR"
           "TEMP=$AGENT_TMP_DIR"
