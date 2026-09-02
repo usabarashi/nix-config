@@ -102,6 +102,7 @@
         "webfetch": "allow",
         "task": "allow",
         "external_directory": {
+          "/nix/store/**": "allow",
           "/tmp/**": "allow",
           "*": "ask"
         }

@@ -60,7 +60,7 @@ writeShellScriptBin "opencode" ''
   CODEX_AUTH_FILE="$HOME/.codex/auth.json"
   CODEX_BIN="${codex-bin}/bin/codex"
   CODEX_AUTH_KEYRING_IMPORT="${codexAuthKeyringImport}/bin/codex-auth-keyring-import"
-  CODEX_HOME_DIR="$AGENT_CACHE_DIR/codex-second-opinion-${codex-bin.version}"
+  CODEX_HOME_DIR="$AGENT_CACHE_DIR/second-opinion-${codex-bin.version}"
   AGENT_TMP_DIR=""
   TARGET_DIR="$(pwd -P)"
   export SSL_CERT_FILE="${cacert}/etc/ssl/certs/ca-bundle.crt"
@@ -132,9 +132,11 @@ writeShellScriptBin "opencode" ''
   fi
 
   if [ "$SANDBOX_PROFILE_FILE" = "cloud-restricted.sb" ]; then
-      # OpenCode does not provide a merge-safe "disable every MCP" setting.
-      # Skip repository-controlled configuration entirely in this mode, then
-      # disable every MCP inherited from the trusted user configuration below.
+      # Skip repository-controlled configuration and external plugins so that
+      # only the trusted user configuration is in effect. No permission
+      # overrides are applied: the user's policy in opencode.json is used
+      # as-is, and the Seatbelt profile enforces the physical limits
+      # (project directory read/write, read-only /nix/store, HTTPS-only).
       export OPENCODE_DISABLE_PROJECT_CONFIG=1
       export OPENCODE_DISABLE_CLAUDE_CODE=1
       # Pure mode suppresses all external plugins (both config-declared and
@@ -177,37 +179,6 @@ writeShellScriptBin "opencode" ''
           echo "Error: OpenCode config not found at $OPENCODE_CONFIG_FILE" >&2
           exit 1
       fi
-      OPENCODE_CONFIG_CONTENT="$(
-          jq -c '
-              {
-                  autoshare: false,
-                  permission: {
-                      bash: "ask",
-                      edit: "ask",
-                      webfetch: "deny",
-                      external_directory: "deny"
-                  },
-                  mcp: (
-                      (.mcp // {})
-                      | with_entries(.value = { enabled: false })
-                  ),
-                  agent: (
-                      (.agent // {})
-                      | with_entries(
-                          .value = {
-                              permission: {
-                                  bash: "ask",
-                                  edit: "ask",
-                                  webfetch: "deny",
-                                  external_directory: "deny"
-                              }
-                          }
-                      )
-                  )
-              }
-          ' "$OPENCODE_CONFIG_FILE"
-      )"
-      export OPENCODE_CONFIG_CONTENT
 
       # Home Manager may expose these as chained out-of-store symlinks. Pass
       # only the resolved managed inputs instead of allowing their repository.

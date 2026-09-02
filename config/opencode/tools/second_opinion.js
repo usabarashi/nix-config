@@ -29,11 +29,11 @@ export default {
 
 async function executeCodex(question, directory) {
   if (process.env.OPENCODE_CODEX_OUTER_SANDBOX !== "cloud-restricted") {
-    return "codex second opinion unavailable: OpenCode is not running inside the cloud-restricted outer sandbox";
+    return "second opinion unavailable: OpenCode is not running inside the cloud-restricted outer sandbox";
   }
   const codexHome = process.env.OPENCODE_CODEX_HOME;
   if (!codexHome) {
-    return "codex second opinion unavailable: isolated Codex home is not configured";
+    return "second opinion unavailable: isolated Codex home is not configured";
   }
 
   const timeoutMs = readTimeout();
@@ -81,7 +81,7 @@ async function executeCodex(question, directory) {
       stderr: "pipe",
     });
   } catch (error) {
-    return `codex second opinion unavailable: ${safeError(error)}`;
+    return `second opinion unavailable: ${safeError(error)}`;
   }
 
   let timedOut = false;
@@ -98,20 +98,20 @@ async function executeCodex(question, directory) {
     ]);
 
     if (timedOut) {
-      return `codex second opinion unavailable: timed out after ${timeoutMs}ms`;
+      return `second opinion unavailable: timed out after ${timeoutMs}ms`;
     }
     if (exitCode !== 0) {
       const detail = truncate(stderr.trim() || stdout.trim() || `exit code ${exitCode}`);
-      return `codex second opinion unavailable: ${detail}`;
+      return `second opinion unavailable: ${detail}`;
     }
 
     const result = stdout.trim();
     if (!result) {
-      return "codex second opinion unavailable: Codex returned no final answer";
+      return "second opinion unavailable: Codex returned no final answer";
     }
     return truncate(result);
   } catch (error) {
-    return `codex second opinion unavailable: ${safeError(error)}`;
+    return `second opinion unavailable: ${safeError(error)}`;
   } finally {
     clearTimeout(timer);
   }
