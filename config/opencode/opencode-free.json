@@ -1,0 +1,62 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "autoupdate": false,
+  "autoshare": false,
+  "skills": {
+    "paths": [
+      "skills"
+    ]
+  },
+  "permission": {
+    "bash": "ask",
+    "edit": "ask",
+    "read": "allow",
+    "webfetch": "ask",
+    "task": "allow",
+    "external_directory": "ask"
+  },
+  "mcp": {
+    "chrome-devtools": {
+      "type": "local",
+      "command": [
+        "chrome-devtools-mcp",
+        "--isolated",
+        "--headless",
+        "--channel=stable",
+        "--no-usage-statistics",
+        "--no-performance-crux",
+        "--chrome-arg=--no-sandbox",
+        "--chrome-arg=--disable-setuid-sandbox"
+      ],
+      "timeout": 120000
+    }
+  },
+  "provider": {
+    "gemini": {
+      "whitelist": [
+        "gemini-2.5-flash"
+      ]
+    },
+    "groq": {
+      "whitelist": [
+        "llama-3.3-70b-versatile"
+      ]
+    },
+    "openrouter": {
+      "whitelist": [
+        "meta-llama/llama-3.3-70b-instruct:free"
+      ]
+    }
+  },
+  "enabled_providers": [
+    "gemini",
+    "groq",
+    "openrouter"
+  ],
+  "disabled_providers": [
+    "opencode-go",
+    "anthropic",
+    "openai",
+    "llamacpp-local"
+  ]
+}

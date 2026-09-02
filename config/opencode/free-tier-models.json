@@ -1,0 +1,39 @@
+{
+  "version": 1,
+  "comment": "Free-tier model allowlist for opencode --seatbelt free-tier.sb. Each entry binds an exact resolved tuple: opencode provider ID, model key, upstream model.api.id, provider package, and canonical API base URL. The wrapper enforces the -m argument against provider id + model key of this list (fail-closed), and the immutable manifest pins the api.id / SDK / baseURL expectations. Update only via PR review; free-tier pricing can change.",
+  "providers": [
+    {
+      "provider_id": "gemini",
+      "models": [
+        {
+          "model": "gemini-2.5-flash",
+          "api_id": "gemini-2.5-flash",
+          "sdk": "@ai-sdk/google",
+          "base_url": "https://generativelanguage.googleapis.com"
+        }
+      ]
+    },
+    {
+      "provider_id": "groq",
+      "models": [
+        {
+          "model": "llama-3.3-70b-versatile",
+          "api_id": "llama-3.3-70b-versatile",
+          "sdk": "@ai-sdk/openai-compatible",
+          "base_url": "https://api.groq.com/openai/v1"
+        }
+      ]
+    },
+    {
+      "provider_id": "openrouter",
+      "models": [
+        {
+          "model": "meta-llama/llama-3.3-70b-instruct:free",
+          "api_id": "meta-llama/llama-3.3-70b-instruct:free",
+          "sdk": "@ai-sdk/openai-compatible",
+          "base_url": "https://openrouter.ai/api/v1"
+        }
+      ]
+    }
+  ]
+}

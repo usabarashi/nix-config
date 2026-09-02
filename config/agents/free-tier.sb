@@ -1,0 +1,164 @@
+(version 1)
+
+;; Free-tier cloud-model profile. Dedicated to sessions using FREE-TIER cloud
+;; LLM providers (Gemini free tier, Groq, OpenRouter no-cost, ...), which are
+;; considered LOW-TRUST (possible data retention / training use).
+;;
+;; Threat model: do not hand secrets or identity to the model. Anything the
+;; model can read is a potential exfiltration vector over the permitted HTTPS
+;; egress, so this profile allows *no* host secrets: no Keychain, no gh config,
+;; no .gitconfig, no paid-provider auth stores. It permits only the current
+;; project (TARGET_DIR), the dedicated free-tier runtime/state/cache trees, and
+;; Chrome.app (needed by the chrome-devtools MCP).
+;;
+;; This is NOT a network firewall: outbound remote TCP *:443 is required for the
+;; model API, and Seatbelt cannot restrict it to specific domains. A determined
+;; model (or any permitted executable) can send readable data anywhere over
+;; HTTPS. The exec deny list below is UX/safety defense-in-depth only.
+(deny default)
+
+;; Block commands that can directly reach remotes. Defense in depth rather than
+;; the primary control: permitted binaries, interpreters, and renamed copies
+;; can still open HTTPS directly because network egress on *:443 is allowed.
+(deny process-exec
+  (regex #"/(ssh|scp|sftp|gh|curl|wget|nc|ncat|netcat|ftp|rsync|git-remote-http|git-remote-https|git-remote-ssh|codex)$"))
+(allow process-exec
+       process-fork)
+
+;; macOS processes read the root vnode while starting.
+(allow file-read-data
+       file-read-metadata
+  (literal "/"))
+
+;; Chrome DevTools MCP drives Google Chrome. Grant read access to the app
+;; bundle so the MCP server can launch it. The MCP runs Chrome with
+;; --isolated --headless and the wrapper pins Chrome's user-data directory
+;; inside the private per-invocation temporary directory rather than under
+;; ~/Library, so nothing host-specific is exposed.
+(allow file-read*
+  (subpath "/Applications/Google Chrome.app"))
+
+;; Read-only operating-system and Nix runtimes. Commands need to load their own
+;; binaries, libraries, locale data, and certificates after the sandbox starts.
+;; NOTE: Security.framework is code, not a credential store, and stays readable
+;; via these grants (TLS/trust evaluation needs it). Only the Keychain
+;; credential *stores* (login.keychain-db, securityd, systemkeychaincheck,
+;; user preferences for com.apple.security) are deliberately absent.
+(allow file-read*
+  (subpath "/nix/store")
+  (subpath "/System/Library")
+  (subpath "/System/Volumes/Preboot/Cryptexes/OS")
+  (subpath "/usr/lib")
+  (subpath "/usr/share/icu")
+  (subpath "/bin")
+  (subpath "/sbin")
+  (subpath "/usr/bin")
+  (subpath "/usr/sbin")
+  (subpath "/etc/profiles")
+  (subpath "/private/etc/profiles")
+  (subpath "/run/current-system/sw")
+  (subpath "/etc/ssl")
+  (subpath "/private/etc/ssl")
+  (literal "/private/etc/passwd")
+  (literal "/private/var/select/sh")
+  (subpath (string-append (param "HOME_DIR") "/.nix-profile")))
+(allow file-read-metadata
+  (literal "/nix")
+  (literal "/nix/var")
+  (literal "/nix/var/nix")
+  (literal "/nix/var/nix/profiles")
+  (literal "/etc")
+  (literal "/private")
+  (literal "/private/etc")
+  (literal "/Users")
+  (subpath (param "HOME_DIR"))
+  (literal "/run")
+  (literal "/run/current-system")
+  (literal "/var")
+  (subpath "/System/Cryptexes"))
+
+;; The target directory is the only general-purpose filesystem tree visible to
+;; the agent. The wrapper rejects any TARGET_DIR that is or contains a
+;; protected root ($HOME, ~/.config, ~/.local, ~/.ssh, ~/.codex, ~/.claude,
+;; managed roots, dedicated free-tier roots) before sandbox-exec.
+(allow file-read*
+       file-write*
+  (subpath (param "TARGET_DIR")))
+
+;; Free-tier runtime configuration (the independent minimal opencode-free.json,
+;; model allowlist, signed/pinned manifest, commands/tools/skills) is deployed
+;; as immutable Nix store content and read here.
+(allow file-read*
+  (literal (param "AGENT_CONFIG_FILE"))
+  (subpath (param "AGENT_COMMANDS_DIR"))
+  (subpath (param "AGENT_TOOLS_DIR"))
+  (subpath (param "AGENT_SKILLS_DIR"))
+  (subpath (param "AGENT_CONFIG_DIR")))
+
+;; Dedicated free-tier XDG roots (redirected by the wrapper via XDG_*_HOME):
+;; read-write state and cache, read-mostly data, and an immutable credential
+;; file inside the data tree.
+;;
+;; auth.json holds ONLY free-tier static API keys, provisioned outside the
+;; sandbox before the session. Credential refresh is memory-only (policy a) or
+;; fail-closed re-provisioned on expiry (policy d); OpenCode is never allowed
+;; to mutate the file. deny rules take precedence over the broader state-dir
+;; allowances below, blocking write, truncate, rename-over, unlink, create and
+;; atomic replacement of the credential file.
+(allow file-read*
+  (subpath (param "AGENT_DATA_DIR"))
+  (subpath (param "AGENT_STATE_DIR"))
+  (subpath (param "AGENT_AUX_STATE_DIR"))
+  (subpath (param "AGENT_CACHE_DIR")))
+(allow file-write*
+  (subpath (param "AGENT_DATA_DIR"))
+  (subpath (param "AGENT_STATE_DIR"))
+  (subpath (param "AGENT_AUX_STATE_DIR"))
+  (subpath (param "AGENT_CACHE_DIR")))
+(deny file-write*
+  (literal (param "AGENT_AUTH_FILE")))
+
+;; The wrapper creates a private per-invocation temporary directory (0700) and
+;; pins Chrome's user-data inside it. Parent metadata is enough to traverse to
+;; it; no other process's temporary files are readable or writable.
+(allow file-read-metadata
+  (literal "/private/tmp")
+  (literal "/private/var")
+  (literal "/private/var/folders")
+  (regex #"^/private/var/folders/[^/]+$")
+  (regex #"^/private/var/folders/[^/]+/[^/]+$")
+  (regex #"^/private/var/folders/[^/]+/[^/]+/[CT]$"))
+(allow file-read*
+       file-write*
+  (subpath (param "AGENT_TMP_DIR"))
+  (literal "/dev/stdin")
+  (literal "/dev/stdout")
+  (literal "/dev/stderr")
+  (literal "/dev/null")
+  (literal "/dev/urandom")
+  (literal "/dev/dtracehelper")
+  (regex #"^/dev/tty.*"))
+(allow file-ioctl
+  (literal "/dev/dtracehelper")
+  ;; Interactive TUIs use ioctl(2) on the controlling terminal to enter raw
+  ;; mode. Without this, OpenCode fails at startup with setRawMode errno 1.
+  (regex #"^/dev/tty.*"))
+
+;; Seatbelt accepts only "*" or "localhost" as a host filter. Restrict
+;; transport to HTTPS for remote hosts (required for the free-tier model API);
+;; loopback is granted so the chrome-devtools MCP can reach its local Chrome
+;; peer. Any unauthenticated local TCP service (e.g. llama-server :18080) is
+;; therefore reachable by the model; accepted and documented.
+(allow network-outbound
+  (literal "/private/var/run/mDNSResponder")
+  (remote tcp "*:443")
+  (remote tcp "localhost:*"))
+
+;; Runtime feature detection is harmless and avoids failures in native code.
+(allow sysctl-read)
+(allow mach-lookup
+  (global-name "com.apple.logd")
+  (global-name "com.apple.system.notification_center")
+  (global-name "com.apple.SystemConfiguration.configd")
+  (global-name "com.apple.trustd.agent")
+  (global-name "com.apple.system.opendirectoryd.libinfo"))

@@ -14,6 +14,8 @@
   jq,
   git,
   gh,
+  freeTierConfig,
+  freeTierModels,
 }:
 let
   codexAuthKeyringImport = stdenv.mkDerivation {
@@ -32,6 +34,15 @@ let
         "$out/bin/codex-auth-keyring-import"
     '';
   };
+  # Free-tier PATH: store-resolved components only. Deliberately excludes gh
+  # and codex (remote-facing tools the free-tier model must not invoke).
+  freeBinPath = lib.makeBinPath [
+    procps
+    ripgrep
+    jq
+    git
+    coreutils
+  ];
 in
 writeShellScriptBin "opencode" ''
   export PATH="${
@@ -63,6 +74,18 @@ writeShellScriptBin "opencode" ''
   CODEX_HOME_DIR="$AGENT_CACHE_DIR/second-opinion-${codex-bin.version}"
   AGENT_TMP_DIR=""
   TARGET_DIR="$(pwd -P)"
+  HOME_DIR="$HOME"
+  FREE_TIER_CONFIG="${freeTierConfig}"
+  FREE_TIER_MODELS="${freeTierModels}"
+  FREE_BASE="$HOME/.local/share/opencode-free"
+  FREE_DATA_DIR="$FREE_BASE/data/opencode"
+  FREE_STATE_DIR="$FREE_BASE/state/opencode"
+  FREE_AUX_STATE_DIR="$FREE_BASE/state"
+  FREE_CACHE_DIR="$FREE_BASE/cache/opencode"
+  FREE_CONFIG_DIR="$FREE_BASE/config/opencode"
+  FREE_AUTH_FILE="$FREE_DATA_DIR/auth.json"
+  FREE_GIT_NAME="opencode-free"
+  FREE_GIT_EMAIL="opencode-free@localhost"
   export SSL_CERT_FILE="${cacert}/etc/ssl/certs/ca-bundle.crt"
 
   cleanup_cloud_tmp() {
@@ -75,38 +98,64 @@ writeShellScriptBin "opencode" ''
 
   # --no-sandbox: bypass sandbox and execute the binary directly.
   # Useful when invoked from an already-sandboxed context.
-  if [ "''${1:-}" = "--no-sandbox" ]; then
-      shift
-      exec "$OPENCODE_BIN" "$@"
-  fi
+  # All wrapper options (--seatbelt, --list-seatbelts, --no-sandbox) are
+  # parsed here in the leading option region, in ANY order, until a -- or the
+  # first non-option argument. Everything after -- belongs to opencode. This
+  # ensures the free-tier profile can forbid --no-sandbox regardless of where
+  # it appears before --.
 
-  case "''${1:-}" in
-      --seatbelt)
-          if [ "$#" -lt 2 ]; then
-              echo "Error: --seatbelt requires a .sb file name" >&2
-              exit 2
-          fi
-          SANDBOX_PROFILE_FILE="$2"
-          shift 2
-          ;;
-      --seatbelt=*)
-          SANDBOX_PROFILE_FILE="''${1#--seatbelt=}"
-          shift
-          ;;
-      --list-seatbelts)
-          found=0
-          for profile_path in "$SANDBOX_PROFILE_DIR"/*.sb; do
-              [ -e "$profile_path" ] || continue
-              printf '%s\n' "''${profile_path##*/}"
-              found=1
-          done
-          if [ "$found" -eq 0 ]; then
-              echo "No Seatbelt profiles found in $SANDBOX_PROFILE_DIR" >&2
-              exit 1
-          fi
-          exit 0
-          ;;
-  esac
+  wrapper_done=false
+  no_sandbox=false
+  while [ "$#" -gt 0 ]; do
+      case "''${1}" in
+          --)
+              # Everything from here belongs to opencode. Keep the `--`
+              # literal in the argument stream so the free-tier re-parser can
+              # honor the boundary (a model AFTER -- must not satisfy the
+              # mandatory-model requirement).
+              wrapper_done=true
+              break
+              ;;
+          --seatbelt)
+              if [ "$#" -lt 2 ]; then
+                  echo "Error: --seatbelt requires a .sb file name" >&2
+                  exit 2
+              fi
+              SANDBOX_PROFILE_FILE="$2"
+              shift 2
+              ;;
+          --seatbelt=*)
+              SANDBOX_PROFILE_FILE="''${1#--seatbelt=}"
+              shift
+              ;;
+          --list-seatbelts)
+              found=0
+              for profile_path in "$SANDBOX_PROFILE_DIR"/*.sb; do
+                  [ -e "$profile_path" ] || continue
+                  printf '%s\n' "''${profile_path##*/}"
+                  found=1
+              done
+              if [ "$found" -eq 0 ]; then
+                  echo "No Seatbelt profiles found in $SANDBOX_PROFILE_DIR" >&2
+                  exit 1
+              fi
+              exit 0
+              ;;
+          --no-sandbox)
+              no_sandbox=true
+              shift
+              ;;
+          *)
+              # First non-option argument: stop parsing wrapper options.
+              wrapper_done=true
+              break
+              ;;
+      esac
+  done
+
+  if [ "$wrapper_done" = "true" ]; then
+      set -- "''${@}"
+  fi
 
   case "$SANDBOX_PROFILE_FILE" in
       *.sb)
@@ -129,6 +178,440 @@ writeShellScriptBin "opencode" ''
       echo "Run 'opencode --list-seatbelts' to list installed profiles." >&2
       echo "Please ensure agent configuration is properly installed." >&2
       exit 1
+  fi
+
+  # --no-sandbox: with the profile now known, enforce the free-tier rule, or
+  # honor the bypass for other profiles by executing the raw binary directly
+  # with the (already-stripped) remaining arguments.
+  if [ "$no_sandbox" = "true" ]; then
+      if [ "$SANDBOX_PROFILE_FILE" = "free-tier.sb" ]; then
+          echo "Error: --no-sandbox is not permitted with the free-tier seatbelt" >&2
+          exit 2
+      fi
+      exec "$OPENCODE_BIN" "$@"
+  fi
+
+  if [ "$SANDBOX_PROFILE_FILE" = "free-tier.sb" ]; then
+
+      # ---------------------------------------------------------------- #
+      # Free-tier (low-trust provider) branch.
+      #
+      # Session contract:
+      #  * Credentials: ONLY free-tier static API keys, provisioned outside
+      #    the sandbox into a dedicated, sandbox-immutable auth.json. The
+      #    profile denies writes to that file; refresh is memory-only (or a
+      #    fail-closed re-provision on expiry). No Keychain, gh config, or
+      #    .gitconfig is read.
+      #  * Environment: env -i allowlist. Only the variables listed below
+      #    exist inside the sandbox; SLACK_USER_TOKEN, LIBRARY_API_KEY, any
+      #    *_TOKEN/_*KEY, SSH_AUTH_SOCK and caller-supplied OPENCODE_* are
+      #    dropped.
+      #  * Model: -m/--model is mandatory and must match the versioned
+      #    allowlist (exact resolved tuple). opencode-free.json additionally
+      #    enables only allowed providers and whitelists exact models.
+      #  * This is NOT a billing boundary: *:443 is open, so any readable
+      #    data can be exfiltrated and paid endpoints reached with a stolen
+      #    key. Server-side spending controls (R30) are the real gate.
+      # ---------------------------------------------------------------- #
+
+      # 1. Mandatory -m, fail-closed. Model selectors BEFORE `--` are counted;
+      #    selectors after `--` are positional data for opencode and must NOT
+      #    satisfy the mandatory-model requirement.
+      MODEL_ARG=""
+      parsed_args=()
+      model_region=true
+      while [ "$#" -gt 0 ]; do
+          case "''${1}" in
+              --)
+                  model_region=false
+                  parsed_args+=("$1")
+                  shift
+                  ;;
+              -m|--model)
+                  if [ "$model_region" != "true" ]; then
+                      parsed_args+=("$1")
+                      shift
+                      continue
+                  fi
+                  if [ "$#" -lt 2 ]; then
+                      echo "Error: free-tier requires a model (missing value): $1" >&2
+                      exit 2
+                  fi
+                  if [ -n "$MODEL_ARG" ]; then
+                      echo "Error: free-tier rejects duplicate/conflicting model arguments" >&2
+                      exit 2
+                  fi
+                  MODEL_ARG="$2"
+                  shift 2
+                  ;;
+              --model=*)
+                  if [ "$model_region" != "true" ]; then
+                      parsed_args+=("$1")
+                      shift
+                      continue
+                  fi
+                  if [ -n "$MODEL_ARG" ]; then
+                      echo "Error: free-tier rejects duplicate/conflicting model arguments" >&2
+                      exit 2
+                  fi
+                  MODEL_ARG="''${1#--model=}"
+                  shift
+                  ;;
+              -m*)
+                  if [ "$model_region" != "true" ]; then
+                      parsed_args+=("$1")
+                      shift
+                      continue
+                  fi
+                  if [ -n "$MODEL_ARG" ]; then
+                      echo "Error: free-tier rejects duplicate/conflicting model arguments" >&2
+                      exit 2
+                  fi
+                  MODEL_ARG="''${1#-m}"
+                  if [ -z "$MODEL_ARG" ]; then
+                      echo "Error: free-tier requires a model (empty -m value)" >&2
+                      exit 2
+                  fi
+                  shift
+                  ;;
+              *)
+                  parsed_args+=("$1")
+                  shift
+                  ;;
+          esac
+      done
+      if [ -z "$MODEL_ARG" ]; then
+          echo "Error: free-tier sessions require an explicit model (-m <provider>/<model>)" >&2
+          echo "Allowed providers/models are listed in free-tier-models.json (versioned allowlist)." >&2
+          exit 2
+      fi
+      case "$MODEL_ARG" in
+          -*|*'/'|*'//'*|*' '*|*$'\t'*)
+              echo "Error: free-tier rejected malformed model selector: $MODEL_ARG" >&2
+              exit 2
+              ;;
+      esac
+      MODEL_PROVIDER="''${MODEL_ARG%%/*}"
+      MODEL_KEY="''${MODEL_ARG#*/}"
+      if [ -z "$MODEL_PROVIDER" ] || [ -z "$MODEL_KEY" ] || [ "$MODEL_PROVIDER" = "$MODEL_ARG" ]; then
+          echo "Error: free-tier model must be <provider>/<model>, got: $MODEL_ARG" >&2
+          exit 2
+      fi
+      # Require EXACTLY ONE matching selector entry (regardless of its api_id),
+      # then validate that single entry's api_id is a non-empty string.
+      MATCH_COUNT="$(jq -r --arg prov "$MODEL_PROVIDER" --arg key "$MODEL_KEY" \
+          '[.providers[] | select(.provider_id == $prov) | .models[] | select(.model == $key)] | length' \
+          "$FREE_TIER_MODELS" 2>/dev/null || echo ERROR)"
+      if [ "$MATCH_COUNT" != "1" ]; then
+          echo "Error: model not allowed by free-tier allowlist (must match exactly one entry): $MODEL_ARG (matched: $MATCH_COUNT)" >&2
+          exit 2
+      fi
+      # Record the resolved api_id from the single match; must be a non-empty
+      # string.
+      MODEL_API_ID="$(jq -r --arg prov "$MODEL_PROVIDER" --arg key "$MODEL_KEY" \
+          '[.providers[] | select(.provider_id == $prov) | .models[] | select(.model == $key)] | .[0].api_id' \
+          "$FREE_TIER_MODELS" 2>/dev/null)"
+      if [ -z "$MODEL_API_ID" ] || [ "$MODEL_API_ID" = "null" ] \
+          || [ "$(jq -r --arg prov "$MODEL_PROVIDER" --arg key "$MODEL_KEY" \
+              '[.providers[] | select(.provider_id == $prov) | .models[] | select(.model == $key)] | .[0].api_id | type' \
+              "$FREE_TIER_MODELS" 2>/dev/null)" != "string" ]; then
+          echo "Error: free-tier allowlist entry missing a valid string api_id for: $MODEL_ARG" >&2
+          exit 2
+      fi
+      export FREE_TIER_MODEL_ARG="$MODEL_ARG"
+      export FREE_TIER_MODEL_API_ID="$MODEL_API_ID"
+      # Forward the VALIDATED model selectors to opencode (they were stripped
+      # during parsing); pass both original forms as the validated canonical
+      # selector to keep behavior identical to a normal -m invocation.
+      parsed_args=("-m" "$MODEL_ARG" "''${parsed_args[@]}")
+      set -- "''${parsed_args[@]}"
+
+      # 2. TARGET_DIR guard.
+      #    Reject:
+      #      * TARGET_DIR == / (the whole filesystem would be granted r/w)
+      #      * TARGET_DIR == $HOME (running from home would expose the whole
+      #        home tree through the TARGET_DIR r/w grant)
+      #      * TARGET_DIR that is an ancestor of $HOME (e.g. /Users)
+      #      * overlap with sensitive protected subtrees (~/.config, ~/.ssh,
+      #        ~/.claude, dedicated roots, ...) in EITHER direction
+      #    Permit ordinary projects located under $HOME (e.g. the nix-config
+      #    checkout at /Users/gen/ghq/...).
+      reject_target=0
+      if [ "$TARGET_DIR" = "/" ]; then
+          reject_target=1
+      fi
+      if [ "$TARGET_DIR" = "$HOME" ]; then
+          reject_target=1
+      fi
+      # TARGET_DIR ancestor of HOME (HOME is under TARGET_DIR)
+      case "/$HOME/" in
+          "/$TARGET_DIR/"*) reject_target=1 ;;
+      esac
+      if [ "$reject_target" = "1" ]; then
+          echo "Error: free-tier refuses to run from a directory that is or contains your home or the filesystem root: $TARGET_DIR" >&2
+          exit 2
+      fi
+      reject_target=0
+      for protected in \
+          "$HOME/.config" \
+          "$HOME/.local" \
+          "$HOME/.ssh" \
+          "$HOME/.codex" \
+          "$HOME/.claude" \
+          "$HOME/.config/opencode" \
+          "$FREE_BASE" \
+          "/Library/Application Support/opencode"; do
+          # "$protected" == "$TARGET_DIR" or "$protected" is under "$TARGET_DIR"
+          case "/$protected/" in
+              "/$TARGET_DIR/"*) reject_target=1 ;;
+          esac
+          # "$TARGET_DIR" is under "$protected"
+          case "/$TARGET_DIR/" in
+              "/$protected/"*) reject_target=1 ;;
+          esac
+          if [ "$reject_target" = "1" ]; then
+              echo "Error: free-tier refuses to run from a protected directory: $TARGET_DIR" >&2
+              echo "  conflicts with: $protected" >&2
+              exit 2
+          fi
+          reject_target=0
+      done
+
+      # 3. Managed configuration fail-closed (exact 1.18.15 candidates).
+      #    Unreadable/unparsable candidates are treated as PRESENT (fail-closed).
+      #    We walk each candidate's ancestor directories, skipping components
+      #    that do not exist (absence is fine), and require every EXISTING
+      #    ancestor to be searchable. An unsearchable existing ancestor means
+      #    absence cannot be proven, so we fail closed.
+      dir_searchable() {
+          local d="''${1:-}"
+          while [ -n "$d" ] && [ "$d" != "/" ]; do
+              if [ -e "$d" ] || [ -L "$d" ]; then
+                  if [ ! -x "$d" ]; then
+                      return 1
+                  fi
+              fi
+              d="$(dirname "$d")"
+          done
+          return 0
+      }
+      for cand in \
+          "/Library/Application Support/opencode/opencode.json" \
+          "/Library/Application Support/opencode/opencode.jsonc" \
+          "/Library/Managed Preferences/$USER/ai.opencode.managed.plist" \
+          "/Library/Managed Preferences/ai.opencode.managed.plist"; do
+          if [ -e "$cand" ] || [ -L "$cand" ]; then
+              echo "Error: free-tier detected managed OpenCode configuration: $cand" >&2
+              echo "  free-tier requires an absent or independently verified managed config (fail-closed)." >&2
+              exit 2
+          fi
+          cand_dir="$(dirname "$cand")"
+          if ! dir_searchable "$cand_dir"; then
+              echo "Error: free-tier cannot prove managed config absence (unsearchable parent): $cand_dir" >&2
+              exit 2
+          fi
+      done
+
+      # 4. Dedicated free-tier roots (fresh, 0700, no symlink components).
+      #    The credential file lives inside FREE_DATA_DIR; free-tier.sb denies
+      #    writes to it. Provision auth.json OUTSIDE the sandbox beforehand.
+      #    Every component on the credential path is validated BEFORE any
+      #    directory creation: no symlinks (including FREE_BASE itself),
+      #    numeric UID == invoking UID, auth.json nlink == 1.
+      FREE_UID="$(/usr/bin/id -u 2>/dev/null || echo "")"
+      if [ -z "$FREE_UID" ]; then
+          echo "Error: free-tier cannot determine numeric uid" >&2
+          exit 2
+      fi
+      # Validate FREE_BASE and ALL existing ancestors up to / (skip missing
+      # components but keep walking; a symlink at any existing ancestor is
+      # rejected even when FREE_BASE itself does not yet exist).
+      walk="$FREE_BASE"
+      while [ "$walk" != "/" ] && [ -n "$walk" ]; do
+          if [ -L "$walk" ]; then
+              echo "Error: free-tier base path has a symlink component: $walk" >&2
+              exit 2
+          fi
+          walk="$(dirname "$walk")"
+      done
+      # Validate the credential subtree (auth.json up to FREE_BASE).
+      free_auth_dir="$(dirname "$FREE_AUTH_FILE")"
+      walk="$FREE_AUTH_FILE"
+      while [ "$walk" != "$FREE_BASE" ] && [ "$walk" != "/" ]; do
+          if [ -L "$walk" ]; then
+              echo "Error: free-tier credential path has a symlink component: $walk" >&2
+              exit 2
+          fi
+          walk="$(dirname "$walk")"
+      done
+      if [ -L "$FREE_AUTH_FILE" ]; then
+          echo "Error: free-tier auth.json must not be a symlink: $FREE_AUTH_FILE" >&2
+          exit 2
+      fi
+      if [ -L "$FREE_BASE" ]; then
+          echo "Error: free-tier base dir must not be a symlink: $FREE_BASE" >&2
+          exit 2
+      fi
+      if ! mkdir -p "$FREE_DATA_DIR" "$FREE_STATE_DIR" "$FREE_CACHE_DIR" "$FREE_CONFIG_DIR"; then
+          echo "Error: free-tier failed to create dedicated roots" >&2
+          exit 2
+      fi
+      for d in "$FREE_BASE" "$FREE_DATA_DIR" "$FREE_STATE_DIR" "$FREE_CACHE_DIR" "$FREE_CONFIG_DIR" "$FREE_AUX_STATE_DIR"; do
+          if ! chmod 700 "$d" 2>/dev/null; then
+              echo "Error: free-tier failed to secure directory mode: $d" >&2
+              exit 2
+          fi
+      done
+      if [ ! -f "$FREE_AUTH_FILE" ]; then
+          echo "Error: free-tier auth.json not found; provision free-tier credentials before session." >&2
+          echo "  expected: $FREE_AUTH_FILE" >&2
+          exit 1
+      fi
+      if [ "$(stat -f%u "$FREE_AUTH_FILE" 2>/dev/null || echo EMPTY)" != "$FREE_UID" ]; then
+          echo "Error: free-tier auth.json uid mismatch: $(stat -f%u "$FREE_AUTH_FILE" 2>/dev/null || echo unknown) != $FREE_UID" >&2
+          exit 2
+      fi
+      if [ "$(stat -f%l "$FREE_AUTH_FILE" 2>/dev/null || echo EMPTY)" != "1" ]; then
+          echo "Error: free-tier auth.json link count is not 1 (possible hard link): $(stat -f%l "$FREE_AUTH_FILE" 2>/dev/null || echo unknown)" >&2
+          exit 2
+      fi
+      if [ "$(stat -f%u "$free_auth_dir" 2>/dev/null || echo EMPTY)" != "$FREE_UID" ]; then
+          echo "Error: free-tier credential dir uid mismatch: $(stat -f%u "$free_auth_dir" 2>/dev/null || echo unknown) != $FREE_UID" >&2
+          exit 2
+      fi
+
+      # 5. Private per-invocation temp dir (the shared EXIT trap cleans it up).
+      TMP_ROOT_FREE="$(cd "''${TMPDIR:-/private/tmp}" && pwd -P)"
+      AGENT_TMP_DIR="$(/usr/bin/mktemp -d "''${TMP_ROOT_FREE%/}/opencode-free.XXXXXX")"
+      /bin/chmod 700 "$AGENT_TMP_DIR"
+
+      # 6. Local MCP commands (only chrome-devtools in free-tier) are re-linked
+      #    from their resolved store paths into the private temp dir, exactly
+      #    as the cloud-restricted branch does, so the Seatbelt-permitted PATH
+      #    can spawn them.
+      FREE_MCP_DIR="$AGENT_TMP_DIR/mcp-bin"
+      mkdir "$FREE_MCP_DIR"
+      while IFS= read -r mcp_cmd; do
+          [ -z "$mcp_cmd" ] && continue
+          case "$mcp_cmd" in
+              /*) mcp_target="$mcp_cmd" ;;
+              *) mcp_target="$(command -v "$mcp_cmd" 2>/dev/null || true)" ;;
+          esac
+          [ -z "$mcp_target" ] && continue
+          mcp_real="$(realpath "$mcp_target" 2>/dev/null || echo "$mcp_target")"
+          mcp_name="$(/usr/bin/basename "$mcp_cmd")"
+          ln -sfn "$mcp_real" "$FREE_MCP_DIR/$mcp_name"
+      done < <(
+          jq -r '.mcp // {} | to_entries[] |
+              select(.value.type == "local") |
+              .value.command[0] // empty' "$FREE_TIER_CONFIG" 2>/dev/null
+      )
+
+      # 7. Free-tier PATH: wrapper-built from store-resolved components only.
+      #    No gh, no codex, no caller PATH tail. The private mcp-bin dir comes
+      #    first so MCP servers spawn through a Seatbelt-permitted path.
+      FREE_PATH="${freeBinPath}"
+      FREE_PATH="$FREE_MCP_DIR:$FREE_PATH"
+
+      # 8. Immutable minimal config: OPENCODE_CONFIG points at the Nix-store
+      #    copy. AGENT_CONFIG_FILE mirrors it (read-only). Commands/tools/
+      #    skills are not shipped for the minimal free-tier config, but the
+      #    Seatbelt profile references the parent config dir for them, so
+      #    point them at the same immutable store directory.
+      OPENCODE_CONFIG_PATH="$FREE_TIER_CONFIG"
+      AGENT_CONFIG_FILE="$FREE_TIER_CONFIG"
+      AGENT_CONFIG_DIR="$(dirname "$FREE_TIER_CONFIG")"
+      AGENT_COMMANDS_DIR="$AGENT_CONFIG_DIR"
+      AGENT_TOOLS_DIR="$AGENT_CONFIG_DIR"
+      AGENT_SKILLS_DIR="$AGENT_CONFIG_DIR"
+      AGENT_DATA_DIR="$FREE_DATA_DIR"
+      AGENT_STATE_DIR="$FREE_STATE_DIR"
+      AGENT_AUX_STATE_DIR="$FREE_AUX_STATE_DIR"
+      AGENT_CACHE_DIR="$FREE_CACHE_DIR"
+      AGENT_AUTH_FILE="$FREE_AUTH_FILE"
+      # (OPENCODE_PURE/DISABLE_* are exported here only so the pre-sandbox
+      #  argument-parsing section sees the same policy; they are re-supplied
+      #  inside the env -i allowlist in step 9 because env -i discards them.)
+      export OPENCODE_PURE=1
+      export OPENCODE_DISABLE_PROJECT_CONFIG=1
+      export OPENCODE_DISABLE_CLAUDE_CODE=1
+
+      # 9. env -i allowlist. Only these variables exist inside the sandbox.
+      #    All caller-supplied tokens/keys/OPENCODE_* are dropped. GIT_CONFIG*,
+      #    GIT_CONFIG_GLOBAL/SYSTEM, EMAIL are absent (env -i default).
+      #    NOTE: everything exported above (OPENCODE_PURE etc.) would be wiped
+      #    by env -i, so they are re-supplied here explicitly.
+      SANDBOX_ENV_SPEC=(
+          "PATH=$FREE_PATH"
+          "HOME=$HOME"
+          "TERM=$''{TERM:-xterm-256color}"
+          "USER=$USER"
+          "LOGNAME=$LOGNAME"
+          "SHELL=$''{SHELL:-/bin/zsh}"
+          "TMPDIR=$AGENT_TMP_DIR/"
+          "TMP=$AGENT_TMP_DIR"
+          "TEMP=$AGENT_TMP_DIR"
+          "XDG_DATA_HOME=$FREE_BASE/data"
+          "XDG_STATE_HOME=$FREE_BASE/state"
+          "XDG_CACHE_HOME=$FREE_BASE/cache"
+          "XDG_CONFIG_HOME=$FREE_BASE/config"
+          "SSL_CERT_FILE=${cacert}/etc/ssl/certs/ca-bundle.crt"
+          "OPENCODE_PURE=1"
+          "OPENCODE_DISABLE_PROJECT_CONFIG=1"
+          "OPENCODE_DISABLE_CLAUDE_CODE=1"
+          "OPENCODE_CONFIG=$OPENCODE_CONFIG_PATH"
+          "GIT_AUTHOR_NAME=$FREE_GIT_NAME"
+          "GIT_AUTHOR_EMAIL=$FREE_GIT_EMAIL"
+          "GIT_COMMITTER_NAME=$FREE_GIT_NAME"
+          "GIT_COMMITTER_EMAIL=$FREE_GIT_EMAIL"
+      )
+
+      # 10. Parameter validation before Seatbelt (R40).
+      for p in \
+          TARGET_DIR HOME_DIR AGENT_CONFIG_DIR AGENT_CONFIG_FILE \
+          AGENT_COMMANDS_DIR AGENT_TOOLS_DIR AGENT_SKILLS_DIR \
+          AGENT_DATA_DIR AGENT_STATE_DIR AGENT_AUX_STATE_DIR \
+          AGENT_CACHE_DIR AGENT_AUTH_FILE AGENT_TMP_DIR; do
+          eval "v=\$$p"
+          if [ -z "$v" ]; then
+              echo "Error: free-tier empty Seatbelt parameter: $p" >&2
+              exit 2
+          fi
+          case "$v" in
+              /*) ;;
+              *)
+                  echo "Error: free-tier Seatbelt parameter is not absolute: $p = $v" >&2
+                  exit 2
+                  ;;
+          esac
+      done
+
+      # 11. Emit the validated model binding BEFORE launch so the smoke suite
+      #     can assert the exact expected provider/model/api_id pair. This line
+      #     must stay above the sandbox-exec call (it exits on completion).
+      echo "Running opencode with macOS Seatbelt (free-tier.sb)" >&2
+      echo "  free-tier model: $FREE_TIER_MODEL_ARG (api_id: $FREE_TIER_MODEL_API_ID)" >&2
+
+      # 12. Launch WITHOUT exec so the trap still removes the private temp dir.
+      /usr/bin/env -i \
+          "''${SANDBOX_ENV_SPEC[@]}" \
+          /usr/bin/sandbox-exec -f "$SANDBOX_PROFILE_PATH" \
+              -D TARGET_DIR="$TARGET_DIR" \
+              -D HOME_DIR="$HOME_DIR" \
+              -D AGENT_CONFIG_DIR="$AGENT_CONFIG_DIR" \
+              -D AGENT_CONFIG_FILE="$AGENT_CONFIG_FILE" \
+              -D AGENT_COMMANDS_DIR="$AGENT_COMMANDS_DIR" \
+              -D AGENT_TOOLS_DIR="$AGENT_TOOLS_DIR" \
+              -D AGENT_SKILLS_DIR="$AGENT_SKILLS_DIR" \
+              -D AGENT_DATA_DIR="$AGENT_DATA_DIR" \
+              -D AGENT_STATE_DIR="$AGENT_STATE_DIR" \
+              -D AGENT_AUX_STATE_DIR="$AGENT_AUX_STATE_DIR" \
+              -D AGENT_CACHE_DIR="$AGENT_CACHE_DIR" \
+              -D AGENT_AUTH_FILE="$AGENT_AUTH_FILE" \
+              -D AGENT_TMP_DIR="$AGENT_TMP_DIR" \
+              "$OPENCODE_BIN" "$@"
+      status=$?
+      exit "$status"
   fi
 
   if [ "$SANDBOX_PROFILE_FILE" = "cloud-restricted.sb" ]; then
