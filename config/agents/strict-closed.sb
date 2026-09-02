@@ -1,0 +1,77 @@
+(version 1)
+
+;; Deny every operation unless it is explicitly allowed below.
+(deny default)
+
+;; Block commands that can directly access remotes. No network access is
+;; granted below, so this is defense in depth rather than the primary control.
+(deny process-exec
+  (regex #"/(ssh|scp|sftp|gh|curl|wget|nc|ncat|netcat|ftp|rsync|git-remote-http|git-remote-https|git-remote-ssh)$"))
+(allow process-exec
+       process-fork)
+
+;; macOS processes read the root vnode while starting.
+(allow file-read-data
+       file-read-metadata
+  (literal "/"))
+
+;; Read-only operating-system and Nix runtimes. Commands need to load their own
+;; binaries, libraries, locale data, and certificates after the sandbox starts.
+(allow file-read*
+  (subpath "/nix/store")
+  (subpath "/System/Library")
+  (subpath "/System/Volumes/Preboot/Cryptexes/OS")
+  (subpath "/usr/lib")
+  (subpath "/usr/share/icu")
+  (subpath "/bin")
+  (subpath "/sbin")
+  (subpath "/usr/bin")
+  (subpath "/usr/sbin")
+  (subpath "/etc/profiles")
+  (subpath "/private/etc/profiles")
+  (subpath "/run/current-system/sw")
+  (subpath "/etc/ssl")
+  (subpath "/private/etc/ssl")
+  (literal "/private/etc/passwd")
+  (literal "/private/var/select/sh")
+  (subpath (string-append (param "HOME_DIR") "/.nix-profile")))
+(allow file-read-metadata
+  (literal "/nix")
+  (literal "/nix/var")
+  (literal "/nix/var/nix")
+  (literal "/nix/var/nix/profiles")
+  (literal "/etc")
+  (literal "/private")
+  (literal "/private/etc")
+  (literal "/Users")
+  (subpath (param "HOME_DIR"))
+  (literal "/run")
+  (literal "/run/current-system")
+  (literal "/var")
+  (subpath "/System/Cryptexes"))
+
+;; The target directory is the only general-purpose filesystem tree visible to
+;; the agent.
+(allow file-read*
+       file-write*
+  (subpath (param "TARGET_DIR")))
+
+;; Standard streams, terminal devices, and /dev/urandom are not part of the
+;; target directory, but are required for command input, output, and startup.
+(allow file-read*
+       file-write*
+  (literal "/dev/stdin")
+  (literal "/dev/stdout")
+  (literal "/dev/stderr")
+  (literal "/dev/null")
+  (literal "/dev/urandom")
+  (literal "/dev/dtracehelper")
+  (regex #"^/dev/tty.*"))
+(allow file-ioctl
+  (literal "/dev/dtracehelper")
+  ;; Interactive TUIs use ioctl(2) on the controlling terminal to enter raw
+  ;; mode. Without this, OpenCode fails at startup with setRawMode errno 1.
+  (regex #"^/dev/tty.*"))
+
+;; Runtime feature detection is harmless and avoids failures in native code.
+(allow sysctl-read)

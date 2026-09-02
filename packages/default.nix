@@ -12,7 +12,7 @@ rec {
   git-tools-bin = pkgs.callPackage ./git-tools-bin { };
   opencode-bin = pkgs.callPackage ./opencode-bin { };
   opencode-sandboxed = pkgs.callPackage ./opencode-sandboxed {
-    inherit opencode-bin;
+    inherit codex-bin opencode-bin;
   };
   terminal-notifier = pkgs.callPackage ./terminal-notifier { };
 }

@@ -40,7 +40,9 @@
         "--headless",
         "--channel=stable",
         "--no-usage-statistics",
-        "--no-performance-crux"
+        "--no-performance-crux",
+        "--chrome-arg=--no-sandbox",
+        "--chrome-arg=--disable-setuid-sandbox"
       ],
       "timeout": 120000
     },
@@ -88,7 +90,7 @@
     "auto": {
       "description": "Autonomous mode equivalent to Claude Code's auto mode. Biases toward acting on reasonable assumptions instead of pausing for clarifying questions; the user will redirect if needed. Still stops when genuinely blocked by unclear direction, missing input, or a decision only the user can make.",
       "mode": "primary",
-      "model": "opencode/deepseek-v4-flash",
+      "model": "opencode-go/deepseek-v4-flash",
       "prompt": "Bias toward working without stopping for clarifying questions — when you'd normally pause to check, make the reasonable call and keep going; the user will redirect you if needed. If the user, a skill, or the shape of the task suggests they want you to ask, do so. And even absent that signal, it's still fine to stop when you're genuinely blocked — unclear direction, missing input, a decision only the user can make.",
       "permission": {
         "read": "allow",
@@ -100,39 +102,13 @@
         "webfetch": "allow",
         "task": "allow",
         "external_directory": {
+          "/nix/store/**": "allow",
           "/tmp/**": "allow",
           "*": "ask"
         }
       }
-    },
-    "review": {
-      "description": "Read-only code reviewer. Inspect the current git diff first, then read touched files as needed. Flag correctness risks, regressions, security issues, and missing tests. Do not edit files.",
-      "mode": "subagent",
-      "model": "opencode-go/kimi-k3",
-      "steps": 8,
-      "temperature": 0.1,
-      "permission": {
-        "read": "allow",
-        "grep": "allow",
-        "glob": "allow",
-        "list": "allow",
-        "edit": "deny",
-        "webfetch": "deny",
-        "task": "deny",
-        "bash": {
-          "*": "deny",
-          "git status": "allow",
-          "git status *": "allow",
-          "git diff": "allow",
-          "git diff *": "allow",
-          "git log": "allow",
-          "git log *": "allow",
-          "git show": "allow",
-          "git show *": "allow"
-        }
-      }
     }
   },
-  "model": "opencode/deepseek-v4-flash",
+  "model": "opencode-go/deepseek-v4-flash",
   "small_model": "llamacpp-local/qwen3.6-35b-a3b"
 }

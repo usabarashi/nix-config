@@ -1,0 +1,172 @@
+(version 1)
+
+;; Cloud-model profile. Keep the host closed except for the current project,
+;; the agent's own runtime state, and HTTPS model APIs.
+(deny default)
+
+;; Block commands that can directly access remotes, except gh and curl which
+;; are permitted for GitHub API interaction over HTTPS. This is defense in
+;; depth; network access below is also limited to TCP port 443.
+(deny process-exec
+  (regex #"/(ssh|scp|sftp|wget|nc|ncat|netcat|ftp|rsync|git-remote-http|git-remote-https|git-remote-ssh)$"))
+(allow process-exec
+       process-fork)
+
+;; macOS processes read the root vnode while starting.
+(allow file-read-data
+       file-read-metadata
+  (literal "/"))
+
+;; Chrome DevTools MCP drives Google Chrome. Grant read access to the app
+;; bundle so the MCP server can launch it. The MCP runs Chrome with
+;; --isolated --headless, so user data lives in a temporary profile inside the
+;; wrapper's private per-invocation temp dir rather than under ~/Library.
+(allow file-read*
+  (subpath "/Applications/Google Chrome.app"))
+
+;; Read-only operating-system and Nix runtimes. Commands need to load their own
+;; binaries, libraries, locale data, and certificates after the sandbox starts.
+(allow file-read*
+  (subpath "/nix/store")
+  (subpath "/System/Library")
+  (subpath "/System/Volumes/Preboot/Cryptexes/OS")
+  (subpath "/usr/lib")
+  (subpath "/usr/share/icu")
+  (subpath "/bin")
+  (subpath "/sbin")
+  (subpath "/usr/bin")
+  (subpath "/usr/sbin")
+  (subpath "/etc/profiles")
+  (subpath "/private/etc/profiles")
+  (subpath "/run/current-system/sw")
+  (subpath "/etc/ssl")
+  (subpath "/private/etc/ssl")
+  (literal "/private/etc/passwd")
+  (literal "/private/var/select/sh")
+  (subpath (string-append (param "HOME_DIR") "/.nix-profile")))
+(allow file-read-metadata
+  (literal "/nix")
+  (literal "/nix/var")
+  (literal "/nix/var/nix")
+  (literal "/nix/var/nix/profiles")
+  (literal "/etc")
+  (literal "/private")
+  (literal "/private/etc")
+  (literal "/Users")
+  (subpath (param "HOME_DIR"))
+  (literal "/run")
+  (literal "/run/current-system")
+  (literal "/var")
+  (subpath "/System/Cryptexes"))
+
+;; Project files remain the only general-purpose filesystem tree available to
+;; the model and its commands.
+(allow file-read*
+       file-write*
+  (subpath (param "TARGET_DIR")))
+
+;; Each wrapper supplies only the paths its agent needs. Configuration is
+;; read-only; state and cache directories are writable.
+(allow file-read*
+  (subpath (param "AGENT_CONFIG_DIR"))
+  (literal (param "AGENT_CONFIG_FILE"))
+  (subpath (param "AGENT_COMMANDS_DIR"))
+  (subpath (param "AGENT_TOOLS_DIR"))
+  (subpath (param "AGENT_SKILLS_DIR"))
+  (subpath (param "AGENT_STATE_DIR"))
+  (subpath (param "AGENT_AUX_STATE_DIR"))
+  (subpath (param "AGENT_CACHE_DIR"))
+  (subpath (string-append (param "HOME_DIR") "/.config/git"))
+  ;; gh authenticates via the login Keychain (see gh auth status: keyring), so
+  ;; only its metadata files are needed on disk; grant those instead of the
+  ;; whole directory to avoid exposing an accidentally file-stored token.
+  (literal (string-append (param "HOME_DIR") "/.config/gh/hosts.yml"))
+  (literal (string-append (param "HOME_DIR") "/.config/gh/config.yml"))
+  (literal (string-append (param "HOME_DIR") "/.gitconfig")))
+(allow file-read*
+  (literal "/Library/Preferences/com.apple.security.plist")
+  (literal "/Library/Preferences/.GlobalPreferences.plist")
+  (literal (string-append (param "HOME_DIR") "/Library/Preferences/com.apple.security.plist"))
+  (literal (string-append (param "HOME_DIR") "/Library/Preferences/com.openai.codex.plist"))
+  (literal (string-append (param "HOME_DIR") "/Library/Preferences/.GlobalPreferences.plist"))
+  (literal (string-append (param "HOME_DIR") "/Library/Preferences/.GlobalPreferences_m.plist"))
+  (regex (string-append
+    "^" (param "HOME_DIR")
+    "/Library/Preferences/ByHost/\\.GlobalPreferences\\.[^/]+\\.plist$"))
+  ;; Security.framework reads the encrypted login Keychain database directly
+  ;; inside a Seatbelt sandbox; removing this breaks Codex keychain retrieval
+  ;; even though the query itself is mediated by securityd. The database is
+  ;; encrypted, and the Codex item is additionally protected by an
+  ;; application-bound ACL that trusts only the pinned Codex binary.
+  (literal (string-append (param "HOME_DIR") "/Library/Keychains/login.keychain-db")))
+(allow file-read-metadata
+  (literal (string-append (param "HOME_DIR") "/Library"))
+  (literal (string-append (param "HOME_DIR") "/Library/Keychains")))
+(allow file-write*
+  (subpath (param "AGENT_STATE_DIR"))
+  (subpath (param "AGENT_AUX_STATE_DIR"))
+  (subpath (param "AGENT_CACHE_DIR")))
+
+;; The wrapper creates a private per-invocation temporary directory. Parent
+;; metadata is enough to traverse to it; no other process's temporary files are
+;; readable or writable.
+(allow file-read-metadata
+  (literal "/private/tmp")
+  (literal "/private/var")
+  (literal "/private/var/folders")
+  (regex #"^/private/var/folders/[^/]+$")
+  (regex #"^/private/var/folders/[^/]+/[^/]+$")
+  (regex #"^/private/var/folders/[^/]+/[^/]+/[CT]$"))
+(allow file-read*
+       file-write*
+  (subpath (param "AGENT_TMP_DIR"))
+  (literal "/dev/stdin")
+  (literal "/dev/stdout")
+  (literal "/dev/stderr")
+  (literal "/dev/null")
+  (literal "/dev/urandom")
+  (literal "/dev/dtracehelper")
+  (regex #"^/dev/tty.*"))
+(allow file-ioctl
+  (literal "/dev/dtracehelper")
+  ;; Interactive TUIs use ioctl(2) on the controlling terminal to enter raw
+  ;; mode. Without this, OpenCode fails at startup with setRawMode errno 1.
+  (regex #"^/dev/tty.*"))
+
+;; Seatbelt accepts only "*" or "localhost" as a host filter. Restrict
+;; transport to HTTPS for remote hosts; localhost is granted so local MCP
+;; servers (voicevox engine, Chrome DevTools, Slack) can reach their peers.
+(allow network-outbound
+  (literal "/private/var/run/mDNSResponder")
+  (literal "/private/var/run/systemkeychaincheck.socket")
+  (remote tcp "*:443")
+  (remote tcp "localhost:*"))
+
+;; Security.framework checks Keychain readiness through this marker/socket and
+;; uses notification shared memory. The encrypted login Keychain database is
+;; read-only; its Codex item still requires the item ACL enforced by securityd.
+(allow file-read-metadata
+  (literal "/private/var/run/systemkeychaincheck.done")
+  (literal "/private/var/run/systemkeychaincheck.socket"))
+(allow user-preference-read
+  (preference-domain "com.apple.security")
+  (preference-domain "com.apple.security-common"))
+(allow ipc-posix-shm-read-data
+       ipc-posix-shm-write-create
+       ipc-posix-shm-write-data
+  (ipc-posix-name "apple.shm.notification_center")
+  (ipc-posix-name "com.apple.AppleDatabaseChanged"))
+
+;; Runtime feature detection is harmless and avoids failures in native code.
+(allow sysctl-read)
+(allow mach-lookup
+  (global-name "com.apple.logd")
+  (global-name "com.apple.system.notification_center")
+  ;; Codex credentials are held in a Keychain item whose ACL trusts only the
+  ;; pinned Codex binary, rather than in a sandbox-readable auth.json file.
+  (global-name "com.apple.SecurityServer")
+  (global-name "com.apple.securityd")
+  (global-name "com.apple.securityd.xpc")
+  (global-name "com.apple.SystemConfiguration.configd")
+  (global-name "com.apple.trustd.agent")
+  (global-name "com.apple.system.opendirectoryd.libinfo"))
