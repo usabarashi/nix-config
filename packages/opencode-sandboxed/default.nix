@@ -137,6 +137,10 @@ writeShellScriptBin "opencode" ''
       # disable every MCP inherited from the trusted user configuration below.
       export OPENCODE_DISABLE_PROJECT_CONFIG=1
       export OPENCODE_DISABLE_CLAUDE_CODE=1
+      # Pure mode suppresses all external plugins (both config-declared and
+      # auto-discovered under .opencode/plugin(s)). User tools under the
+      # managed tools/ directory are loaded on a separate path and survive.
+      export OPENCODE_PURE=1
 
       mkdir -p "$CODEX_HOME_DIR"
       CODEX_HOME_CANONICAL="$(cd "$CODEX_HOME_DIR" && pwd -P)"

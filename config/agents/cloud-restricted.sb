@@ -70,7 +70,11 @@
   (subpath (param "AGENT_AUX_STATE_DIR"))
   (subpath (param "AGENT_CACHE_DIR"))
   (subpath (string-append (param "HOME_DIR") "/.config/git"))
-  (subpath (string-append (param "HOME_DIR") "/.config/gh"))
+  ;; gh authenticates via the login Keychain (see gh auth status: keyring), so
+  ;; only its metadata files are needed on disk; grant those instead of the
+  ;; whole directory to avoid exposing an accidentally file-stored token.
+  (literal (string-append (param "HOME_DIR") "/.config/gh/hosts.yml"))
+  (literal (string-append (param "HOME_DIR") "/.config/gh/config.yml"))
   (literal (string-append (param "HOME_DIR") "/.gitconfig")))
 (allow file-read*
   (literal "/Library/Preferences/com.apple.security.plist")
@@ -82,6 +86,11 @@
   (regex (string-append
     "^" (param "HOME_DIR")
     "/Library/Preferences/ByHost/\\.GlobalPreferences\\.[^/]+\\.plist$"))
+  ;; Security.framework reads the encrypted login Keychain database directly
+  ;; inside a Seatbelt sandbox; removing this breaks Codex keychain retrieval
+  ;; even though the query itself is mediated by securityd. The database is
+  ;; encrypted, and the Codex item is additionally protected by an
+  ;; application-bound ACL that trusts only the pinned Codex binary.
   (literal (string-append (param "HOME_DIR") "/Library/Keychains/login.keychain-db")))
 (allow file-read-metadata
   (literal (string-append (param "HOME_DIR") "/Library"))
