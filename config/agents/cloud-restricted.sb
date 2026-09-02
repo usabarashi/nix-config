@@ -17,6 +17,13 @@
        file-read-metadata
   (literal "/"))
 
+;; Chrome DevTools MCP drives Google Chrome. Grant read access to the app
+;; bundle so the MCP server can launch it. The MCP runs Chrome with
+;; --isolated --headless, so user data lives in a temporary profile inside the
+;; wrapper's private per-invocation temp dir rather than under ~/Library.
+(allow file-read*
+  (subpath "/Applications/Google Chrome.app"))
+
 ;; Read-only operating-system and Nix runtimes. Commands need to load their own
 ;; binaries, libraries, locale data, and certificates after the sandbox starts.
 (allow file-read*
@@ -127,12 +134,13 @@
   (regex #"^/dev/tty.*"))
 
 ;; Seatbelt accepts only "*" or "localhost" as a host filter. Restrict
-;; transport to HTTPS here; wrappers separately disable or approval-gate
-;; unnecessary network-capable tools.
+;; transport to HTTPS for remote hosts; localhost is granted so local MCP
+;; servers (voicevox engine, Chrome DevTools, Slack) can reach their peers.
 (allow network-outbound
   (literal "/private/var/run/mDNSResponder")
   (literal "/private/var/run/systemkeychaincheck.socket")
-  (remote tcp "*:443"))
+  (remote tcp "*:443")
+  (remote tcp "localhost:*"))
 
 ;; Security.framework checks Keychain readiness through this marker/socket and
 ;; uses notification shared memory. The encrypted login Keychain database is

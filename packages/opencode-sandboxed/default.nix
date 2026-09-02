@@ -180,6 +180,36 @@ writeShellScriptBin "opencode" ''
           exit 1
       fi
 
+      # Local MCP servers are resolved by name from PATH. The Seatbelt profile
+      # permits reading /nix/store directly, but a PATH hit under
+      # /etc/profiles (a symlink to /private/etc/profiles, whose vnode path
+      # the profile does not grant) fails at spawn time. Re-link each local
+      # MCP command from its resolved Nix store path into the per-invocation
+      # private temp dir and put that directory first on PATH so opencode
+      # spawns the servers through a path the Seatbelt profile permits. This
+      # block runs before sandbox-exec, so resolving the symlink chain is
+      # unrestricted. The temp dir is private (0700, created above) and is
+      # removed on exit, so no sandbox-writable persistent directory is ever
+      # used as a symlink farm across runs.
+      MCP_BIN_DIR="$AGENT_TMP_DIR/mcp-bin"
+      mkdir "$MCP_BIN_DIR"
+      while IFS= read -r mcp_cmd; do
+          [ -z "$mcp_cmd" ] && continue
+          case "$mcp_cmd" in
+              /*) mcp_target="$mcp_cmd" ;;
+              *) mcp_target="$(command -v "$mcp_cmd" 2>/dev/null || true)" ;;
+          esac
+          [ -z "$mcp_target" ] && continue
+          mcp_real="$(realpath "$mcp_target" 2>/dev/null || echo "$mcp_target")"
+          mcp_name="$(/usr/bin/basename "$mcp_cmd")"
+          ln -sfn "$mcp_real" "$MCP_BIN_DIR/$mcp_name"
+      done < <(
+          jq -r '.mcp // {} | to_entries[] |
+              select(.value.type == "local") |
+              .value.command[0] // empty' "$OPENCODE_CONFIG_FILE" 2>/dev/null
+      )
+      export PATH="$MCP_BIN_DIR:$PATH"
+
       # Home Manager may expose these as chained out-of-store symlinks. Pass
       # only the resolved managed inputs instead of allowing their repository.
       AGENT_CONFIG_FILE="$(realpath "$OPENCODE_CONFIG_FILE")"
