@@ -17,8 +17,8 @@ rec {
     # the mutable mkOutOfStoreSymlink used for the normal config. builtins.path
     # snapshots the current file at eval time and gives it a stable store path.
     freeTierConfig = builtins.path {
-      name = "opencode-free.json";
-      path = ../config/opencode/opencode-free.json;
+      name = "free-tier.json";
+      path = ../config/opencode/free-tier.json;
     };
     freeTierModels = builtins.path {
       name = "free-tier-models.json";
