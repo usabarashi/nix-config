@@ -31,7 +31,7 @@
     ../../modules/shared/agents-opencode.nix
     ../../modules/shared/extra.nix
     ../../modules/shared/gcloud.nix
-    ../../modules/shared/git.nix
+    ../../modules/shared/git
     ../../modules/shared/llm.nix
     ../../modules/shared/neovim.nix
     ../../modules/shared/node.nix

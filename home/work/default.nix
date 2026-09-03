@@ -29,7 +29,7 @@
     ../../modules/shared/container.nix
     ../../modules/shared/extra.nix
     ../../modules/shared/gcloud.nix
-    ../../modules/shared/git.nix
+    ../../modules/shared/git
     ../../modules/shared/neovim.nix
     ../../modules/shared/node.nix
     ../../modules/shared/ssh.nix

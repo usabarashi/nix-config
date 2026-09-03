@@ -14,20 +14,12 @@ let
   signingKeyPath = "${config.xdg.configHome}/git/signing-key.pub";
   allowedSignersPath = "${config.xdg.configHome}/git/allowed_signers";
 
-  preCommitHook = pkgs.writeShellScript "global-pre-commit" ''
-    set -eu
-
-    # Run the repository's own pre-commit hook first if present. We must use
-    # --git-common-dir (not --git-path hooks/pre-commit) because the latter
-    # honors core.hooksPath and would resolve to this script itself, causing
-    # infinite recursion / fork bomb.
-    git_common_dir=$(git rev-parse --git-common-dir 2>/dev/null || true)
-    if [ -n "$git_common_dir" ] && [ -x "$git_common_dir/hooks/pre-commit" ]; then
-      "$git_common_dir/hooks/pre-commit" "$@"
-    fi
-
-    exec ${pkgs.gitleaks}/bin/gitleaks protect --staged --redact --verbose
-  '';
+  # Hook scripts live as plain files next to this module (git/*.sh), not as
+  # Nix-interpolated strings, so the shell code is edited outside Nix.
+  # writeScript (no generated shebang) keeps the files' own #!/usr/bin/env
+  # bash line and produces an executable store copy.
+  preCommitHook = pkgs.writeScript "global-pre-commit" (builtins.readFile ./pre-commit.sh);
+  prePushHook = pkgs.writeScript "global-pre-push" (builtins.readFile ./pre-push.sh);
 in
 {
   home.packages = with pkgs; [
@@ -38,6 +30,7 @@ in
   ];
 
   xdg.configFile."git/hooks/pre-commit".source = preCommitHook;
+  xdg.configFile."git/hooks/pre-push".source = prePushHook;
 
   programs.git = {
     enable = true;
