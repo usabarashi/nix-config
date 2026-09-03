@@ -19,16 +19,16 @@ Generate a PR title and description from the diff against the default branch.
 - **Why**: the problem / motivation / existing constraints that made this work necessary (1-3 sentences). Describes the situation *before* the fix, not the fix itself.
 - **What**: the design decision taken and its reasoning — alternatives considered, chosen approach, rejected options and why (aim for 2-6 sentences of prose, or 2-5 bullets). Do NOT restate facts visible from the diff (changed file names, added function names, line counts, API signatures). Reviewers will read the diff for implementation detail; they need the design thinking from you.
 - **References**: linked issues/PRs as bullets (`- #123`), or the single line `N/A` when there are none.
-- If `$ARGUMENTS` is provided, use it as additional context.
+- Use any additional context the user supplies in the request.
 
 Boundary rule for Why vs What: "why is this work needed" belongs in Why; "what was decided, among which alternatives, and why that choice" belongs in What.
 
 ## Output
 
-Do NOT create the PR. Write the draft to `/tmp/pr-description.md` as the canonical artifact — chat rendering can introduce trailing whitespace invisibly, so the file (not the chat output) is the source of truth. Verify cleanliness and copy to the clipboard:
+Do NOT create the PR. Write the draft to `./pr-description.md` in the project root as the canonical artifact — chat rendering can introduce trailing whitespace invisibly, so the file (not the chat output) is the source of truth. Verify cleanliness:
 
 ```sh
-grep -nE '[[:blank:]]+$' /tmp/pr-description.md && echo "FAIL: trailing whitespace" || pbcopy < /tmp/pr-description.md
+grep -nE '[[:blank:]]+$' ./pr-description.md && echo "FAIL: trailing whitespace"
 ```
 
 Also show the same content in a single fenced code block for in-chat preview (any fence style — triple backticks or tildes — works; the template below uses `~~~`). Do not leave trailing whitespace on any line.
