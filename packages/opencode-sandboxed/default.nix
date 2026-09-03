@@ -14,10 +14,17 @@
   jq,
   git,
   gh,
+  _1password-cli,
   freeTierConfig,
   freeTierModels,
 }:
 let
+  # 1Password CLI is used only in the OUTER (unsandboxed) wrapper context to
+  # provision the dedicated GitHub agent PAT. It is deliberately NOT added to
+  # the sandbox PATH, and cloud-restricted.sb denies it on the exec list, so
+  # the model cannot reach the user's vault session from inside the sandbox.
+  opBin = "${_1password-cli}/bin/op";
+  ghBin = "${gh}/bin/gh";
   codexAuthKeyringImport = stdenv.mkDerivation {
     pname = "codex-auth-keyring-import";
     version = "1";
@@ -627,6 +634,13 @@ writeShellScriptBin "opencode" ''
       # managed tools/ directory are loaded on a separate path and survive.
       export OPENCODE_PURE=1
 
+      # Scrub inherited GitHub credential environment variables. gh gives
+      # GH_TOKEN/GITHUB_TOKEN (and the enterprise variants) precedence over
+      # stored config, so a personal token left exported in the caller's shell
+      # would defeat the dedicated-credential guarantee. The sandboxed process
+      # inherits this scrubbed environment.
+      unset GH_TOKEN GITHUB_TOKEN GH_ENTERPRISE_TOKEN GITHUB_ENTERPRISE_TOKEN
+
       mkdir -p "$CODEX_HOME_DIR"
       CODEX_HOME_CANONICAL="$(cd "$CODEX_HOME_DIR" && pwd -P)"
       CODEX_KEYRING_HASH="$(printf '%s' "$CODEX_HOME_CANONICAL" | /usr/bin/shasum -a 256 | /usr/bin/cut -c1-16)"
@@ -650,7 +664,10 @@ writeShellScriptBin "opencode" ''
       export OPENCODE_CODEX_HOME="$CODEX_HOME_CANONICAL"
       export OPENCODE_CODEX_OUTER_SANDBOX="cloud-restricted"
 
-      TMP_ROOT="$(cd "''${TMPDIR:-/private/tmp}" && pwd -P)"
+      # Private per-invocation temp dir. The root is the per-user system temp dir
+      # (never caller TMPDIR): credential staging must not land inside the
+      # project tree even when the caller points TMPDIR there.
+      TMP_ROOT="$(/usr/bin/getconf DARWIN_USER_TEMP_DIR 2>/dev/null || printf '%s' "/private/tmp")"
       AGENT_TMP_DIR="$(/usr/bin/mktemp -d "''${TMP_ROOT%/}/opencode-cloud.XXXXXX")"
       /bin/chmod 700 "$AGENT_TMP_DIR"
       export TMPDIR="$AGENT_TMP_DIR/"
@@ -693,6 +710,120 @@ writeShellScriptBin "opencode" ''
       )
       export PATH="$MCP_BIN_DIR:$PATH"
 
+      # Side-effect-free informational invocations (--version/--help/-h) skip gh
+      # provisioning (no 1Password required) but still run under the seatbelt
+      # with the temp dir created above. Only an EXACT leading argument counts:
+      # a prompt containing "--help" as data must not bypass provisioning.
+      INFO_ARGS=0
+      case "''${1:-}" in
+          --version|--help|-h) INFO_ARGS=1 ;;
+      esac
+
+      # Always bind gh to a fresh, empty config dir inside the ephemeral temp
+      # dir, so even the informational path never falls back to a caller-
+      # supplied GH_CONFIG_DIR pointing inside a permitted tree.
+      GH_AGENT_DIR="$AGENT_TMP_DIR/gh"
+      mkdir -p "$GH_AGENT_DIR"
+      chmod 700 "$GH_AGENT_DIR"
+      export GH_CONFIG_DIR="$GH_AGENT_DIR"
+
+      if [ "$INFO_ARGS" = "0" ]; then
+          # Dedicated GitHub agent credential (read-only fine-grained PAT).
+          #
+          # The wrapper provisions it from 1Password in the OUTER context (this
+          # block runs before sandbox-exec) and stages it in the ephemeral
+          # per-invocation temp dir as gh's hosts.yml. GH_CONFIG_DIR always
+          # points gh at that disposable config; the personal ~/.config/gh,
+          # ~/.gitconfig and ~/.config/git are not granted by the seatbelt and
+          # inherited GitHub token variables were scrubbed above. The PAT is
+          # readable by the model for the duration of the session (same accepted
+          # tradeoff as environment variables) and the temp dir is removed when
+          # the wrapper exits normally; a forcefully killed wrapper may leave it
+          # until the OS reaps the temp directory.
+          #
+          # `op` is used only here (pinned store path; no caller-PATH fallback —
+          # an arbitrary `op` on PATH must never receive the vault reference in
+          # the outer context), is not on the sandbox PATH, and is exec-denied
+          # by the seatbelt, so the model cannot reach the 1Password vault
+          # session from inside. Provisioning FAILS CLOSED: without the
+          # dedicated PAT the cloud session refuses to start, unless
+          # OPENCODE_GH_ALLOW_UNAUTHENTICATED=1 (then gh runs unauthenticated).
+          # The item reference and GitHub user are overridable via
+          # OPENCODE_GH_OP_REF and OPENCODE_GH_USER (defaults follow the direnv
+          # README convention `op://Private/GitHub .../credential`).
+          GH_OP_BIN="${opBin}"
+          GH_OP_REF="''${OPENCODE_GH_OP_REF:-op://Private/GitHub Agent PAT/credential}"
+          GH_USER="''${OPENCODE_GH_USER:-usabarashi}"
+          # GitHub logins are 1-39 chars of [A-Za-z0-9-], starting and ending
+          # with alphanumeric; anything else would let the override inject YAML
+          # keys or produce an unusable account entry.
+          GH_USER_VALID=0
+          case "$GH_USER" in
+              ""|*[!A-Za-z0-9-]*|*[-]|[!A-Za-z0-9]*)
+                  GH_USER_VALID=0
+                  ;;
+              *)
+                  GH_USER_VALID=1
+                  ;;
+          esac
+          if [ "$GH_USER_VALID" = "1" ] && [ "''${#GH_USER}" -gt 39 ]; then
+              GH_USER_VALID=0
+          fi
+
+          GH_PROVISIONED=0
+          if [ "$GH_USER_VALID" = "1" ] && [ -x "$GH_OP_BIN" ]; then
+              GH_TOKEN="$("$GH_OP_BIN" read "$GH_OP_REF" 2>/dev/null || true)"
+              # GitHub tokens are [A-Za-z0-9_]+; anything else coming back from
+              # the 1Password item is treated as malformed. This also prevents
+              # field content from injecting additional YAML keys into hosts.yml.
+              case "$GH_TOKEN" in
+                  ""|*[!A-Za-z0-9_]*)
+                      GH_TOKEN=""
+                      ;;
+                  *)
+                      umask 077
+                      cat > "$GH_AGENT_DIR/hosts.yml" <<EOF
+github.com:
+    oauth_token: $GH_TOKEN
+    user: $GH_USER
+    git_protocol: https
+EOF
+                      # Verify the pinned gh actually resolves OUR staged token (local lookup
+                      # only, no network): capture the token it prints and
+                      # require an exact match. A bare success is not enough —
+                      # gh falls back to the macOS keyring when the staged
+                      # config has no token, which would be a false positive.
+                      GH_RESOLVED_TOKEN="$(
+                          GH_CONFIG_DIR="$GH_AGENT_DIR" \
+                          GH_TOKEN= GITHUB_TOKEN= \
+                          GH_ENTERPRISE_TOKEN= GITHUB_ENTERPRISE_TOKEN= \
+                          "$GH_BIN" auth token --hostname github.com 2>/dev/null
+                      )" || GH_RESOLVED_TOKEN=""
+                      if [ -n "$GH_RESOLVED_TOKEN" ] && [ "$GH_RESOLVED_TOKEN" = "$GH_TOKEN" ]; then
+                          GH_PROVISIONED=1
+                      fi
+                      GH_RESOLVED_TOKEN=""
+                      ;;
+              esac
+          fi
+
+          if [ "$GH_PROVISIONED" != "1" ]; then
+              if [ "''${OPENCODE_GH_ALLOW_UNAUTHENTICATED:-0}" = "1" ]; then
+                  echo "Warning: GitHub agent credential unavailable; gh will be unauthenticated (OPENCODE_GH_ALLOW_UNAUTHENTICATED=1)." >&2
+              else
+                  echo "Error: could not provision the GitHub agent PAT from 1Password." >&2
+                  if [ "$GH_USER_VALID" != "1" ]; then
+                      echo "  OPENCODE_GH_USER is not a valid GitHub login: $GH_USER" >&2
+                  else
+                      echo "  op: $GH_OP_BIN" >&2
+                      echo "  item: $GH_OP_REF" >&2
+                  fi
+                  echo "  Check that the item exists and 'op' is signed in; or set OPENCODE_GH_ALLOW_UNAUTHENTICATED=1 to continue without GitHub." >&2
+                  exit 1
+              fi
+          fi
+      fi
+
       # Home Manager may expose these as chained out-of-store symlinks. Pass
       # only the resolved managed inputs instead of allowing their repository.
       AGENT_CONFIG_FILE="$(realpath "$OPENCODE_CONFIG_FILE")"
@@ -719,6 +850,7 @@ writeShellScriptBin "opencode" ''
       -D AGENT_STATE_DIR="$AGENT_STATE_DIR" \
       -D AGENT_AUX_STATE_DIR="$AGENT_AUX_STATE_DIR" \
       -D AGENT_CACHE_DIR="$AGENT_CACHE_DIR" \
+      -D AGENT_CLAUDE_JSON="$AGENT_STATE_DIR/claude.json" \
       -D AGENT_TMP_DIR="$AGENT_TMP_DIR" \
       "$OPENCODE_BIN" "$@"
   exit "$?"

@@ -29,6 +29,20 @@ let
     force = true;
     recursive = true;
   };
+  # Only cloud-restricted.sb is made available to the claude wrapper (it is the
+  # shared default for both agents). Other profiles in config/agents (free-tier)
+  # require opencode-specific wrapper env/params and must not be selectable or
+  # advertised by `claude --list-seatbelts`.
+  seatbeltProfileNames = [ "cloud-restricted.sb" ];
+  seatbeltProfiles = builtins.listToAttrs (
+    map (name: {
+      name = ".claude/${name}";
+      value = {
+        source = config.lib.file.mkOutOfStoreSymlink "${repoPath}/config/agents/${name}";
+        force = true;
+      };
+    }) seatbeltProfileNames
+  );
 in
 {
   imports = [ ./agents-common.nix ];
@@ -44,10 +58,6 @@ in
   ];
 
   home.file = {
-    ".claude/permissive-open.sb" = {
-      source = config.lib.file.mkOutOfStoreSymlink "${repoPath}/config/agents/permissive-open.sb";
-      force = true;
-    };
     ".claude/CLAUDE.md" = {
       source = config.lib.file.mkOutOfStoreSymlink "${repoPath}/config/claude/CLAUDE.md";
       force = true;
@@ -60,5 +70,6 @@ in
     ".claude/commands" = agentCommands;
     ".claude/scripts" = agentScripts;
     ".claude/skills" = agentSkills;
-  };
+  }
+  // seatbeltProfiles;
 }
