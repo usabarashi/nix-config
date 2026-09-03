@@ -16,6 +16,7 @@
 set -euo pipefail
 
 OPENCODE="${OPENCODE:-opencode}"
+CLAUDE="${CLAUDE:-claude}"
 MODEL="${MODEL:-}"
 TMPLOG="$(mktemp /tmp/free-tier-smoke.XXXXXX)"
 trap 'rm -f "$TMPLOG"' EXIT
@@ -25,16 +26,39 @@ pass() { echo "ok: $*"; }
 
 echo "== free-tier smoke: static phase =="
 
-# 1. --list-seatbelts shows the expected profiles. claude-code.sb lives in a
-#    separate change (claude default tuning) and is intentionally NOT
-#    expected here; the profiles asserted below are those shipped by the
-#    free-tier change set (config/agents/*.sb committed alongside).
-profiles="$($OPENCODE --list-seatbelts 2>&1 || true)"
-for want in free-tier.sb cloud-restricted.sb permissive-open.sb; do
+# 1. --list-seatbelts shows the expected profiles. permissive-open.sb and
+#    claude-code.sb were removed; cloud-restricted.sb is the shared default for
+#    both the opencode and claude wrappers. The profiles asserted below are the
+#    ones shipped by the free-tier change set (config/agents/*.sb committed
+#    alongside). The listing exits before any credential provisioning, so no
+#    1Password session is needed.
+set +e
+profiles="$("$OPENCODE" --list-seatbelts 2>&1)"
+open_status=$?
+set -e
+[ "$open_status" -eq 0 ] || fail "opencode --list-seatbelts failed (exit $open_status)"
+for want in free-tier.sb cloud-restricted.sb; do
     echo "$profiles" | grep -qx "$want" || fail "--list-seatbelts missing $want"
 done
 echo "$profiles" | grep -qx "strict-closed.sb" && fail "strict-closed.sb still present"
-pass "--list-seatbelts matches expectation; strict-closed.sb absent"
+echo "$profiles" | grep -qx "permissive-open.sb" && fail "permissive-open.sb still present"
+echo "$profiles" | grep -qx "claude-code.sb" && fail "claude-code.sb still present"
+pass "--list-seatbelts matches expectation; removed profiles absent"
+
+# 1b. The claude wrapper shares cloud-restricted.sb, and only that profile is
+#     installed for claude (free-tier.sb needs opencode-specific params).
+set +e
+claude_profiles="$("$CLAUDE" --list-seatbelts 2>&1)"
+claude_status=$?
+set -e
+[ "$claude_status" -eq 0 ] || fail "claude --list-seatbelts failed (exit $claude_status)"
+# Require the complete claude profile set to be EXACTLY cloud-restricted.sb:
+# any extra, missing, or differently named .sb entry must fail.
+claude_expected="cloud-restricted.sb"
+claude_actual="$(printf '%s\n' "$claude_profiles" | grep -v '^$' | sort)"
+[ "$claude_actual" = "$claude_expected" ] \
+    || fail "claude profile set mismatch: expected [$claude_expected], got [$claude_actual]"
+pass "claude --list-seatbelts is exactly cloud-restricted.sb"
 
 # 2. free-tier without -m must fail closed with the *specific* message
 #    (not a generic failure), proving wrapper parsing ran.

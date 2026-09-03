@@ -1,21 +1,19 @@
 # Agent sandbox profiles
 
 Seatbelt (`sandbox-exec`) profiles for agent runtimes. Selected by the
-`opencode` wrapper via `--seatbelt <name>` (default: `cloud-restricted`) and by
-the `claude` wrapper via `--seatbelt <name>` (default: `claude-code`).
+`opencode` and `claude` wrappers via `--seatbelt <name>` (both default to
+`cloud-restricted`).
 
 ## Profiles
 
 | Profile | Network | Filesystem | Use case |
 |---------|---------|------------|----------|
-| `cloud-restricted.sb` | Remote TCP 443 + loopback TCP (all ports) | Project + OpenCode state/cache read-write; OS/Nix runtime and `/nix/store` read-only; everything else denied | Default for opencode: paid / normal cloud models (OpenAI Codex, etc.) |
-| `claude-code.sb` | Remote TCP 443 + loopback TCP (all ports) | `~/.claude`, `~/.cache/claude`, `~/.claude.json` read-write; project read-write; OS/Nix runtime read-only | Default for claude (Anthropic API sessions) |
+| `cloud-restricted.sb` | Remote TCP 443 + loopback TCP (all ports) | Project + OpenCode/Claude state/cache read-write; OS/Nix runtime and `/nix/store` read-only; everything else denied | Default for opencode and claude (paid cloud models: OpenAI Codex, Claude, normal opencode models) |
 | `free-tier.sb` | Remote TCP 443 + loopback TCP (all ports) | Project + dedicated free-tier data/state/cache read-write; immutable free-tier `auth.json` (read-only); NO Keychain, `~/.config/gh`, `~/.gitconfig`, paid auth | opencode free-tier cloud providers (Gemini/Groq/OpenRouter no-cost) |
-| `permissive-open.sb` | Unrestricted | Unrestricted (project + home) | Legacy dev mode; explicit opt-in only |
 
-`strict-closed.sb` has been removed. There is no network-zero profile; for
-sensitive work use `permissive-open.sb` deliberately or run without a remote
-model.
+`strict-closed.sb` and the unrestricted `permissive-open.sb` have both been
+removed; there is no network-zero or fully-open profile. For sensitive work use
+the deny-default profiles or run without a remote model.
 
 ## cloud-restricted.sb
 
@@ -32,8 +30,36 @@ Deny-default profile:
   denied by execute-list). Note this does not prevent arbitrary executables
   from sending data over HTTPS.
 - **Authentication**:
-  - `gh` authenticates via the login Keychain (keyring), so only
-    `~/.config/gh/hosts.yml` and `config.yml` metadata files are readable.
+  - `gh` uses a **dedicated, read-only GitHub agent PAT** provisioned from
+    1Password by the wrapper *outside* the sandbox and staged in the ephemeral
+    per-invocation temp dir (`GH_CONFIG_DIR` points at that disposable
+    `hosts.yml`). Inherited GitHub token environment variables
+    (`GH_TOKEN`, `GITHUB_TOKEN`, `GH_ENTERPRISE_TOKEN`,
+    `GITHUB_ENTERPRISE_TOKEN`) are scrubbed before launch, and personal git
+    configuration (`~/.config/gh`, `~/.gitconfig`, `~/.config/git`) is not
+    granted by the profile. On normal exit the temp dir is removed (by the
+    wrapper's EXIT trap; for claude, by a tiny C supervisor); a SIGKILLed
+    wrapper may leave it behind until the OS cleans the system temp area —
+    timing is not guaranteed.
+  - **Fail-closed**: if the PAT cannot be provisioned (item missing, `op` not
+    signed in, malformed token), the cloud session refuses to start. Set
+    `AGENT_GH_ALLOW_UNAUTHENTICATED=1` to continue without GitHub instead.
+  - The 1Password CLI (`op` / `op-please` / `op-http-call`) and
+    `/usr/bin/security` are **denied on the exec list**, and `op` is absent
+    from the sandbox PATH, so the model cannot reach the user's vault session
+    or list Keychain items directly. Provisioning happens in the wrapper,
+    before `sandbox-exec`, and requires the host `op` CLI to be signed in (the
+    same setup the direnv README assumes).
+  - **Residual risk (prompt-injection / compromised model):** Keychain and
+    `securityd` access remain granted so the pinned Codex binary can retrieve
+    its own credential, and Seatbelt applies to the whole process tree — not
+    per binary. A compromised model that constructs an alternate `gh` config
+    (in a writable location) naming the *personal* account could therefore
+    still recover the personal GitHub Keychain item through the permitted
+    `gh` binary. The dedicated PAT bounds the *default* and *accidental*
+    paths; this deliberate-override path is defense-in-depth only, and the
+    same limitation motivated the future option of removing Keychain access
+    from this profile altogether (see "Accepted tradeoffs").
   - The Codex credential is imported (C helper, `codex-auth-keyring-import.c`)
     into the login Keychain as a generic-password item whose ACL trusts only
     the pinned Codex binary. `CODEX_HOME` points to an isolated cache dir
@@ -41,6 +67,58 @@ Deny-default profile:
   - Direct reads of `login.keychain-db` are permitted because
     Security.framework requires it inside a Seatbelt sandbox; the Codex item
     itself remains protected by the application-bound ACL.
+
+### Provisioning the GitHub agent PAT
+
+The default `gh` flow expects a **fine-grained PAT** stored in 1Password at
+`op://Private/GitHub Agent PAT/credential` (reference and GitHub user label are
+overridable via `AGENT_GH_OP_REF` / `AGENT_GH_USER`).
+
+#### Recommended permission settings
+
+Create the PAT as a **fine-grained PAT** with these settings:
+
+**Repository access**
+
+- **Only select repositories**: the repositories the agent may read (private
+  repositories included). Do not grant "All repositories" unless every
+  repository is meant to be readable by the agent.
+
+**Repository permissions** — every permission is **Read** at most, never
+`Write` / `Maintain` / `Admin`:
+
+| Permission     | Setting (recommended) | Notes                                                        |
+|----------------|-----------------------|--------------------------------------------------------------|
+| Metadata       | **Read**              | Required for every fine-grained PAT                          |
+| Contents       | **Read**              | Repository contents / branches / tags (needed for diffing)   |
+| Pull requests  | **Read**              | PR metadata and review comments used by the PR skills        |
+| Issues         | **Read**              | Issue cross-references in PR descriptions                    |
+| Actions        | **Read**              | Action run status / logs, incl. check-run details (optional) |
+| Commit statuses| **Read**              | Commit status of PRs / commits (optional)                   |
+| All others     | **No access**         | e.g. Administration, Secrets, Workflows, Webhooks, Environments, Deployments |
+
+**Account permissions**
+
+- All entries **No access** (no SSH signing keys, deploy keys, profile/settings
+  writes, organization management, …).
+
+**Notes**
+
+- Fine-grained PATs do **not** have a `Checks` permission (that is a classic-PAT
+  scope, `checks:read`). For CI status read either `Actions: Read` (check runs
+  for Actions) or `Commit statuses: Read`; neither is required for the core
+  read-only flow.
+- Set an **expiration** (e.g. 90 days) and rotate periodically. Rotation is a
+  single 1Password item update — the wrapper re-reads it on the next launch,
+  no Nix rebuild or profile change required.
+
+The host `op` CLI must be signed in before launching opencode; provisioning is
+**fail-closed** — if the read fails or the item value is not a well-formed
+GitHub token, the session exits with an error unless
+`AGENT_GH_ALLOW_UNAUTHENTICATED=1` is set, in which case `gh` runs
+unauthenticated with a warning on stderr. Side-effect-free invocations
+(`--version`, `--help`) skip provisioning entirely, so they work without a
+1Password session.
 
 ### Accepted tradeoffs
 
@@ -62,18 +140,27 @@ Deny-default profile:
   dir. End-to-end browser automation (launch → page → DevTools protocol)
   should be validated once under the actual profile before relying on it.
 
-## claude-code.sb
+## Claude Code (unified profile)
 
-Default Claude Code profile:
+`claude-code.sb` has been removed; the `claude` wrapper now defaults to
+`cloud-restricted.sb`, the same profile opencode uses. The wrapper maps Claude's
+paths onto the profile parameters so behavior is preserved:
 
-- **Filesystem**: `~/.claude`, `~/.cache/claude`, and `~/.claude.json`
-  read-write (Claude stores settings, state, and MCP wiring such as Serena
-  there). `TARGET_DIR` read-write. OS/Nix runtime read-only.
-- **Network**: HTTPS for `api.anthropic.com` plus loopback for the VoiceVox MCP.
-- **Authentication**: Claude's own credential handling is used. If
-  authentication is Keychain-backed, only the required allowances are granted
-  (verified by smoke tests); Keychain credential stores are not broadly
-  opened.
+- `~/.claude` → `AGENT_CONFIG_DIR` (read) and `AGENT_STATE_DIR` /
+  `AGENT_AUX_STATE_DIR` (write): settings, skills, commands, agents, scripts
+  and the installed seatbelt copies stay read/write.
+- `~/.cache/claude` → `AGENT_CACHE_DIR` (read/write).
+- `~/.claude.json` → `AGENT_CLAUDE_JSON` (read/write; Claude's global state /
+  MCP wiring such as Serena). The opencode wrapper passes an inert path inside
+  its own state dir, so this grant does not widen opencode sessions.
+- Scratch/temp is redirected to the wrapper's private per-invocation temp dir
+  (`AGENT_TMP_DIR`, removed on exit).
+
+Authentication and credentials are the same as opencode: the dedicated,
+read-only GitHub agent PAT is provisioned from 1Password into the ephemeral
+`GH_CONFIG_DIR` (fail-closed, same env overrides), and inherited GitHub token
+environment variables are scrubbed. The 1Password CLI and `/usr/bin/security`
+are exec-denied here as well.
 
 ## free-tier.sb
 
@@ -162,9 +249,3 @@ on any host** until this is verified and the smoke suite passes.
 - The dedicated credential root is persistent and created securely (0700, no
   symlinks, owner/link-count verified); per-session temporary data lives in
   the private per-invocation temp dir and is removed on exit.
-
-## permissive-open.sb
-
-Legacy profile with broad access. Kept for development flows that predate the
-restricted profiles; prefer `cloud-restricted` unless bypassing the sandbox is
-explicitly intended. **Not** a default for any wrapper.

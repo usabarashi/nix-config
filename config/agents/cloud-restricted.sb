@@ -6,9 +6,15 @@
 
 ;; Block commands that can directly access remotes, except gh and curl which
 ;; are permitted for GitHub API interaction over HTTPS. This is defense in
-;; depth; network access below is also limited to TCP port 443.
+;; depth; network access below is also limited to TCP port 443. Also block the
+;; 1Password CLI (`op` and its helpers): its absolute Nix-store path must not
+;; be exec-able inside the sandbox even though the wrapper provisions the
+;; GitHub agent PAT from 1Password before launching (the wrapper does that in
+;; the outer, unsandboxed context). `/usr/bin/security` is blocked too: the
+;; model must not be able to list/read Keychain items directly (gh/codex use
+;; the Security framework in-process, not this binary).
 (deny process-exec
-  (regex #"/(ssh|scp|sftp|wget|nc|ncat|netcat|ftp|rsync|git-remote-http|git-remote-https|git-remote-ssh)$"))
+  (regex #"/(ssh|scp|sftp|wget|nc|ncat|netcat|ftp|rsync|git-remote-http|git-remote-https|git-remote-ssh|op|op-please|op-http-call|security)$"))
 (allow process-exec
        process-fork)
 
@@ -66,7 +72,10 @@
   (subpath (param "TARGET_DIR")))
 
 ;; Each wrapper supplies only the paths its agent needs. Configuration is
-;; read-only; state and cache directories are writable.
+;; read-only; state, cache and the per-invocation temp dir are writable. (The
+;; claude wrapper maps AGENT_CONFIG_DIR and AGENT_STATE_DIR/AUX to the same
+;; ~/.claude, so that tree is read+write in claude sessions, as in the former
+;; claude-code.sb.)
 (allow file-read*
   (subpath (param "AGENT_CONFIG_DIR"))
   (literal (param "AGENT_CONFIG_FILE"))
@@ -76,13 +85,17 @@
   (subpath (param "AGENT_STATE_DIR"))
   (subpath (param "AGENT_AUX_STATE_DIR"))
   (subpath (param "AGENT_CACHE_DIR"))
-  (subpath (string-append (param "HOME_DIR") "/.config/git"))
-  ;; gh authenticates via the login Keychain (see gh auth status: keyring), so
-  ;; only its metadata files are needed on disk; grant those instead of the
-  ;; whole directory to avoid exposing an accidentally file-stored token.
-  (literal (string-append (param "HOME_DIR") "/.config/gh/hosts.yml"))
-  (literal (string-append (param "HOME_DIR") "/.config/gh/config.yml"))
-  (literal (string-append (param "HOME_DIR") "/.gitconfig")))
+  ;; gh uses a dedicated, disposable config staged by the wrapper in the
+  ;; per-invocation temp dir (GH_CONFIG_DIR). Personal git configuration
+  ;; (gh hosts, ~/.gitconfig, ~/.config/git — identity, credential helper,
+  ;; signing keys) is deliberately NOT granted, so the agent's gh/git have no
+  ;; readable path to the personal GitHub identity.
+  ;; Claude Code global state file (~/.claude.json: settings and MCP wiring such
+  ;; as Serena), read/write. Only the claude wrapper passes its real path; the
+  ;; opencode wrapper passes an inert path inside its own state dir so this
+  ;; grant does not widen opencode sessions.
+  (literal (param "AGENT_CLAUDE_JSON"))
+)
 (allow file-read*
   (literal "/Library/Preferences/com.apple.security.plist")
   (literal "/Library/Preferences/.GlobalPreferences.plist")
@@ -105,7 +118,9 @@
 (allow file-write*
   (subpath (param "AGENT_STATE_DIR"))
   (subpath (param "AGENT_AUX_STATE_DIR"))
-  (subpath (param "AGENT_CACHE_DIR")))
+  (subpath (param "AGENT_CACHE_DIR"))
+  ;; Claude ~/.claude.json (see read grant above; opencode passes an inert path).
+  (literal (param "AGENT_CLAUDE_JSON")))
 
 ;; The wrapper creates a private per-invocation temporary directory. Parent
 ;; metadata is enough to traverse to it; no other process's temporary files are
