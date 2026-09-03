@@ -43,7 +43,7 @@ Deny-default profile:
     timing is not guaranteed.
   - **Fail-closed**: if the PAT cannot be provisioned (item missing, `op` not
     signed in, malformed token), the cloud session refuses to start. Set
-    `OPENCODE_GH_ALLOW_UNAUTHENTICATED=1` to continue without GitHub instead.
+    `AGENT_GH_ALLOW_UNAUTHENTICATED=1` to continue without GitHub instead.
   - The 1Password CLI (`op` / `op-please` / `op-http-call`) and
     `/usr/bin/security` are **denied on the exec list**, and `op` is absent
     from the sandbox PATH, so the model cannot reach the user's vault session
@@ -72,7 +72,7 @@ Deny-default profile:
 
 The default `gh` flow expects a **fine-grained PAT** stored in 1Password at
 `op://Private/GitHub Agent PAT/credential` (reference and GitHub user label are
-overridable via `OPENCODE_GH_OP_REF` / `OPENCODE_GH_USER`).
+overridable via `AGENT_GH_OP_REF` / `AGENT_GH_USER`).
 
 #### Recommended permission settings
 
@@ -115,7 +115,7 @@ Create the PAT as a **fine-grained PAT** with these settings:
 The host `op` CLI must be signed in before launching opencode; provisioning is
 **fail-closed** — if the read fails or the item value is not a well-formed
 GitHub token, the session exits with an error unless
-`OPENCODE_GH_ALLOW_UNAUTHENTICATED=1` is set, in which case `gh` runs
+`AGENT_GH_ALLOW_UNAUTHENTICATED=1` is set, in which case `gh` runs
 unauthenticated with a warning on stderr. Side-effect-free invocations
 (`--version`, `--help`) skip provisioning entirely, so they work without a
 1Password session.

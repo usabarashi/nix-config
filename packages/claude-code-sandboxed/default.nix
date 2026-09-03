@@ -176,10 +176,10 @@ writeShellScriptBin "claude" ''
       # personal ~/.config/gh (the profile does not grant it). `op` is pinned to
       # the Nix-store path (no caller-PATH fallback), absent from the sandbox
       # PATH, and exec-denied by the seatbelt. Provisioning FAILS CLOSED unless
-      # OPENCODE_GH_ALLOW_UNAUTHENTICATED=1.
+      # AGENT_GH_ALLOW_UNAUTHENTICATED=1.
       GH_OP_BIN="${opBin}"
-      GH_OP_REF="''${OPENCODE_GH_OP_REF:-op://Private/GitHub Agent PAT/credential}"
-      GH_USER="''${OPENCODE_GH_USER:-usabarashi}"
+      GH_OP_REF="''${AGENT_GH_OP_REF:-op://Private/GitHub Agent PAT/credential}"
+      GH_USER="''${AGENT_GH_USER:-usabarashi}"
       # GitHub logins are 1-39 chars of [A-Za-z0-9-], starting and ending with
       # alphanumeric; anything else would let the override inject YAML keys or
       # produce an unusable account entry.
@@ -227,17 +227,17 @@ writeShellScriptBin "claude" ''
           esac
       fi
       if [ "$GH_PROVISIONED" != "1" ]; then
-          if [ "''${OPENCODE_GH_ALLOW_UNAUTHENTICATED:-0}" = "1" ]; then
-              echo "Warning: GitHub agent credential unavailable; gh will be unauthenticated (OPENCODE_GH_ALLOW_UNAUTHENTICATED=1)." >&2
+          if [ "''${AGENT_GH_ALLOW_UNAUTHENTICATED:-0}" = "1" ]; then
+              echo "Warning: GitHub agent credential unavailable; gh will be unauthenticated (AGENT_GH_ALLOW_UNAUTHENTICATED=1)." >&2
           else
               echo "Error: could not provision the GitHub agent PAT from 1Password." >&2
               if [ "$GH_USER_VALID" != "1" ]; then
-                  echo "  OPENCODE_GH_USER is not a valid GitHub login: $GH_USER" >&2
+                  echo "  AGENT_GH_USER is not a valid GitHub login: $GH_USER" >&2
               else
                   echo "  op: $GH_OP_BIN" >&2
                   echo "  item: $GH_OP_REF" >&2
               fi
-              echo "  Check that the item exists and 'op' is signed in; or set OPENCODE_GH_ALLOW_UNAUTHENTICATED=1 to continue without GitHub." >&2
+              echo "  Check that the item exists and 'op' is signed in; or set AGENT_GH_ALLOW_UNAUTHENTICATED=1 to continue without GitHub." >&2
               exit 1
           fi
       fi

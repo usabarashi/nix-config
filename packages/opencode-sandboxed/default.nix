@@ -747,13 +747,13 @@ writeShellScriptBin "opencode" ''
           # by the seatbelt, so the model cannot reach the 1Password vault
           # session from inside. Provisioning FAILS CLOSED: without the
           # dedicated PAT the cloud session refuses to start, unless
-          # OPENCODE_GH_ALLOW_UNAUTHENTICATED=1 (then gh runs unauthenticated).
+          # AGENT_GH_ALLOW_UNAUTHENTICATED=1 (then gh runs unauthenticated).
           # The item reference and GitHub user are overridable via
-          # OPENCODE_GH_OP_REF and OPENCODE_GH_USER (defaults follow the direnv
+          # AGENT_GH_OP_REF and AGENT_GH_USER (defaults follow the direnv
           # README convention `op://Private/GitHub .../credential`).
           GH_OP_BIN="${opBin}"
-          GH_OP_REF="''${OPENCODE_GH_OP_REF:-op://Private/GitHub Agent PAT/credential}"
-          GH_USER="''${OPENCODE_GH_USER:-usabarashi}"
+          GH_OP_REF="''${AGENT_GH_OP_REF:-op://Private/GitHub Agent PAT/credential}"
+          GH_USER="''${AGENT_GH_USER:-usabarashi}"
           # GitHub logins are 1-39 chars of [A-Za-z0-9-], starting and ending
           # with alphanumeric; anything else would let the override inject YAML
           # keys or produce an unusable account entry.
@@ -803,17 +803,17 @@ writeShellScriptBin "opencode" ''
           fi
 
           if [ "$GH_PROVISIONED" != "1" ]; then
-              if [ "''${OPENCODE_GH_ALLOW_UNAUTHENTICATED:-0}" = "1" ]; then
-                  echo "Warning: GitHub agent credential unavailable; gh will be unauthenticated (OPENCODE_GH_ALLOW_UNAUTHENTICATED=1)." >&2
+              if [ "''${AGENT_GH_ALLOW_UNAUTHENTICATED:-0}" = "1" ]; then
+                  echo "Warning: GitHub agent credential unavailable; gh will be unauthenticated (AGENT_GH_ALLOW_UNAUTHENTICATED=1)." >&2
               else
                   echo "Error: could not provision the GitHub agent PAT from 1Password." >&2
                   if [ "$GH_USER_VALID" != "1" ]; then
-                      echo "  OPENCODE_GH_USER is not a valid GitHub login: $GH_USER" >&2
+                      echo "  AGENT_GH_USER is not a valid GitHub login: $GH_USER" >&2
                   else
                       echo "  op: $GH_OP_BIN" >&2
                       echo "  item: $GH_OP_REF" >&2
                   fi
-                  echo "  Check that the item exists and 'op' is signed in; or set OPENCODE_GH_ALLOW_UNAUTHENTICATED=1 to continue without GitHub." >&2
+                  echo "  Check that the item exists and 'op' is signed in; or set AGENT_GH_ALLOW_UNAUTHENTICATED=1 to continue without GitHub." >&2
                   exit 1
               fi
           fi
