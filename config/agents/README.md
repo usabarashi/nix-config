@@ -30,8 +30,10 @@ Deny-default profile:
   denied by execute-list). Note this does not prevent arbitrary executables
   from sending data over HTTPS.
 - **Authentication**:
-  - `gh` uses a **dedicated, read-only GitHub agent PAT** provisioned from
-    1Password by the wrapper *outside* the sandbox and staged in the ephemeral
+  - `gh` uses a **dedicated GitHub agent PAT** (read-only except
+    `Pull requests: Write`, the minimum needed to reply to PR review comments)
+    provisioned from 1Password by the wrapper *outside* the sandbox and staged
+    in the ephemeral
     per-invocation temp dir (`GH_CONFIG_DIR` points at that disposable
     `hosts.yml`). Inherited GitHub token environment variables
     (`GH_TOKEN`, `GITHUB_TOKEN`, `GH_ENTERPRISE_TOKEN`,
@@ -84,14 +86,16 @@ Create the PAT as a **fine-grained PAT** with these settings:
   repositories included). Do not grant "All repositories" unless every
   repository is meant to be readable by the agent.
 
-**Repository permissions** — every permission is **Read** at most, never
+**Repository permissions** — **Read** for everything except **Pull requests**,
+which is **Write** (required so the PR skills can post/reply to review
+comments); all other permissions stay at **Read** at most, never
 `Write` / `Maintain` / `Admin`:
 
 | Permission     | Setting (recommended) | Notes                                                        |
 |----------------|-----------------------|--------------------------------------------------------------|
 | Metadata       | **Read**              | Required for every fine-grained PAT                          |
 | Contents       | **Read**              | Repository contents / branches / tags (needed for diffing)   |
-| Pull requests  | **Read**              | PR metadata and review comments used by the PR skills        |
+| Pull requests  | **Write**             | PR metadata, plus posting/replying to review comments (github-pull-request-respond). Downgrade to **Read** if the agent never posts PR comments |
 | Issues         | **Read**              | Issue cross-references in PR descriptions                    |
 | Actions        | **Read**              | Action run status / logs, incl. check-run details (optional) |
 | Commit statuses| **Read**              | Commit status of PRs / commits (optional)                   |
@@ -107,7 +111,7 @@ Create the PAT as a **fine-grained PAT** with these settings:
 - Fine-grained PATs do **not** have a `Checks` permission (that is a classic-PAT
   scope, `checks:read`). For CI status read either `Actions: Read` (check runs
   for Actions) or `Commit statuses: Read`; neither is required for the core
-  read-only flow.
+  flow.
 - Set an **expiration** (e.g. 90 days) and rotate periodically. Rotation is a
   single 1Password item update — the wrapper re-reads it on the next launch,
   no Nix rebuild or profile change required.
@@ -156,8 +160,8 @@ paths onto the profile parameters so behavior is preserved:
 - Scratch/temp is redirected to the wrapper's private per-invocation temp dir
   (`AGENT_TMP_DIR`, removed on exit).
 
-Authentication and credentials are the same as opencode: the dedicated,
-read-only GitHub agent PAT is provisioned from 1Password into the ephemeral
+Authentication and credentials are the same as opencode: the dedicated
+GitHub agent PAT is provisioned from 1Password into the ephemeral
 `GH_CONFIG_DIR` (fail-closed, same env overrides), and inherited GitHub token
 environment variables are scrubbed. The 1Password CLI and `/usr/bin/security`
 are exec-denied here as well.
