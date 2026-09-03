@@ -53,27 +53,40 @@ fi
 #    — `git -c commit.gpgSign=false commit -m ...` must resolve to "commit".
 # ---------------------------------------------------------------------------
 cmd=""
-skip_next=0
-for arg in "$@"; do
-  if [ "$skip_next" = "1" ]; then
-    skip_next=0
-    continue
-  fi
-  case "$arg" in
-    -c|-C|--git-dir|--work-tree|--namespace|--exec-path|--config-env|--super-prefix)
-      skip_next=1
+  skip_next=0
+  # Global flags (no operand) the guard recognizes and skips. Anything else
+  # starting with '-' is REJECTED below: an unrecognized value-taking option
+  # would misparse its operand as the subcommand and could delegate a denied
+  # command (e.g. `git --attr-source HEAD commit`).
+  known_flags=" -p --paginate --no-pager --no-optional-locks --version --help -h "
+  for arg in "$@"; do
+    if [ "$skip_next" = "1" ]; then
+      skip_next=0
       continue
-      ;;
-    --git-dir=*|--work-tree=*|--namespace=*|--exec-path=*|--config-env=*|--super-prefix=*)
-      continue
-      ;;
-    -*) continue ;;
-    *)
-      cmd="$arg"
-      break
-      ;;
-  esac
-done
+    fi
+    case "$arg" in
+      -c|-C|--git-dir|--work-tree|--namespace|--exec-path|--config-env|--super-prefix|--attr-source)
+        skip_next=1
+        continue
+        ;;
+      --git-dir=*|--work-tree=*|--namespace=*|--exec-path=*|--config-env=*|--super-prefix=*|--attr-source=*)
+        continue
+        ;;
+      -*)
+        case "$known_flags" in
+          *" $arg "*)
+            continue
+            ;;
+        esac
+        echo "error: git-agent-guard: unrecognized git global option '$arg' is not allowed in agent sessions." >&2
+        exit 1
+        ;;
+      *)
+        cmd="$arg"
+        break
+        ;;
+    esac
+  done
 
 # ---------------------------------------------------------------------------
 # 3. Inline configuration must not smuggle in aliases:
@@ -114,7 +127,7 @@ case "$cmd" in
   commit | push | commit-tree | update-ref | replace | notes | tag \
   | reset | restore | clean | stash | gc | prune | repack | maintenance \
   | filter-branch | merge | rebase | cherry-pick | revert | am | pull \
-  | checkout | switch | branch | fast-import)
+  | checkout | switch | branch | fast-import | fetch | symbolic-ref)
     echo "error: git-agent-guard: '$cmd' is not allowed in agent sessions." >&2
     echo >&2
     echo "  AI agents may edit files but must not create commits, rewrite" >&2
@@ -132,9 +145,9 @@ esac
 #    so pre-existing aliases on those names never false-block.
 # ---------------------------------------------------------------------------
 case "$cmd" in
-  status | diff | log | show | grep | fetch | shortlog | blame | whatchanged \
+  status | diff | log | show | grep | shortlog | blame | whatchanged \
   | rev-parse | rev-list | ls-files | ls-tree | cat-file | for-each-ref \
-  | symbolic-ref | verify-commit | verify-tag | version | help | config \
+  | verify-commit | verify-tag | version | help | config \
   | clone | init | apply | archive | describe | fsck) ;;
   *)
     # Repository-local aliases: a stale or adversarial `alias.x` for a

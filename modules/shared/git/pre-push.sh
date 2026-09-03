@@ -40,6 +40,12 @@ reject() {
   exit 1
 }
 
+# For a new branch we subtract what the DESTINATION currently advertises.
+# Local refs/remotes/* are a cache and can be stale (deleted remote branches
+# leave stale tracking refs that would wrongly "pre-verify" unsigned commits);
+# ask the remote for its current refs instead. One round-trip per remote.
+destination_excludes=""
+destination_excludes_done=0
 while read -r local_ref local_sha remote_ref remote_sha; do
   [ "$local_sha" = "$zeros" ] && continue # deleting a remote branch
 
@@ -47,10 +53,20 @@ while read -r local_ref local_sha remote_ref remote_sha; do
   #  - ref update: everything reachable from the new tip but not the old
   #    remote tip (handles divergent force pushes too)
   #  - new branch: everything reachable from the tip that is not already on
-  #    any ref of this remote, so history already pushed via another branch
-  #    is not re-verified (and cannot false-positive on imported history)
+  #    the destination as of this push (advertised refs, not stale local refs)
   if [ "$remote_sha" = "$zeros" ]; then
-    range=("$local_sha" --not --remotes="$remote_name")
+    if [ "$destination_excludes_done" = "0" ]; then
+      if ! advertised=$(git ls-remote --heads --tags --refs "$remote_name" 2>&1); then
+        reject "$local_ref" "could not enumerate destination refs for $local_ref:" "$advertised"
+      fi
+      destination_excludes=$(printf '%s\n' "$advertised" | awk '{print $1}' | sort -u)
+      destination_excludes_done=1
+    fi
+    if [ -n "$destination_excludes" ]; then
+      range=("$local_sha" --not $destination_excludes)
+    else
+      range=("$local_sha")
+    fi
   else
     range=("$remote_sha..$local_sha")
   fi
