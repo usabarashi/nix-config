@@ -85,7 +85,7 @@
        file-write*
   (subpath (param "TARGET_DIR")))
 
-;; Free-tier runtime configuration (the independent minimal opencode-free.json,
+;; Free-tier runtime configuration (the independent minimal free-tier.json,
 ;; model allowlist, signed/pinned manifest, commands/tools/skills) is deployed
 ;; as immutable Nix store content and read here.
 (allow file-read*

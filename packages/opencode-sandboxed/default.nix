@@ -218,7 +218,7 @@ writeShellScriptBin "opencode" ''
       #    *_TOKEN/_*KEY, SSH_AUTH_SOCK and caller-supplied OPENCODE_* are
       #    dropped.
       #  * Model: -m/--model is mandatory and must match the versioned
-      #    allowlist (exact resolved tuple). opencode-free.json additionally
+      #    allowlist (exact resolved tuple). free-tier.json additionally
       #    enables only allowed providers and whitelists exact models.
       #  * This is NOT a billing boundary: *:443 is open, so any readable
       #    data can be exfiltrated and paid endpoints reached with a stolen

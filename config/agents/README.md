@@ -192,7 +192,7 @@ Deny-default, modeled on `cloud-restricted.sb` with the following differences:
   TMPDIR/TMP/TEMP, SSL_CERT_FILE, XDG_*, synthetic GIT_*, and wrapper-owned
   OPENCODE_*). `SLACK_USER_TOKEN`, `LIBRARY_API_KEY`, `SSH_AUTH_SOCK`, and any
   caller-supplied `OPENCODE_CONFIG_CONTENT` / `OPENCODE_PERMISSION` are dropped.
-- **Independent config**: `opencode-free.json` (deployed as immutable Nix-store
+- **Independent config**: `free-tier.json` (deployed as immutable Nix-store
   content) enables only allowed providers, disables paid built-ins
   (`opencode-go`, `anthropic`, `openai`, `llamacpp-local`), whitelists exact
   model IDs, and keeps only the `chrome-devtools` MCP.
