@@ -43,7 +43,9 @@ writeShellScriptBin "claude" ''
   export DISABLE_INSTALLATION_CHECKS=1
   export USE_BUILTIN_RIPGREP=0
   export SSL_CERT_FILE="${cacert}/etc/ssl/certs/ca-bundle.crt"
-  export PATH="${
+  # git-agent-guard is copied to ~/.claude/bin/git by home-manager; this dir
+  # must precede the store `git` so agent-spawned `git` hits the deny shim.
+  export PATH="$HOME/.claude/bin:${
     lib.makeBinPath [
       procps
       ripgrep
@@ -153,7 +155,8 @@ writeShellScriptBin "claude" ''
   # tree even when the caller points TMPDIR there. cloud-restricted.sb grants
   # read/write only within this directory; TMPDIR redirect keeps Node/git away
   # from other system temp locations.
-  TMP_ROOT="$(/usr/bin/getconf DARWIN_USER_TEMP_DIR 2>/dev/null || printf '%s' "/private/tmp")"
+  TMP_ROOT_RAW="$(/usr/bin/getconf DARWIN_USER_TEMP_DIR 2>/dev/null || printf '%s' "/private/tmp")"
+  TMP_ROOT="$(cd "$TMP_ROOT_RAW" && pwd -P)"
   AGENT_TMP_DIR="$(/usr/bin/mktemp -d "''${TMP_ROOT%/}/claude-cloud.XXXXXX")"
   /bin/chmod 700 "$AGENT_TMP_DIR"
   export TMPDIR="$AGENT_TMP_DIR/"

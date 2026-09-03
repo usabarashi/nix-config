@@ -70,6 +70,13 @@ in
     ".claude/commands" = agentCommands;
     ".claude/scripts" = agentScripts;
     ".claude/skills" = agentSkills;
+    # git-agent-guard: plain-script git deny shim (config/agents/scripts/),
+    # copied here because ~/.claude is the tree the cloud-restricted seatbelt
+    # grants the claude session. See agents-opencode.nix for the rationale.
+    ".claude/bin/git" = {
+      text = builtins.readFile "${repoPath}/config/agents/scripts/git-agent-guard.sh";
+      executable = true;
+    };
   }
   // seatbeltProfiles;
 }

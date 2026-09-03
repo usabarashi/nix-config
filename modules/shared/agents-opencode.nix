@@ -38,6 +38,14 @@ in
       source = config.lib.file.mkOutOfStoreSymlink "${repoPath}/config/opencode/opencode.json";
       force = true;
     };
+    # git-agent-guard: a plain-script git deny shim (config/agents/scripts/),
+    # deployed as a COPY because this dir is what the cloud-restricted seatbelt
+    # grants read on; a symlink into the repo would be unreadable when opencode
+    # runs in a project outside this checkout. Content lives in the script file.
+    ".config/opencode/bin/git" = {
+      text = builtins.readFile "${repoPath}/config/agents/scripts/git-agent-guard.sh";
+      executable = true;
+    };
     ".config/opencode/commands" = agentCommands;
     ".config/opencode/skills" = {
       source = config.lib.file.mkOutOfStoreSymlink "${repoPath}/config/agents/skills";

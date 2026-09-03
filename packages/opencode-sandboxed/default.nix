@@ -41,18 +41,22 @@ let
         "$out/bin/codex-auth-keyring-import"
     '';
   };
-  # Free-tier PATH: store-resolved components only. Deliberately excludes gh
-  # and codex (remote-facing tools the free-tier model must not invoke).
+  # Free-tier PATH: store-resolved components only. Deliberately excludes gh,
+  # codex (remote-facing tools the free-tier model must not invoke) and git
+  # itself: a low-trust model gets no local git at all rather than a sandbox
+  # copy of the guard.
   freeBinPath = lib.makeBinPath [
     procps
     ripgrep
     jq
-    git
     coreutils
   ];
 in
 writeShellScriptBin "opencode" ''
-  export PATH="${
+  # git-agent-guard lives as a plain file (config/agents/scripts/), copied by
+  # home-manager to ~/.config/opencode/bin/git; this dir must precede the
+  # store `git` so agent-spawned `git` hits the deny shim.
+  export PATH="$HOME/.config/opencode/bin:${
     lib.makeBinPath [
       procps
       ripgrep
@@ -667,7 +671,8 @@ writeShellScriptBin "opencode" ''
       # Private per-invocation temp dir. The root is the per-user system temp dir
       # (never caller TMPDIR): credential staging must not land inside the
       # project tree even when the caller points TMPDIR there.
-      TMP_ROOT="$(/usr/bin/getconf DARWIN_USER_TEMP_DIR 2>/dev/null || printf '%s' "/private/tmp")"
+      TMP_ROOT_RAW="$(/usr/bin/getconf DARWIN_USER_TEMP_DIR 2>/dev/null || printf '%s' "/private/tmp")"
+      TMP_ROOT="$(cd "$TMP_ROOT_RAW" && pwd -P)"
       AGENT_TMP_DIR="$(/usr/bin/mktemp -d "''${TMP_ROOT%/}/opencode-cloud.XXXXXX")"
       /bin/chmod 700 "$AGENT_TMP_DIR"
       export TMPDIR="$AGENT_TMP_DIR/"
