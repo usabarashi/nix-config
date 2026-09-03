@@ -782,12 +782,7 @@ writeShellScriptBin "opencode" ''
                       ;;
                   *)
                       umask 077
-                      cat > "$GH_AGENT_DIR/hosts.yml" <<EOF
-github.com:
-    oauth_token: $GH_TOKEN
-    user: $GH_USER
-    git_protocol: https
-EOF
+                      printf 'github.com:\n    oauth_token: %s\n    user: %s\n    git_protocol: https\n' "$GH_TOKEN" "$GH_USER" > "$GH_AGENT_DIR/hosts.yml"
                       # Verify the pinned gh actually resolves OUR staged token (local lookup
                       # only, no network): capture the token it prints and
                       # require an exact match. A bare success is not enough —
