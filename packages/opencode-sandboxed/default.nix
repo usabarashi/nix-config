@@ -797,7 +797,7 @@ EOF
                           GH_CONFIG_DIR="$GH_AGENT_DIR" \
                           GH_TOKEN= GITHUB_TOKEN= \
                           GH_ENTERPRISE_TOKEN= GITHUB_ENTERPRISE_TOKEN= \
-                          "$GH_BIN" auth token --hostname github.com 2>/dev/null
+                          "${ghBin}" auth token --hostname github.com 2>/dev/null
                       )" || GH_RESOLVED_TOKEN=""
                       if [ -n "$GH_RESOLVED_TOKEN" ] && [ "$GH_RESOLVED_TOKEN" = "$GH_TOKEN" ]; then
                           GH_PROVISIONED=1

@@ -52,11 +52,13 @@ claude_profiles="$("$CLAUDE" --list-seatbelts 2>&1)"
 claude_status=$?
 set -e
 [ "$claude_status" -eq 0 ] || fail "claude --list-seatbelts failed (exit $claude_status)"
-echo "$claude_profiles" | grep -qx "cloud-restricted.sb" || fail "claude --list-seatbelts missing cloud-restricted.sb"
-echo "$claude_profiles" | grep -qx "permissive-open.sb" && fail "claude profile permissive-open.sb still present"
-echo "$claude_profiles" | grep -qx "claude-code.sb" && fail "claude profile claude-code.sb still present"
-echo "$claude_profiles" | grep -qx "free-tier.sb" && fail "claude should not advertise free-tier.sb"
-pass "claude --list-seatbelts shows cloud-restricted.sb; removed/incompatible profiles absent"
+# Require the complete claude profile set to be EXACTLY cloud-restricted.sb:
+# any extra, missing, or differently named .sb entry must fail.
+claude_expected="cloud-restricted.sb"
+claude_actual="$(printf '%s\n' "$claude_profiles" | grep -v '^$' | sort)"
+[ "$claude_actual" = "$claude_expected" ] \
+    || fail "claude profile set mismatch: expected [$claude_expected], got [$claude_actual]"
+pass "claude --list-seatbelts is exactly cloud-restricted.sb"
 
 # 2. free-tier without -m must fail closed with the *specific* message
 #    (not a generic failure), proving wrapper parsing ran.
