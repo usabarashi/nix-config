@@ -8,7 +8,7 @@ Seatbelt (`sandbox-exec`) profiles for agent runtimes. Selected by the
 
 | Profile | Network | Filesystem | Use case |
 |---------|---------|------------|----------|
-| `cloud-restricted.sb` | Remote TCP 443 + loopback TCP (all ports) | Project + OpenCode/Claude state/cache read-write; OS/Nix runtime and `/nix/store` read-only; everything else denied | Default for opencode and claude (paid cloud models: OpenAI Codex, Claude, normal opencode models) |
+| `cloud-restricted.sb` | Remote TCP 443 + loopback TCP (all ports) + Nix daemon UNIX socket | Project + OpenCode/Claude state/cache read-write; OS/Nix runtime and `/nix/store` read-only; everything else denied | Default for opencode and claude (paid cloud models: OpenAI Codex, Claude, normal opencode models) |
 | `free-tier.sb` | Remote TCP 443 + loopback TCP (all ports) | Project + dedicated free-tier data/state/cache read-write; immutable free-tier `auth.json` (read-only); NO Keychain, `~/.config/gh`, `~/.gitconfig`, paid auth | opencode free-tier cloud providers (Gemini/Groq/OpenRouter no-cost) |
 
 `strict-closed.sb` and the unrestricted `permissive-open.sb` have both been
@@ -143,6 +143,72 @@ unauthenticated with a warning on stderr. Side-effect-free invocations
   against a temporary user-data directory inside the wrapper's private temp
   dir. End-to-end browser automation (launch → page → DevTools protocol)
   should be validated once under the actual profile before relying on it.
+
+### Nix access (daemon)
+
+The sandbox can talk to the Nix daemon so agents can run the packages defined
+in the workspace flake (`nix build`, `nix eval`, `nix fmt`, `nix develop`,
+`nix print-dev-env`, `nix flake check`, `nix flake show`, `nix --version`).
+
+**Accepted threat model — read this before relying on the sandbox.** The macOS
+account is a Nix `trusted-user`; granting the daemon UNIX socket means the
+sandboxed process receives the **full Nix-daemon authority of this trusted
+account** (Nix documents trusted users as root-equivalent). Builders and
+substitutions run *outside* this Seatbelt (in the daemon, as the build users)
+and their network traffic is **not** constrained by the client's `*:443` rule.
+The `/nix/store` contents are read-only *to the sandbox*, but everything the
+daemon can do is available to the model. This is accepted for the productivity
+gain of an in-session edit → build → verify loop.
+
+**Controls provided, and their limits:**
+
+- **`nix` guard shim** (`~/.config/opencode/bin/nix`, `~/.claude/bin/nix`): a
+  PATH-first shim (the first `nix` on the agent PATH) that validates normal
+  `nix` invocations. This is **friction,
+  not a security boundary** — the same qualification as `git-agent-guard`.
+  It can be bypassed by direct store-path execution of the pinned `nix` binary
+  (including with a forged `argv[0]`), or by speaking the daemon protocol
+  directly. It prevents *accidental* and *cooperative* misuse: any PATH-based
+  `nix ...` call goes through it unless something earlier on PATH shadows it.
+- **Workspace scope.** Only the flake rooted at the launch directory's
+  ancestor (the wrapper sets `TARGET_DIR` to that root) is usable: references
+  are restricted to `.`, `.#attrpath`, or omitted. External flakes
+  (`nixpkgs#…`, `github:…`, `path:…`), store paths, `.drv` installables, and
+  nested workspace flakes are rejected, as are `--expr`/`-E`, `--apply`,
+  `--file`, `--option`, `--store`, `--override-input`, `--inputs-from`, and
+  other expression/configuration-injection flags. `--impure` is allowed only
+  for this workspace flake (required for the dotfiles configuration);
+  combination with expression flags remains blocked.
+- **Commands are allowlisted.** Core set only: `build`, `eval`, `fmt`,
+  `develop`, `print-dev-env`, `flake check`, `flake show`, `--version`.
+  `nix run` (including the `.#mac14-9` / `.#mac14-10` darwin-rebuild apps),
+  `nix shell`, `nix flake update`, `nix flake lock`, and anything unknown are
+  denied. Legacy standalone front-ends (`nix-store`, `nix-env`, `nix-build`,
+  `nix-instantiate`, `nix-shell`, `nix-collect-garbage`, `nix-channel`,
+  `nix-copy-closure`, `darwin-rebuild`, `home-manager`) are additionally
+  exec-denied as defense-in-depth (again not a boundary).
+- **Lock files are managed by the human.** Ordinary commands run with
+  `--no-update-lock-file --no-write-lock-file` (injected before any
+  `--command` payload). If the flake needs a new/changed lock entry, the
+  command fails and the agent reports that `flake.lock` must be updated outside
+  the session. The human runs `nix flake update` / `nix flake lock` as usual.
+- **Ephemeral Nix state.** The shim scrubs inherited Nix configuration/
+  location variables (`NIX_CONFIG`, `NIX_USER_CONF_FILES`, `NIX_CONF_DIR`,
+  `NIX_PATH`, `NIX_*_HOME`, `NIX_REGISTRY`, `XDG_CONFIG_DIRS`, …) and points
+  `NIX_CONFIG_HOME` / `NIX_STATE_HOME` / `NIX_CACHE_HOME` at per-invocation
+  temp directories created by the wrapper. The host's `~/.cache/nix` and
+  `~/.config/nix` are neither read nor written; the system `/etc/nix/nix.conf`
+  (public keys, substituters, experimental-features) is still read.
+- **Client is the pinned nixpkgs `nix`.** Both wrappers pin `${pkgs.nix}` and
+  hand its exact version to the shim, which fails closed when the pinned
+  binary's `nix --version` does not start with the option-table version stamp
+  (the stamp and table must be regenerated together when bumping the pin).
+- **Store reuse is best-effort.** `/nix/store` persists built outputs across
+  sessions, but the weekly `nix gc` may collect unrooted results; cross-session
+  build reuse is expected on most invocations, not guaranteed.
+
+`free-tier.sb` deliberately has **no** Nix access: no daemon socket, no shim,
+no `/etc/nix` grant. Low-trust providers get no store/daemon authority at all.
 
 ## Claude Code (unified profile)
 

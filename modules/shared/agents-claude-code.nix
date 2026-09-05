@@ -77,6 +77,11 @@ in
       text = builtins.readFile "${repoPath}/config/agents/scripts/git-agent-guard.sh";
       executable = true;
     };
+    # nix-agent-guard: same deployment rationale and position as the git shim.
+    ".claude/bin/nix" = {
+      text = builtins.readFile "${repoPath}/config/agents/scripts/nix-agent-guard.sh";
+      executable = true;
+    };
   }
   // seatbeltProfiles;
 }

@@ -1,7 +1,12 @@
 (version 1)
 
 ;; Cloud-model profile. Keep the host closed except for the current project,
-;; the agent's own runtime state, and HTTPS model APIs.
+;; the agent's own runtime state, HTTPS model APIs, and the Nix daemon socket.
+;;
+;; Nix daemon access (accepted threat model, see README): the sandboxed process
+;; receives the full Nix-daemon authority of this trusted macOS account
+;; (trusted-user). Builders and daemon-side network traffic run OUTSIDE this
+;; Seatbelt. The `nix` PATH shim is friction only, not a security boundary.
 (deny default)
 
 ;; Block commands that can directly access remotes, except gh and curl which
@@ -13,8 +18,16 @@
 ;; the outer, unsandboxed context). `/usr/bin/security` is blocked too: the
 ;; model must not be able to list/read Keychain items directly (gh/codex use
 ;; the Security framework in-process, not this binary).
+;;
+;; The legacy standalone Nix front-ends (`nix-store`, `nix-instantiate`,
+;; `nix-env`, `nix-collect-garbage`, `nix-channel`, `nix-build`, `nix-shell`,
+;; `nix-copy-closure`) plus `darwin-rebuild` and `home-manager` are denied to
+;; keep Nix use inside the sandbox flowing through the PATH `nix` guard shim.
+;; This is defense-in-depth only, not a boundary: direct store-path execution
+;; of the multi-call `nix` binary or speaking the daemon protocol bypasses the
+;; shim entirely (documented in README).
 (deny process-exec
-  (regex #"/(ssh|scp|sftp|wget|nc|ncat|netcat|ftp|rsync|git-remote-http|git-remote-https|git-remote-ssh|op|op-please|op-http-call|security)$"))
+  (regex #"/(ssh|scp|sftp|wget|nc|ncat|netcat|ftp|rsync|git-remote-http|git-remote-https|git-remote-ssh|op|op-please|op-http-call|security|nix-store|nix-instantiate|nix-env|nix-collect-garbage|nix-channel|nix-build|nix-shell|nix-copy-closure|darwin-rebuild|home-manager)$"))
 (allow process-exec
        process-fork)
 
@@ -47,6 +60,11 @@
   (subpath "/run/current-system/sw")
   (subpath "/etc/ssl")
   (subpath "/private/etc/ssl")
+  ;; Nix client configuration: experimental-features, trusted-public-keys,
+  ;; substituters, and (on the work host) the netskope CA
+  ;; (/etc/nix/ca_cert.pem via ssl-cert-file). Public material only.
+  (subpath "/etc/nix")
+  (subpath "/private/etc/nix")
   (literal "/private/etc/passwd")
   (literal "/private/var/select/sh")
   (subpath (string-append (param "HOME_DIR") "/.nix-profile")))
@@ -55,6 +73,9 @@
   (literal "/nix/var")
   (literal "/nix/var/nix")
   (literal "/nix/var/nix/profiles")
+  ;; Traversal to the Nix daemon socket (socket node itself is granted under
+  ;; network-outbound below).
+  (literal "/nix/var/nix/daemon-socket")
   (literal "/etc")
   (literal "/private")
   (literal "/private/etc")
@@ -151,9 +172,12 @@
 ;; Seatbelt accepts only "*" or "localhost" as a host filter. Restrict
 ;; transport to HTTPS for remote hosts; localhost is granted so local MCP
 ;; servers (voicevox engine, Chrome DevTools, Slack) can reach their peers.
+;; The Nix daemon UNIX socket is granted so the Nix client can talk to the
+;; daemon (accepted threat model: full trusted-user daemon authority).
 (allow network-outbound
   (literal "/private/var/run/mDNSResponder")
   (literal "/private/var/run/systemkeychaincheck.socket")
+  (literal "/nix/var/nix/daemon-socket/socket")
   (remote tcp "*:443")
   (remote tcp "localhost:*"))
 

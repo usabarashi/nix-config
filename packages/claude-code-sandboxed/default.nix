@@ -7,6 +7,7 @@
   claude-code-bin,
   writeShellScriptBin,
   stdenv,
+  nix,
   procps,
   ripgrep,
   jq,
@@ -67,7 +68,13 @@ writeShellScriptBin "claude" ''
   AGENT_AUX_STATE_DIR="$HOME/.claude"
   AGENT_CACHE_DIR="$HOME/.cache/claude"
   AGENT_CLAUDE_JSON="$HOME/.claude.json"
-  TARGET_DIR="$(pwd -P)"
+  LAUNCH_DIR="$(pwd -P)"
+  TARGET_DIR="$LAUNCH_DIR"
+  # Drop any inherited nix-guard variables so a caller environment cannot
+  # activate the shim in a profile/session that should not have Nix access.
+  # The wrapper exports fresh values only for cloud-restricted.sb with a
+  # detected flake root.
+  unset AGENT_NIX_REAL_BIN AGENT_NIX_EXPECTED_VERSION AGENT_TARGET_DIR AGENT_TMP_DIR
   AGENT_TMP_DIR=""
 
   cleanup_cloud_tmp() {
@@ -136,6 +143,33 @@ writeShellScriptBin "claude" ''
       exit 1
   fi
 
+  # Workspace flake root (cloud-restricted.sb only): nearest ancestor of the
+  # launch dir containing flake.nix, never above $HOME or "/". Cloud sessions
+  # work on the repo flake, so TARGET_DIR becomes the flake root and the
+  # seatbelt grants the whole workspace. Any other/unknown profile keeps
+  # TARGET_DIR = the launch directory and no nix guard env is exported.
+  FLAKE_ROOT=""
+  if [ "$SANDBOX_PROFILE_FILE" = "cloud-restricted.sb" ]; then
+      _d="$LAUNCH_DIR"
+      while [ -n "$_d" ] && [ "$_d" != "/" ]; do
+          if [ -f "$_d/flake.nix" ]; then
+              FLAKE_ROOT="$_d"
+              break
+          fi
+          case "$_d" in
+              "$HOME") break ;;
+          esac
+          _d="$(dirname "$_d")"
+      done
+      unset _d
+      case "$FLAKE_ROOT" in
+          "" | / | "$HOME") FLAKE_ROOT="" ;;
+      esac
+      if [ -n "$FLAKE_ROOT" ]; then
+          TARGET_DIR="$FLAKE_ROOT"
+      fi
+  fi
+
   # Side-effect-free informational invocations (--version/--help/-h) must not
   # require 1Password provisioning; they still run under the seatbelt (and get a
   # temp dir for the AGENT_TMP_DIR param), but the gh credential block is
@@ -162,6 +196,17 @@ writeShellScriptBin "claude" ''
   export TMPDIR="$AGENT_TMP_DIR/"
   export TMP="$AGENT_TMP_DIR"
   export TEMP="$AGENT_TMP_DIR"
+
+  # Nix access (cloud-restricted.sb): hand the guard shim the pinned nix and
+  # ephemeral Nix state/config/cache dirs inside the per-invocation temp tree.
+  # Not exported when there is no flake root, so the `nix` shim fails closed.
+  if [ -n "$FLAKE_ROOT" ]; then
+      mkdir -p "$AGENT_TMP_DIR/nix/config" "$AGENT_TMP_DIR/nix/state" "$AGENT_TMP_DIR/nix/cache"
+      export AGENT_NIX_REAL_BIN="${nix}/bin/nix"
+      export AGENT_NIX_EXPECTED_VERSION="${nix.version}"
+      export AGENT_TARGET_DIR="$TARGET_DIR"
+      export AGENT_TMP_DIR="$AGENT_TMP_DIR"
+  fi
 
   # Always bind gh to a fresh, empty config dir inside the ephemeral temp dir,
   # so even the informational path never falls back to a caller-supplied

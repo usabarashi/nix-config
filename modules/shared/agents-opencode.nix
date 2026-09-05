@@ -46,6 +46,13 @@ in
       text = builtins.readFile "${repoPath}/config/agents/scripts/git-agent-guard.sh";
       executable = true;
     };
+    # nix-agent-guard: same deployment rationale as the git shim. PATH-first
+    # `nix` shim that constrains the workspace flake and options (see the
+    # script header and config/agents/README.md).
+    ".config/opencode/bin/nix" = {
+      text = builtins.readFile "${repoPath}/config/agents/scripts/nix-agent-guard.sh";
+      executable = true;
+    };
     ".config/opencode/commands" = agentCommands;
     ".config/opencode/skills" = {
       source = config.lib.file.mkOutOfStoreSymlink "${repoPath}/config/agents/skills";
