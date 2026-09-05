@@ -27,10 +27,11 @@ let
   # nix-agent-guard: render the pinned nix path and version stamp INTO the
   # deployed shim (placeholders @NIX_REAL_PATH@ / @NIX_VERSION_STAMP@) so the
   # guard's real binary cannot be repointed through the environment.
-  nixGuardShim = builtins.replaceStrings
-    [ "@NIX_REAL_PATH@" "@NIX_VERSION_STAMP@" ]
-    [ "${pkgs.nix}/bin/nix" pkgs.nix.version ]
-    (builtins.readFile "${repoPath}/config/agents/scripts/nix-agent-guard.sh");
+  nixGuardShim =
+    builtins.replaceStrings
+      [ "@NIX_REAL_PATH@" "@NIX_VERSION_STAMP@" ]
+      [ "${pkgs.nix}/bin/nix" pkgs.nix.version ]
+      (builtins.readFile "${repoPath}/config/agents/scripts/nix-agent-guard.sh");
 in
 {
   imports = [ ./agents-common.nix ];
