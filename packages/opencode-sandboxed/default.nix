@@ -84,7 +84,13 @@ writeShellScriptBin "opencode" ''
   CODEX_AUTH_KEYRING_IMPORT="${codexAuthKeyringImport}/bin/codex-auth-keyring-import"
   CODEX_HOME_DIR="$AGENT_CACHE_DIR/second-opinion-${codex-bin.version}"
   AGENT_TMP_DIR=""
-  TARGET_DIR="$(pwd -P)"
+  LAUNCH_DIR="$(pwd -P)"
+  TARGET_DIR="$LAUNCH_DIR"
+  # Drop any inherited nix-guard variables so a caller environment cannot
+  # activate the shim in a profile/session that should not have Nix access.
+  # Fresh values are exported only in the cloud-restricted branch with a
+  # detected flake root (the free-tier branch uses env -i anyway).
+  unset AGENT_NIX_REAL_BIN AGENT_NIX_EXPECTED_VERSION AGENT_TARGET_DIR AGENT_TMP_DIR
   HOME_DIR="$HOME"
   FREE_TIER_CONFIG="${freeTierConfig}"
   FREE_TIER_MODELS="${freeTierModels}"
@@ -638,6 +644,32 @@ writeShellScriptBin "opencode" ''
       # managed tools/ directory are loaded on a separate path and survive.
       export OPENCODE_PURE=1
 
+      # Resolve the workspace flake root: nearest ancestor of the launch dir
+      # containing flake.nix, never above $HOME or "/". Cloud sessions work on
+      # the repo flake, so TARGET_DIR (and the seatbelt r/w grant) becomes the
+      # flake root. Free-tier keeps TARGET_DIR = the launch dir (it exits in
+      # its own branch before this point). Without a flake root, the nix guard
+      # env is not exported and the shim fails closed.
+      FLAKE_ROOT=""
+      _d="$LAUNCH_DIR"
+      while [ -n "$_d" ] && [ "$_d" != "/" ]; do
+          if [ -f "$_d/flake.nix" ]; then
+              FLAKE_ROOT="$_d"
+              break
+          fi
+          case "$_d" in
+              "$HOME") break ;;
+          esac
+          _d="$(dirname "$_d")"
+      done
+      unset _d
+      case "$FLAKE_ROOT" in
+          "" | / | "$HOME") FLAKE_ROOT="" ;;
+      esac
+      if [ -n "$FLAKE_ROOT" ]; then
+          TARGET_DIR="$FLAKE_ROOT"
+      fi
+
       # Scrub inherited GitHub credential environment variables. gh gives
       # GH_TOKEN/GITHUB_TOKEN (and the enterprise variants) precedence over
       # stored config, so a personal token left exported in the caller's shell
@@ -678,6 +710,17 @@ writeShellScriptBin "opencode" ''
       export TMPDIR="$AGENT_TMP_DIR/"
       export TMP="$AGENT_TMP_DIR"
       export TEMP="$AGENT_TMP_DIR"
+
+      # Nix access: hand the guard shim the workspace target and ephemeral Nix
+      # state/config/cache dirs inside the per-invocation temp tree. The
+      # pinned nix binary/version are rendered into the deployed shim by
+      # home-manager (not exported here). Not exported without a flake root,
+      # so the `nix` shim fails closed.
+      if [ -n "$FLAKE_ROOT" ]; then
+          mkdir -p "$AGENT_TMP_DIR/nix/config" "$AGENT_TMP_DIR/nix/state" "$AGENT_TMP_DIR/nix/cache"
+          export AGENT_TARGET_DIR="$TARGET_DIR"
+          export AGENT_TMP_DIR="$AGENT_TMP_DIR"
+      fi
 
       OPENCODE_CONFIG_FILE="$HOME/.config/opencode/opencode.json"
       if [ ! -f "$OPENCODE_CONFIG_FILE" ]; then
