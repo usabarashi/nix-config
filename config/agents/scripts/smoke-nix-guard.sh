@@ -37,17 +37,27 @@ printf 'env.NIX_REMOTE=%s\n' "${NIX_REMOTE-<unset>}"
 MOCK
 chmod +x "$TMP/mock-nix"
 
+# --- render the guard like home-manager does --------------------------------
+# Test exactly what gets deployed: placeholders @NIX_REAL_PATH@ /
+# @NIX_VERSION_STAMP@ are substituted with the pinned values (here: the mock).
+render_guard() { # <out> <real-path> <version-stamp>
+    sed "s|@NIX_REAL_PATH@|$2|g; s|@NIX_VERSION_STAMP@|$3|g" "$GUARD" > "$1"
+}
+render_guard "$TMP/guard-rendered" "$TMP/mock-nix" "2.34.7"
+RENDERED_GUARD="$TMP/guard-rendered"
+chmod +x "$RENDERED_GUARD"
+
 # --- fake workspace flake ----------------------------------------------------
 mkdir -p "$TMP/ws"
 printf '{ outputs = { }; }\n' > "$TMP/ws/flake.nix"
 
-export AGENT_NIX_REAL_BIN="$TMP/mock-nix"
-export AGENT_NIX_EXPECTED_VERSION="2.34.7"
+# The pinned nix values are NOT wrapper/env inputs anymore; only the
+# per-invocation dynamic values are supplied here.
 export AGENT_TARGET_DIR="$TMP/ws"
 export AGENT_TMP_DIR="$TMP/xdg"
 mkdir -p "$AGENT_TMP_DIR"
 
-run_guard() { (cd "$TMP/ws" && bash "$GUARD" "$@") 2>"$TMP/err"; }
+run_guard() { (cd "$TMP/ws" && bash "$RENDERED_GUARD" "$@") 2>"$TMP/err"; }
 expect_allow() {
     local desc="$1"; shift
     set +e
@@ -136,16 +146,17 @@ expect_deny "unknown short option" build -x .#x
 expect_deny "profile install" profile install
 expect_deny "nix flake subcommand garbage" flake garbage
 
-# Version gate
-AGENT_NIX_EXPECTED_VERSION="9.9.9" run_guard --version >/dev/null 2>&1 \
-    && fail "version mismatch was not rejected"
-pass "version-gate fails closed on stamp mismatch"
-
 # fmt value-form and -- boundary
 expect_allow "fmt with -- and a path" fmt -- ./flake.nix
 expect_deny "fmt -- with outside path" fmt -- /etc/passwd
 
-# Staged-review additions: --impure for flake check/show (documented workflow)
+# fmt receives the same lock-policy flags as every other flake command
+out="$(run_guard fmt)"
+echo "$out" | grep -qF 'argv=<fmt><--no-update-lock-file><--no-write-lock-file>' \
+    || fail "fmt does not receive lock flags: $out"
+pass "fmt receives lock flags"
+
+# --impure for flake check/show (the repository's documented workflow)
 expect_allow "flake check --impure" flake check --impure
 expect_allow "flake show --impure" flake show --impure
 # `--` really ends option parsing: dash tokens after `--` are operands
@@ -159,18 +170,38 @@ expect_deny "flake check .#attr installable" flake check .#formatter
 expect_deny "flake check two positionals" flake check . .
 expect_deny "flake show two positionals after --" flake show -- . .
 
-# fmt receives the same lock-policy flags as every other flake command
-out="$(run_guard fmt)"
-echo "$out" | grep -qF 'argv=<fmt><--no-update-lock-file><--no-write-lock-file>' \
-    || fail "fmt does not receive lock flags: $out"
-pass "fmt receives lock flags"
-
-# A stale/inherited NIX env cannot activate the shim (fail-closed on bad pin)
+# The pinned values are embedded at render time, not env inputs.
+render_guard "$TMP/guard-badver" "$TMP/mock-nix" "9.9.9"
 set +e
-AGENT_NIX_REAL_BIN="$TMP/no-such-nix" run_guard --version >/dev/null 2>&1
+(cd "$TMP/ws" && bash "$TMP/guard-badver" --version) >/dev/null 2>&1
+st=$?
+set -e
+[ "$st" -ne 0 ] || fail "version mismatch was not rejected"
+pass "version-gate fails closed on stamp mismatch"
+
+# A rendered pin that is missing at runtime fails closed.
+render_guard "$TMP/guard-badpath" "$TMP/no-such-nix" "2.34.7"
+set +e
+(cd "$TMP/ws" && bash "$TMP/guard-badpath" --version) >/dev/null 2>&1
 st=$?
 set -e
 [ "$st" -ne 0 ] || fail "shim accepted a nonexistent pinned nix path"
 pass "nonexistent pinned nix fails closed"
+
+# The embedded pin is immutable: env AGENT_NIX_REAL_BIN is ignored. Use a
+# value distinct from the embedded pin so the case genuinely proves the env
+# was discarded (if the env were honored, the run would fail on a bad path).
+out="$(AGENT_NIX_REAL_BIN="$TMP/no-such-nix" run_guard build .#formatter --no-link)"
+echo "$out" | grep -qF 'argv=<build><--no-update-lock-file><--no-write-lock-file><.#formatter><--no-link>' \
+    || fail "env AGENT_NIX_REAL_BIN was not ignored: $out"
+pass "embedded pin ignores AGENT_NIX_REAL_BIN env"
+
+# An unrendered copy (placeholders intact) refuses to run.
+set +e
+(cd "$TMP/ws" && AGENT_TARGET_DIR="$TMP/ws" AGENT_TMP_DIR="$TMP/xdg" bash "$GUARD" --version) >/dev/null 2>&1
+st=$?
+set -e
+[ "$st" -ne 0 ] || fail "unrendered guard (raw placeholders) did not fail closed"
+pass "unrendered placeholders fail closed"
 
 echo "== all nix-agent-guard smoke cases passed =="

@@ -36,15 +36,21 @@
 #     redirected to ephemeral per-invocation directories.
 #
 # Environment supplied by the wrapper (fail-closed when missing):
-#   AGENT_NIX_REAL_BIN          pinned nix binary (absolute /nix/store path)
-#   AGENT_NIX_EXPECTED_VERSION  pinned nix version stamp for the option table
-#   AGENT_TARGET_DIR            seatbelt project dir (for cloud: the flake root)
-#   AGENT_TMP_DIR               private per-invocation temp dir
+#   AGENT_TARGET_DIR   seatbelt project dir (for cloud: the flake root)
+#   AGENT_TMP_DIR      private per-invocation temp dir
+#
+# The pinned nix binary path and its version stamp are NOT read from the
+# environment: home-manager replaces the @NIX_REAL_PATH@ / @NIX_VERSION_STAMP@
+# placeholders below at deployment time, so a sandboxed process cannot repoint
+# the shim's real binary through the environment. This is defense-in-depth
+# only — the shim remains friction, not a security boundary (direct store-path
+# execution and the daemon protocol bypass it).
 #
 # Deployment: materialized through home-manager as an executable home file
-# (store-backed content, like git-agent-guard), not an out-of-store symlink
-# into this repo — an out-of-store symlink would be unreadable when the agent
-# runs in a project outside this checkout. See the agents-*.nix modules.
+# (store-backed content, like git-agent-guard) with the placeholders
+# substituted from ${pkgs.nix}, not an out-of-store symlink into this repo —
+# an out-of-store symlink would be unreadable when the agent runs in a project
+# outside this checkout. See the agents-*.nix modules.
 
 set -euo pipefail
 
@@ -54,14 +60,20 @@ die() {
 }
 
 # ---------------------------------------------------------------------------
-# 1. Wrapper-provided environment, fail-closed.
+# 1. Pinned Nix values (embedded at deployment time) + wrapper environment.
 # ---------------------------------------------------------------------------
-NIX_REAL="${AGENT_NIX_REAL_BIN:-}"
+NIX_REAL="@NIX_REAL_PATH@"
+EXPECTED_VER="@NIX_VERSION_STAMP@"
 TARGET_DIR="${AGENT_TARGET_DIR:-}"
 TMP_DIR="${AGENT_TMP_DIR:-}"
-EXPECTED_VER="${AGENT_NIX_EXPECTED_VERSION:-}"
-if [ -z "$NIX_REAL" ] || [ -z "$TARGET_DIR" ] || [ -z "$TMP_DIR" ] || [ -z "$EXPECTED_VER" ]; then
-  die "missing wrapper environment (AGENT_NIX_REAL_BIN / AGENT_TARGET_DIR / AGENT_TMP_DIR / AGENT_NIX_EXPECTED_VERSION)"
+case "$NIX_REAL" in
+  @*) die "shim was not rendered by home-manager (unsubstituted placeholders)" ;;
+esac
+case "$EXPECTED_VER" in
+  @*) die "shim was not rendered by home-manager (unsubstituted placeholders)" ;;
+esac
+if [ -z "$TARGET_DIR" ] || [ -z "$TMP_DIR" ]; then
+  die "missing wrapper environment (AGENT_TARGET_DIR / AGENT_TMP_DIR)"
 fi
 case "$TARGET_DIR" in
   /*) ;;
@@ -154,7 +166,7 @@ flake_root_from() {
 # validate_workspace_flake: the current directory must be inside TARGET_DIR
 # and the enclosing flake root must be exactly TARGET_DIR.
 validate_workspace_flake() {
-  local cwd parents root
+  local cwd root
   cwd="$(pwd -P 2>/dev/null)" || die "cannot resolve working directory"
   case "$cwd/" in
     "$TARGET_DIR"/* | "$TARGET_DIR") ;;

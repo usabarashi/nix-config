@@ -199,10 +199,12 @@ gain of an in-session edit → build → verify loop.
   temp directories created by the wrapper. The host's `~/.cache/nix` and
   `~/.config/nix` are neither read nor written; the system `/etc/nix/nix.conf`
   (public keys, substituters, experimental-features) is still read.
-- **Client is the pinned nixpkgs `nix`.** Both wrappers pin `${pkgs.nix}` and
-  hand its exact version to the shim, which fails closed when the pinned
-  binary's `nix --version` does not start with the option-table version stamp
-  (the stamp and table must be regenerated together when bumping the pin).
+- **Client is the pinned nixpkgs `nix`, baked into the shim at deployment.**
+  home-manager renders the guard shim with `${pkgs.nix}`'s path and version
+  embedded, so the sandbox cannot repoint the shim's real binary through the
+  environment. The shim fails closed when the pinned binary's `nix --version`
+  does not start with the baked-in option-table version stamp (the stamp and
+  table must be regenerated together when bumping the pin).
 - **Store reuse is best-effort.** `/nix/store` persists built outputs across
   sessions, but the weekly `nix gc` may collect unrooted results; cross-session
   build reuse is expected on most invocations, not guaranteed.

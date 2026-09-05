@@ -7,7 +7,6 @@
   claude-code-bin,
   writeShellScriptBin,
   stdenv,
-  nix,
   procps,
   ripgrep,
   jq,
@@ -197,13 +196,13 @@ writeShellScriptBin "claude" ''
   export TMP="$AGENT_TMP_DIR"
   export TEMP="$AGENT_TMP_DIR"
 
-  # Nix access (cloud-restricted.sb): hand the guard shim the pinned nix and
-  # ephemeral Nix state/config/cache dirs inside the per-invocation temp tree.
-  # Not exported when there is no flake root, so the `nix` shim fails closed.
+  # Nix access (cloud-restricted.sb): hand the guard shim the workspace target
+  # and ephemeral Nix state/config/cache dirs inside the per-invocation temp
+  # tree. The pinned nix binary/version are rendered into the deployed shim by
+  # home-manager (not exported here). Not exported when there is no flake root,
+  # so the `nix` shim fails closed.
   if [ -n "$FLAKE_ROOT" ]; then
       mkdir -p "$AGENT_TMP_DIR/nix/config" "$AGENT_TMP_DIR/nix/state" "$AGENT_TMP_DIR/nix/cache"
-      export AGENT_NIX_REAL_BIN="${nix}/bin/nix"
-      export AGENT_NIX_EXPECTED_VERSION="${nix.version}"
       export AGENT_TARGET_DIR="$TARGET_DIR"
       export AGENT_TMP_DIR="$AGENT_TMP_DIR"
   fi
