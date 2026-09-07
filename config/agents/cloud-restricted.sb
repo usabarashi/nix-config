@@ -30,6 +30,11 @@
   (regex #"/(ssh|scp|sftp|wget|nc|ncat|netcat|ftp|rsync|git-remote-http|git-remote-https|git-remote-ssh|op|op-please|op-http-call|security|nix-store|nix-instantiate|nix-env|nix-collect-garbage|nix-channel|nix-build|nix-shell|nix-copy-closure|darwin-rebuild|home-manager)$"))
 (allow process-exec
        process-fork)
+;; Job control and process self-management: shells backgrounding jobs with
+;; `&`/`nohup` call setpriority(2)/setpgid(2) (zsh prints "nice(5) failed"
+;; otherwise). Scoped to the sandboxed process's own session; signal delivery
+;; to other processes remains denied (default).
+(allow process-info*)
 
 ;; macOS processes read the root vnode while starting.
 (allow file-read-data
@@ -63,8 +68,18 @@
   ;; Nix client configuration: experimental-features, trusted-public-keys,
   ;; substituters, and (on the work host) the netskope CA
   ;; (/etc/nix/ca_cert.pem via ssl-cert-file). Public material only.
+  ;;
+  ;; nix-darwin stages /etc files under /etc/static (real path
+  ;; /private/etc/static) and /etc/nix/nix.conf, registry.json are symlinks
+  ;; into that tree. Seatbelt evaluates data reads against the RESOLVED
+  ;; canonical path, so the /etc/nix grants below are not enough on their
+  ;; own; without the static tree grant every `nix` invocation silently
+  ;; loses experimental-features and fails ("experimental Nix feature
+  ;; 'nix-command' is disabled").
   (subpath "/etc/nix")
   (subpath "/private/etc/nix")
+  (subpath "/etc/static")
+  (subpath "/private/etc/static")
   (literal "/private/etc/passwd")
   (literal "/private/var/select/sh")
   (subpath (string-append (param "HOME_DIR") "/.nix-profile")))
@@ -144,8 +159,14 @@
   (literal (param "AGENT_CLAUDE_JSON")))
 
 ;; The wrapper creates a private per-invocation temporary directory. Parent
-;; metadata is enough to traverse to it; no other process's temporary files are
-;; readable or writable.
+;; metadata is enough to traverse to it. The shared system /tmp is read/write
+;; scratch (dev-server logs, downloads); other same-user temp files there are
+;; visible to the sandboxed process, while other users' per-user temp trees
+;; remain unreadable.
+(allow file-read*
+       file-write*
+  (subpath "/private/tmp")
+  (subpath "/tmp"))
 (allow file-read-metadata
   (literal "/private/tmp")
   (literal "/private/var")
@@ -179,6 +200,20 @@
   (literal "/private/var/run/systemkeychaincheck.socket")
   (literal "/nix/var/nix/daemon-socket/socket")
   (remote tcp "*:443")
+  (remote tcp "localhost:*"))
+
+;; Local dev servers inside the sandbox: allow listening on the loopback
+;; interface only (e.g. `cargo run` / `nix develop --command ...` E2E tests).
+;; Seatbelt evaluates network-bind/inbound against the socket's LOCAL endpoint
+;; (the address being bound / the listener address), so the filter must use
+;; `local`, not `remote` — a `remote` filter only matches the peer half of a
+;; connection and never grants bind(2). Host filters accept only `*` or
+;; `localhost`; "localhost" covers the loopback range (127.0.0.1 and ::1).
+;; External inbound stays denied by default.
+(allow network-bind
+  (local tcp "localhost:*"))
+(allow network-inbound
+  (local tcp "localhost:*")
   (remote tcp "localhost:*"))
 
 ;; Security.framework checks Keychain readiness through this marker/socket and

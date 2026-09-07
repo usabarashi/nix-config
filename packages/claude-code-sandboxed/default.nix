@@ -207,6 +207,16 @@ writeShellScriptBin "claude" ''
       export AGENT_TMP_DIR="$AGENT_TMP_DIR"
   fi
 
+  # Tool caches inside the sandbox. The Seatbelt denies the home-dir cache
+  # locations (~/.cache, ~/Library/Caches), so point XDG-based tools at the
+  # granted cache dir. treefmt — the flake formatter, a Go binary — ignores
+  # XDG_CACHE_HOME on macOS and writes to ~/Library/Caches/treefmt (denied),
+  # which would otherwise make `nix fmt` and `nix develop --command treefmt …`
+  # fail; disable its cache.
+  mkdir -p "$AGENT_CACHE_DIR"
+  export XDG_CACHE_HOME="$AGENT_CACHE_DIR"
+  export TREEFMT_NO_CACHE=1
+
   # Always bind gh to a fresh, empty config dir inside the ephemeral temp dir,
   # so even the informational path never falls back to a caller-supplied
   # GH_CONFIG_DIR pointing inside a permitted tree.

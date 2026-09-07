@@ -21,14 +21,26 @@ Deny-default profile:
 
 - **Filesystem**: `TARGET_DIR` (the agent's working directory), OpenCode
   config/state/cache dirs are read-write (state/cache) or read-only (config).
-  `/nix/store` and OS runtimes are read-only. Everything else (home directory,
-  `~/.ssh`, `~/.codex`, …) is denied.
+  `/nix/store` and OS runtimes are read-only. `/tmp` (`/private/tmp`) is
+  read-write scratch so dev-server logs/artifacts (`/tmp/foo.log`, `curl -o
+  /tmp/x.ts`) work as in a normal shell — note this is the shared system temp
+  area, so the sandboxed process can also read other same-machine temp files.
+  Everything else (home directory, `~/.ssh`, `~/.codex`, …) is denied.
 - **Network**: outbound remote TCP port 443 only, plus unrestricted
   loopback TCP (`localhost:*`) so local MCP servers (VoiceVox engine, Chrome
-  DevTools, Slack) can reach their peers. `gh` and `curl` are executable
+  DevTools, Slack) can reach their peers. Loopback **inbound** is also granted
+  (`network-bind` + `network-inbound` on `localhost`; seatbelt host filters
+  accept only `*`/`localhost`, which covers the whole loopback range) so dev
+  servers can be started inside the sandbox and reached via `curl`/browser on
+  the same host; nothing accepts connections from outside the loopback
+  interface. `gh` and `curl` are executable
   (other remote-capable tools such as `ssh`/`wget`/`git-remote-https` are
   denied by execute-list). Note this does not prevent arbitrary executables
   from sending data over HTTPS.
+- **Processes**: `process-fork`/`process-exec` plus `process-info*`
+  (setpriority/setpgid), so shells can background jobs with `&`/`nohup` (zsh's
+  "nice(5) failed" otherwise). Signal delivery to processes outside the sandbox
+  is still denied by default.
 - **Authentication**:
   - `gh` uses a **dedicated GitHub agent PAT** (read-only except
     `Pull requests: Write`, the minimum needed to reply to PR review comments)
@@ -198,7 +210,20 @@ gain of an in-session edit → build → verify loop.
   `NIX_CONFIG_HOME` / `NIX_STATE_HOME` / `NIX_CACHE_HOME` at per-invocation
   temp directories created by the wrapper. The host's `~/.cache/nix` and
   `~/.config/nix` are neither read nor written; the system `/etc/nix/nix.conf`
-  (public keys, substituters, experimental-features) is still read.
+  (public keys, substituters, experimental-features) is still read. Note that
+  on nix-darwin hosts `/etc/nix/nix.conf` is a symlink into `/etc/static`
+  (`/private/etc/static`); `cloud-restricted.sb` grants the resolved target so
+  the config read must not silently drop to empty.
+- **`nix develop` is non-interactive.** The agent shell has no TTY, so run
+  payloads with `nix develop --command <argv>…` — e.g.
+  `nix develop --command nixd -- --version`; use `--command bash -c '<snippet>'`
+  for shell syntax. `develop` (like every allowed command) also injects the
+  lock-policy flags and accepts only workspace references. The devShell's
+  `treefmt`/`nixfmt-tree` normally write their cache to `~/Library/Caches`
+  (Go's `os.UserCacheDir`), which the Seatbelt denies; the sandbox wrappers
+  export `TREEFMT_NO_CACHE=1` (and redirect `XDG_CACHE_HOME` to the granted
+  cache dir), so `nix fmt -- --fail-on-change` works unmodified inside the
+  sandbox.
 - **Client is the pinned nixpkgs `nix`, baked into the shim at deployment.**
   home-manager renders the guard shim with `${pkgs.nix}`'s path and version
   embedded, so the sandbox cannot repoint the shim's real binary through the
