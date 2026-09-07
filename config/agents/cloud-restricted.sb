@@ -15,9 +15,15 @@
 ;; 1Password CLI (`op` and its helpers): its absolute Nix-store path must not
 ;; be exec-able inside the sandbox even though the wrapper provisions the
 ;; GitHub agent PAT from 1Password before launching (the wrapper does that in
-;; the outer, unsandboxed context). `/usr/bin/security` is blocked too: the
-;; model must not be able to list/read Keychain items directly (gh/codex use
-;; the Security framework in-process, not this binary).
+;; the outer, unsandboxed context).
+;;
+;; `/usr/bin/security` is intentionally NOT on this deny list (see the
+;; `allow process-exec` below): claude-code-bin spawns it unconditionally very
+;; early at startup, regardless of auth method (verified with dummy
+;; ANTHROPIC_API_KEY / CLAUDE_CODE_OAUTH_TOKEN — same EPERM crash either way),
+;; so denying it breaks `claude` outright under this profile. gh/codex still
+;; use the Security framework in-process rather than this binary, so allowing
+;; the binary is only load-bearing for Claude Code.
 ;;
 ;; The legacy standalone Nix front-ends (`nix-store`, `nix-instantiate`,
 ;; `nix-env`, `nix-collect-garbage`, `nix-channel`, `nix-build`, `nix-shell`,
@@ -27,7 +33,7 @@
 ;; of the multi-call `nix` binary or speaking the daemon protocol bypasses the
 ;; shim entirely (documented in README).
 (deny process-exec
-  (regex #"/(ssh|scp|sftp|wget|nc|ncat|netcat|ftp|rsync|git-remote-http|git-remote-https|git-remote-ssh|op|op-please|op-http-call|security|nix-store|nix-instantiate|nix-env|nix-collect-garbage|nix-channel|nix-build|nix-shell|nix-copy-closure|darwin-rebuild|home-manager)$"))
+  (regex #"/(ssh|scp|sftp|wget|nc|ncat|netcat|ftp|rsync|git-remote-http|git-remote-https|git-remote-ssh|op|op-please|op-http-call|nix-store|nix-instantiate|nix-env|nix-collect-garbage|nix-channel|nix-build|nix-shell|nix-copy-closure|darwin-rebuild|home-manager)$"))
 (allow process-exec
        process-fork)
 ;; Job control and process self-management: shells backgrounding jobs with
