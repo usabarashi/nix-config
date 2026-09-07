@@ -58,22 +58,30 @@ Deny-default profile:
   - **Fail-closed**: if the PAT cannot be provisioned (item missing, `op` not
     signed in, malformed token), the cloud session refuses to start. Set
     `AGENT_GH_ALLOW_UNAUTHENTICATED=1` to continue without GitHub instead.
-  - The 1Password CLI (`op` / `op-please` / `op-http-call`) and
-    `/usr/bin/security` are **denied on the exec list**, and `op` is absent
-    from the sandbox PATH, so the model cannot reach the user's vault session
-    or list Keychain items directly. Provisioning happens in the wrapper,
+  - The 1Password CLI (`op` / `op-please` / `op-http-call`) is **denied on the
+    exec list** and absent from the sandbox PATH, so the model cannot reach
+    the user's vault session directly. Provisioning happens in the wrapper,
     before `sandbox-exec`, and requires the host `op` CLI to be signed in (the
     same setup the direnv README assumes).
+  - `/usr/bin/security` is **exec-allowed**, unlike the rest of this list.
+    claude-code-bin spawns it unconditionally at startup regardless of auth
+    method — confirmed by launching it with a dummy `ANTHROPIC_API_KEY` and
+    with a dummy `CLAUDE_CODE_OAUTH_TOKEN`, both hitting the identical
+    `EPERM posix_spawn 'security'` crash — so denying it makes `claude`
+    unusable under this profile. This means the model can now run `security`
+    directly (list/dump Keychain items subject to each item's own ACL), which
+    is a real widening of what a compromised/prompt-injected model can reach;
+    see "Accepted tradeoffs".
   - **Residual risk (prompt-injection / compromised model):** Keychain and
     `securityd` access remain granted so the pinned Codex binary can retrieve
     its own credential, and Seatbelt applies to the whole process tree — not
     per binary. A compromised model that constructs an alternate `gh` config
     (in a writable location) naming the *personal* account could therefore
     still recover the personal GitHub Keychain item through the permitted
-    `gh` binary. The dedicated PAT bounds the *default* and *accidental*
-    paths; this deliberate-override path is defense-in-depth only, and the
-    same limitation motivated the future option of removing Keychain access
-    from this profile altogether (see "Accepted tradeoffs").
+    `gh` binary; with `security` now exec-allowed, it could also attempt to
+    read Keychain items directly (still gated by each item's own ACL). The
+    dedicated PAT bounds the *default* and *accidental* paths; these
+    deliberate-override paths are defense-in-depth only.
   - The Codex credential is imported (C helper, `codex-auth-keyring-import.c`)
     into the login Keychain as a generic-password item whose ACL trusts only
     the pinned Codex binary. `CODEX_HOME` points to an isolated cache dir
@@ -138,6 +146,19 @@ unauthenticated with a warning on stderr. Side-effect-free invocations
 
 ### Accepted tradeoffs
 
+- **`/usr/bin/security` is exec-allowed, for Claude Code.** claude-code-bin
+  spawns `security` unconditionally during startup — confirmed independent of
+  auth method (dummy `ANTHROPIC_API_KEY` and dummy `CLAUDE_CODE_OAUTH_TOKEN`
+  both crash identically with `EPERM posix_spawn 'security'` under the
+  previous deny rule), so denying it makes `claude` unusable under this
+  profile. Allowing it means the model can run `security` directly inside the
+  sandbox (subject to each Keychain item's own ACL), which is a real widening
+  versus the previous "no direct Keychain binary access" design. This is a
+  shared profile (`cloud-restricted.sb` is also the opencode default), so the
+  allowance is not scoped to Claude Code sessions only. Accepted to keep
+  `claude` launchable; revisit if a narrower mechanism (e.g. a Claude-specific
+  profile, or upstream env-var support that avoids the `security` spawn)
+  becomes available.
 - **Environment variables are visible to the model.** The wrapper preserves
   the calling environment, and with `permission.bash = "allow"` the model's
   shell commands inherit it. Secrets such as `LIBRARY_API_KEY` and
@@ -256,8 +277,12 @@ paths onto the profile parameters so behavior is preserved:
 Authentication and credentials are the same as opencode: the dedicated
 GitHub agent PAT is provisioned from 1Password into the ephemeral
 `GH_CONFIG_DIR` (fail-closed, same env overrides), and inherited GitHub token
-environment variables are scrubbed. The 1Password CLI and `/usr/bin/security`
-are exec-denied here as well.
+environment variables are scrubbed. The 1Password CLI is exec-denied here as
+well. `/usr/bin/security` is NOT exec-denied — `claude` (claude-code-bin)
+requires it to launch at all, unconditionally and regardless of auth method
+(see "Accepted tradeoffs" under `cloud-restricted.sb`); this is a property of
+the shared profile, so opencode sessions get the same allowance even though
+only Claude Code needs it.
 
 ## free-tier.sb
 
