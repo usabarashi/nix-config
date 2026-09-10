@@ -13,10 +13,10 @@
   fetchurl,
 }:
 let
-  version = "20260602-164317";
+  version = "20260910-032400";
   src = fetchurl {
     url = "https://github.com/usabarashi/git-tools/releases/download/build-${version}/git-tools-${version}-macos26-arm64.tar.gz";
-    hash = "sha256-y4JLczwRLLhEbRNpFcuPfbVU8jc0nukgIXmit4HSKg0=";
+    hash = "sha256-lEnxbjzDHfgUVk4JXnZRsc5PA2jZjXEF3wzGnw3vkAE=";
   };
 in
 stdenvNoCC.mkDerivation {
