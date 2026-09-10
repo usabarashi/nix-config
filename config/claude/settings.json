@@ -44,7 +44,9 @@
       "Bash(git add:*)",
       "Bash(git apply:*)",
       "Bash(git bisect:*)",
+      "Bash(git blame:*)",
       "Bash(git cherry-pick:*)",
+      "Bash(git describe:*)",
       "Bash(git fetch:*)",
       "Bash(git diff:*)",
       "Bash(git difftool:*)",
@@ -56,6 +58,7 @@
       "Bash(git pull:*)",
       "Bash(git range-diff:*)",
       "Bash(git rebase:*)",
+      "Bash(git rev-parse:*)",
       "Bash(git shortlog:*)",
       "Bash(git show:*)",
       "Bash(git status:*)",
@@ -158,10 +161,8 @@
       "Bash(gh ssh-key:*)",
       "Bash(gh variable delete:*)",
       "Bash(gh variable set:*)",
-      "Bash(git blame:*)",
       "Bash(git branch:*)",
       "Bash(git checkout:*)",
-      "Bash(git describe:*)",
       "Bash(git notes:*)",
       "Bash(git commit)",
       "Bash(git commit:*)",
@@ -203,7 +204,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bash ~/.claude/scripts/deny-check.sh --settings ~/.claude/settings.json"
+            "command": "bash ~/.claude/hooks/deny-check.sh --settings ~/.claude/settings.json"
           }
         ]
       }
@@ -214,7 +215,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bash ~/.claude/scripts/notify.sh --app 'Claude Code' --event notification"
+            "command": "bash ~/.claude/hooks/notify.sh --app 'Claude Code' --event notification"
           }
         ]
       }
@@ -225,7 +226,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bash ~/.claude/scripts/notify.sh --app 'Claude Code' --event stop"
+            "command": "bash ~/.claude/hooks/notify.sh --app 'Claude Code' --event stop"
           }
         ]
       }

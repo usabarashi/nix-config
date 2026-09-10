@@ -19,6 +19,29 @@ let
     force = true;
     recursive = true;
   };
+  # Scripts invoked directly by settings.json hooks (deny-check.sh, notify.sh)
+  # are copied into a SEPARATE, previously-nonexistent directory rather than
+  # symlinked into .claude/scripts: a background/forked Claude session scoped
+  # to a project other than this repo cannot follow a symlink that escapes
+  # into this repo (same rationale as the git/nix guard shims below, and
+  # documented in git-agent-guard.sh's header). This must be a new path, not
+  # a restructuring of .claude/scripts itself: switching an existing
+  # directory-symlink entry to per-file entries makes Home Manager's
+  # conflict/backup handling treat the live repo file (reached through the
+  # not-yet-torn-down old symlink) as a colliding pre-existing file, and it
+  # gets renamed to *.backup and replaced by a store symlink -- corrupting
+  # the repository's working tree. A brand-new directory has no prior state
+  # to collide with.
+  agentHookScripts = {
+    ".claude/hooks/deny-check.sh" = {
+      text = builtins.readFile "${repoPath}/config/agents/scripts/deny-check.sh";
+      executable = true;
+    };
+    ".claude/hooks/notify.sh" = {
+      text = builtins.readFile "${repoPath}/config/agents/scripts/notify.sh";
+      executable = true;
+    };
+  };
   agentSkills = {
     source = config.lib.file.mkOutOfStoreSymlink "${repoPath}/config/agents/skills";
     force = true;
@@ -56,7 +79,7 @@ in
   imports = [ ./agents-common.nix ];
 
   home.packages = [
-    # Used by config/agents/scripts/notify.sh (symlinked into .claude/scripts).
+    # Used by config/agents/scripts/notify.sh (copied into .claude/hooks).
     # customPackages override: nixpkgs ships Intel-only zip, this builds arm64 from source.
     pkgs.customPackages.terminal-notifier
     # MCP server launched via ~/.claude.json (not Nix-managed); only Claude
@@ -92,5 +115,6 @@ in
       executable = true;
     };
   }
+  // agentHookScripts
   // seatbeltProfiles;
 }
