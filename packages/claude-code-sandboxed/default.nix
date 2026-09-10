@@ -13,6 +13,7 @@
   git,
   gh,
   _1password-cli,
+  coreutils,
 }:
 let
   # Same dedicated-credential provisioning as the opencode wrapper: the 1Password
@@ -299,6 +300,29 @@ writeShellScriptBin "claude" ''
           fi
       fi
   fi
+
+  # Home Manager may expose these as chained out-of-store symlinks. Pass
+  # only the resolved managed inputs instead of allowing their repository.
+  # Fail closed if a managed path is missing (e.g. incomplete Home Manager
+  # activation) instead of letting realpath fail silently and handing
+  # sandbox-exec an empty -D value.
+  if [ ! -e "$AGENT_CONFIG_FILE" ]; then
+      echo "Error: managed config file missing: $AGENT_CONFIG_FILE" >&2
+      exit 1
+  fi
+  AGENT_CONFIG_FILE="$(${coreutils}/bin/realpath "$AGENT_CONFIG_FILE")"
+
+  if [ ! -e "$AGENT_COMMANDS_DIR" ]; then
+      echo "Error: managed commands dir missing: $AGENT_COMMANDS_DIR" >&2
+      exit 1
+  fi
+  AGENT_COMMANDS_DIR="$(${coreutils}/bin/realpath "$AGENT_COMMANDS_DIR")"
+
+  if [ ! -e "$AGENT_SKILLS_DIR" ]; then
+      echo "Error: managed skills dir missing: $AGENT_SKILLS_DIR" >&2
+      exit 1
+  fi
+  AGENT_SKILLS_DIR="$(${coreutils}/bin/realpath "$AGENT_SKILLS_DIR")"
 
   case " $* " in
       *" --version "*|*" --help "*|*" -h "*) ;;
