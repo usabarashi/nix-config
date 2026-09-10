@@ -95,7 +95,6 @@ expect_deny "--version with trailing operands" --version extra
 expect_deny "REPL (no args)"
 expect_deny "unknown global option before subcommand" --option
 expect_deny "unknown subcommand (run)" run .#mac14-9
-expect_deny "flake update" flake update
 expect_deny "flake lock" flake lock
 expect_deny "flake metadata" flake metadata
 
@@ -107,6 +106,10 @@ expect_allow "fmt (bare)" fmt
 expect_allow "fmt ./flake.nix" fmt ./flake.nix
 expect_allow "flake check" flake check
 expect_allow "flake show --json" flake show --json
+expect_allow "flake update (all inputs)" flake update
+expect_allow "flake update single input" flake update nixpkgs
+expect_allow "flake update multiple inputs" flake update nixpkgs home-manager
+expect_allow "flake update --impure" flake update --impure
 expect_allow "develop with --command payload" develop .#devShells.aarch64-darwin.default --command true
 expect_allow "build --impure (workspace root only)" build --impure .#formatter --no-link
 expect_allow "--no-link only" build .#formatter --no-link
@@ -155,6 +158,33 @@ out="$(run_guard fmt)"
 echo "$out" | grep -qF 'argv=<fmt><--no-update-lock-file><--no-write-lock-file>' \
     || fail "fmt does not receive lock flags: $out"
 pass "fmt receives lock flags"
+
+# `flake update` exists to WRITE the lock file, so it must NOT receive the
+# lock-policy flags; `flake check` keeps them.
+out="$(run_guard flake update)"
+echo "$out" | grep -qF 'argv=<flake><update>' \
+    || fail "flake update argv is not exactly <flake><update>: $out"
+if echo "$out" | grep -qF -- '--no-write-lock-file'; then
+    fail "flake update received lock-policy flags: $out"
+fi
+pass "flake update receives no lock-policy flags"
+out="$(run_guard flake check)"
+echo "$out" | grep -qF 'argv=<flake><check><--no-update-lock-file><--no-write-lock-file>' \
+    || fail "flake check lock flags wrong: $out"
+pass "flake check receives lock-policy flags"
+
+# flake update input-name validation and lock-redirection denial
+expect_deny "flake update path operand" flake update /tmp/x
+expect_deny "flake update attrpath operand" flake update '.#x'
+expect_deny "flake update --flake" flake update --flake .
+expect_deny "flake update --commit-lock-file" flake update --commit-lock-file
+expect_deny "flake update --output-lock-file" flake update --output-lock-file /tmp/lock
+expect_deny "flake update --reference-lock-file" flake update --reference-lock-file /tmp/lock
+expect_deny "flake update --override-input" flake update --override-input nixpkgs /tmp/x
+expect_deny "flake update --inputs-from" flake update --inputs-from /tmp/x
+expect_deny "flake update --recreate-lock-file" flake update --recreate-lock-file
+expect_deny "flake update --no-write-lock-file" flake update --no-write-lock-file
+expect_deny "flake update -v" flake update -v
 
 # --impure for flake check/show (the repository's documented workflow)
 expect_allow "flake check --impure" flake check --impure

@@ -394,7 +394,8 @@ writeShellScriptBin "opencode" ''
           reject_target=0
       done
 
-      # 3. Managed configuration fail-closed (exact 1.18.15 candidates).
+      # 3. Managed configuration fail-closed (macOS managed-config candidates;
+      #    re-verify against the pinned opencode release when the pin changes).
       #    Unreadable/unparsable candidates are treated as PRESENT (fail-closed).
       #    We walk each candidate's ancestor directories, skipping components
       #    that do not exist (absence is fine), and require every EXISTING
@@ -730,32 +731,6 @@ writeShellScriptBin "opencode" ''
       # `nix fmt` and `nix develop --command treefmt …` fail; disable its cache.
       mkdir -p "$AGENT_CACHE_DIR"
       export XDG_CACHE_HOME="$AGENT_CACHE_DIR"
-      # cabal-install splits its defaults across ~/.config/cabal,
-      # ~/.cache/cabal and ~/.local/state/cabal. Those personal trees are not
-      # exposed to the agent, so keep Cabal's config, package cache and store
-      # together under OpenCode's already-granted persistent cache instead.
-      # CABAL_DIR is tool-specific and therefore does not relocate OpenCode's
-      # own XDG state/config.
-      export CABAL_DIR="$AGENT_CACHE_DIR/cabal"
-      mkdir -p "$CABAL_DIR"
-      CABAL_CONFIG="$CABAL_DIR/config"
-      if [ -f "$CABAL_CONFIG" ]; then
-          # cabal-install still generates an HTTP Hackage URL by default. The
-          # sandbox intentionally permits remote application traffic only on
-          # TCP 443, so migrate that exact generated default without replacing
-          # any other user customization in the isolated OpenCode config.
-          /usr/bin/sed -i "" \
-              's|^  url: http://hackage\.haskell\.org/$|  url: https://hackage.haskell.org/|' \
-              "$CABAL_CONFIG"
-      else
-          /usr/bin/printf '%s\n' \
-              'repository hackage.haskell.org' \
-              '  url: https://hackage.haskell.org/' \
-              '  secure: True' \
-              "remote-repo-cache: $CABAL_DIR/packages" \
-              >"$CABAL_CONFIG"
-      fi
-      export CABAL_CONFIG
       export TREEFMT_NO_CACHE=1
 
       OPENCODE_CONFIG_FILE="$HOME/.config/opencode/opencode.json"
