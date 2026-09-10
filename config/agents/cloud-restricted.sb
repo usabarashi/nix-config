@@ -11,8 +11,9 @@
 
 ;; Block commands that can directly access remotes, except gh and curl which
 ;; are permitted for GitHub API interaction over HTTPS. This is defense in
-;; depth; network access below is also limited to TCP port 443. Also block the
-;; 1Password CLI (`op` and its helpers): its absolute Nix-store path must not
+;; depth; network access below is also limited to HTTPS, DNS, and loopback.
+;; Also block the 1Password CLI (`op` and its helpers): its absolute Nix-store
+;; path must not
 ;; be exec-able inside the sandbox even though the wrapper provisions the
 ;; GitHub agent PAT from 1Password before launching (the wrapper does that in
 ;; the outer, unsandboxed context).
@@ -38,9 +39,11 @@
        process-fork)
 ;; Job control and process self-management: shells backgrounding jobs with
 ;; `&`/`nohup` call setpriority(2)/setpgid(2) (zsh prints "nice(5) failed"
-;; otherwise). Scoped to the sandboxed process's own session; signal delivery
-;; to other processes remains denied (default).
+;; otherwise). Commands may signal only processes created in the same sandbox,
+;; which is required for bounded subprocess cleanup such as Cabal tests that
+;; terminate an ffmpeg process group. Signals to host processes remain denied.
 (allow process-info*)
+(allow signal (target same-sandbox))
 
 ;; macOS processes read the root vnode while starting.
 (allow file-read-data
@@ -95,8 +98,10 @@
   (literal "/nix/var/nix")
   (literal "/nix/var/nix/profiles")
   ;; Traversal to the Nix daemon socket (socket node itself is granted under
-  ;; network-outbound below).
+  ;; network-outbound below). Current Nix clients stat the socket before
+  ;; connecting, so its metadata must be readable as well.
   (literal "/nix/var/nix/daemon-socket")
+  (literal "/nix/var/nix/daemon-socket/socket")
   (literal "/etc")
   (literal "/private")
   (literal "/private/etc")
@@ -189,6 +194,11 @@
   (literal "/dev/null")
   (literal "/dev/urandom")
   (literal "/dev/dtracehelper")
+  ;; Shell process substitution exposes inherited descriptors as /dev/fd/N.
+  ;; Nixpkgs compiler wrappers source these paths while configuring builds.
+  ;; This grants no new host files: a process can only reach descriptors it
+  ;; already holds.
+  (subpath "/dev/fd")
   (regex #"^/dev/tty.*"))
 (allow file-ioctl
   (literal "/dev/dtracehelper")
@@ -196,15 +206,19 @@
   ;; mode. Without this, OpenCode fails at startup with setRawMode errno 1.
   (regex #"^/dev/tty.*"))
 
-;; Seatbelt accepts only "*" or "localhost" as a host filter. Restrict
-;; transport to HTTPS for remote hosts; localhost is granted so local MCP
-;; servers (voicevox engine, Chrome DevTools, Slack) can reach their peers.
+;; Seatbelt accepts only "*" or "localhost" as a host filter. Restrict remote
+;; transport to HTTPS plus DNS: Cabal/GHC uses res_query(3), which sends DNS
+;; directly rather than exclusively using the mDNSResponder UNIX socket.
+;; Localhost is granted so local MCP servers (voicevox engine, Chrome DevTools,
+;; Slack) can reach their peers.
 ;; The Nix daemon UNIX socket is granted so the Nix client can talk to the
 ;; daemon (accepted threat model: full trusted-user daemon authority).
 (allow network-outbound
   (literal "/private/var/run/mDNSResponder")
   (literal "/private/var/run/systemkeychaincheck.socket")
   (literal "/nix/var/nix/daemon-socket/socket")
+  (remote tcp "*:53")
+  (remote udp "*:53")
   (remote tcp "*:443")
   (remote tcp "localhost:*"))
 

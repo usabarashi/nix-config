@@ -8,7 +8,7 @@ Seatbelt (`sandbox-exec`) profiles for agent runtimes. Selected by the
 
 | Profile | Network | Filesystem | Use case |
 |---------|---------|------------|----------|
-| `cloud-restricted.sb` | Remote TCP 443 + loopback TCP (all ports) + Nix daemon UNIX socket | Project + OpenCode/Claude state/cache read-write; OS/Nix runtime and `/nix/store` read-only; everything else denied | Default for opencode and claude (paid cloud models: OpenAI Codex, Claude, normal opencode models) |
+| `cloud-restricted.sb` | Remote TCP 443 + DNS TCP/UDP 53 + loopback TCP (all ports) + Nix daemon UNIX socket | Project + OpenCode/Claude state/cache read-write; OS/Nix runtime and `/nix/store` read-only; everything else denied | Default for opencode and claude (paid cloud models: OpenAI Codex, Claude, normal opencode models) |
 | `free-tier.sb` | Remote TCP 443 + loopback TCP (all ports) | Project + dedicated free-tier data/state/cache read-write; immutable free-tier `auth.json` (read-only); NO Keychain, `~/.config/gh`, `~/.gitconfig`, paid auth | opencode free-tier cloud providers (Gemini/Groq/OpenRouter no-cost) |
 
 `strict-closed.sb` and the unrestricted `permissive-open.sb` have both been
@@ -26,9 +26,10 @@ Deny-default profile:
   /tmp/x.ts`) work as in a normal shell — note this is the shared system temp
   area, so the sandboxed process can also read other same-machine temp files.
   Everything else (home directory, `~/.ssh`, `~/.codex`, …) is denied.
-- **Network**: outbound remote TCP port 443 only, plus unrestricted
-  loopback TCP (`localhost:*`) so local MCP servers (VoiceVox engine, Chrome
-  DevTools, Slack) can reach their peers. Loopback **inbound** is also granted
+- **Network**: outbound remote TCP port 443 and DNS TCP/UDP port 53, plus
+  unrestricted loopback TCP (`localhost:*`) so local MCP servers (VoiceVox
+  engine, Chrome DevTools, Slack) can reach their peers. Loopback **inbound**
+  is also granted
   (`network-bind` + `network-inbound` on `localhost`; seatbelt host filters
   accept only `*`/`localhost`, which covers the whole loopback range) so dev
   servers can be started inside the sandbox and reached via `curl`/browser on
@@ -36,11 +37,12 @@ Deny-default profile:
   interface. `gh` and `curl` are executable
   (other remote-capable tools such as `ssh`/`wget`/`git-remote-https` are
   denied by execute-list). Note this does not prevent arbitrary executables
-  from sending data over HTTPS.
+  from sending data over HTTPS or DNS.
 - **Processes**: `process-fork`/`process-exec` plus `process-info*`
   (setpriority/setpgid), so shells can background jobs with `&`/`nohup` (zsh's
-  "nice(5) failed" otherwise). Signal delivery to processes outside the sandbox
-  is still denied by default.
+  "nice(5) failed" otherwise). Signals are allowed only to processes in the
+  same sandbox, so bounded tests can terminate their own process groups without
+  granting signal access to host processes.
 - **Authentication**:
   - `gh` uses a **dedicated GitHub agent PAT** (read-only except
     `Pull requests: Write`, the minimum needed to reply to PR review comments)
@@ -163,8 +165,9 @@ unauthenticated with a warning on stderr. Side-effect-free invocations
   the calling environment, and with `permission.bash = "allow"` the model's
   shell commands inherit it. Secrets such as `LIBRARY_API_KEY` and
   `SLACK_USER_TOKEN` are therefore readable by the model and theoretically
-  transmissible over the permitted HTTPS egress. Accepted for friction-free
-  Auto mode. Do not add secrets to the environment if that is unacceptable.
+  transmissible over the permitted HTTPS or DNS egress. Accepted for
+  friction-free Auto mode. Do not add secrets to the environment if that is
+  unacceptable.
 - **Any localhost TCP service is reachable.** Loopback TCP is open on all
   ports so that VoiceVox, Chrome DevTools, and the local llama.cpp provider
   work, which means any password-less service listening locally can also be
@@ -245,6 +248,14 @@ gain of an in-session edit → build → verify loop.
   export `TREEFMT_NO_CACHE=1` (and redirect `XDG_CACHE_HOME` to the granted
   cache dir), so `nix fmt -- --fail-on-change` works unmodified inside the
   sandbox.
+- **OpenCode Cabal state is isolated.** The OpenCode wrapper sets `CABAL_DIR`
+  to `~/.cache/opencode/cabal`, an existing read/write sandbox tree. Cabal can
+  therefore create its config, download cache and compiled package store
+  without reading or modifying the user's `~/.config/cabal`, `~/.cache/cabal`
+  or `~/.local/state/cabal`. The wrapper creates or narrowly migrates the
+  isolated config to use `https://hackage.haskell.org/`; the profile permits
+  DNS TCP/UDP 53 for GHC's `res_query(3)` resolver path and `/dev/fd` for
+  Nixpkgs compiler-wrapper process substitution.
 - **Client is the pinned nixpkgs `nix`, baked into the shim at deployment.**
   home-manager renders the guard shim with `${pkgs.nix}`'s path and version
   embedded, so the sandbox cannot repoint the shim's real binary through the
