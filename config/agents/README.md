@@ -228,8 +228,9 @@ gain of an in-session edit → build → verify loop.
 - **Lock files are updatable in-session, but only the workspace lock.**
   `nix flake update` is the one flake command that receives no
   `--no-update-lock-file --no-write-lock-file` injection, because it exists to
-  rewrite the lock. Its positionals are flake **input names** (validated as
-  identifiers, not flake refs), and the lock it writes is always the workspace
+  rewrite the lock. Its positionals are flake **input paths** (a name or a
+  `/`-separated nested path such as `dep/child`; validated as input paths, not
+  flake refs), and the lock it writes is always the workspace
   `flake.lock`: `--flake`, `--output-lock-file`, `--reference-lock-file`,
   `--override-input`, `--inputs-from`, and `--commit-lock-file` are denied, so
   the agent cannot redirect the lock to another path, repoint an input at an

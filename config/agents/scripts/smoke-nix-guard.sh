@@ -109,6 +109,8 @@ expect_allow "flake show --json" flake show --json
 expect_allow "flake update (all inputs)" flake update
 expect_allow "flake update single input" flake update nixpkgs
 expect_allow "flake update multiple inputs" flake update nixpkgs home-manager
+expect_allow "flake update nested input path" flake update dep/child
+expect_allow "flake update deep nested input path" flake update a/b/c
 expect_allow "flake update --impure" flake update --impure
 expect_allow "develop with --command payload" develop .#devShells.aarch64-darwin.default --command true
 expect_allow "build --impure (workspace root only)" build --impure .#formatter --no-link
@@ -176,6 +178,11 @@ pass "flake check receives lock-policy flags"
 # flake update input-name validation and lock-redirection denial
 expect_deny "flake update path operand" flake update /tmp/x
 expect_deny "flake update attrpath operand" flake update '.#x'
+expect_deny "flake update absolute input path" flake update /etc/passwd
+expect_deny "flake update parent traversal" flake update ../dep
+expect_deny "flake update dot segment" flake update dep/./child
+expect_deny "flake update trailing slash" flake update dep/
+expect_deny "flake update doubled slash" flake update dep//child
 expect_deny "flake update --flake" flake update --flake .
 expect_deny "flake update --commit-lock-file" flake update --commit-lock-file
 expect_deny "flake update --output-lock-file" flake update --output-lock-file /tmp/lock

@@ -23,8 +23,9 @@
 #   * Flake references: omitted, `.`, or `.#attrpath` only. The resolved
 #     flake root (walking up from the working directory, not above
 #     AGENT_TARGET_DIR) must equal AGENT_TARGET_DIR. `flake update` is
-#     special: its positionals are flake INPUT NAMES (not references), so
-#     they are validated as identifiers rather than flake refs.
+#     special: its positionals are flake INPUT PATHS (not references) — a
+#     name or a `/`-separated nested path such as `dep/child` — so they are
+#     validated as input paths rather than flake refs.
 #   * Options: per-subcommand ALLOWLIST. Anything not listed is denied
 #     (this rejects --expr/--apply/--option/--store/--override-input/...).
 #     Value-taking options (develop's --keep-env-var / --unset-env-var /
@@ -125,6 +126,11 @@ mkdir -p "$NIX_CONFIG_HOME" "$NIX_STATE_HOME" "$NIX_CACHE_HOME"
 # 4. Argument grammar.
 # ---------------------------------------------------------------------------
 ATTRPATH_RE='^[A-Za-z0-9][A-Za-z0-9._-]*$'
+# Flake input paths for `nix flake update` positionals are `/`-separated
+# attribute-name segments (`nixpkgs`, `dep/child`, `a/b/c`). Each segment has
+# the same grammar as ATTRPATH_RE; anchoring the whole path rejects absolute
+# paths, leading/trailing/doubled slashes, and `.`/`..` segments.
+INPUT_PATH_RE='^[A-Za-z0-9][A-Za-z0-9._-]*(/[A-Za-z0-9][A-Za-z0-9._-]*)*$'
 
 # is_flake_ref <arg>: 0 if the arg is an accepted installable spelling.
 is_flake_ref() {
@@ -349,13 +355,14 @@ append_operand() {
         return 0
     fi
     if [ "$CKEY" = "flake-update" ]; then
-        # `nix flake update` positionals are flake INPUT NAMES, not
-        # installables. Validate them as identifiers so they cannot be
-        # paths, flake refs, or option-like tokens (the lock file itself is
-        # always the workspace flake.lock; --flake and lock-redirection
-        # options are not on the allowlist).
-        if [[ ! "$operand" =~ $ATTRPATH_RE ]]; then
-            die "input name '$operand' is not allowed (expected a flake input name)"
+        # `nix flake update` positionals are flake INPUT PATHS: a single input
+        # name or a `/`-separated path into a nested input (e.g. `dep/child`),
+        # not installables. Validate them as such so they cannot be absolute
+        # paths, flake refs, `..`/`.` traversal, or option-like tokens (the
+        # lock file itself is always the workspace flake.lock; --flake and
+        # lock-redirection options are not on the allowlist).
+        if [[ ! "$operand" =~ $INPUT_PATH_RE ]]; then
+            die "input path '$operand' is not allowed (expected a flake input path)"
         fi
         out+=("$operand")
         return 0
