@@ -17,11 +17,15 @@
 #
 # Policy (v1, curated for Nix 2.34.x):
 #   * Subcommands: build, eval, fmt, develop, print-dev-env,
-#     flake check, flake show, plus informational --version / --help.
-#     `run`, `flake update`, `flake lock`, and everything unknown are denied.
+#     flake check, flake update, flake show, plus informational
+#     --version / --help. `run`, `flake lock`, and everything unknown are
+#     denied.
 #   * Flake references: omitted, `.`, or `.#attrpath` only. The resolved
 #     flake root (walking up from the working directory, not above
-#     AGENT_TARGET_DIR) must equal AGENT_TARGET_DIR.
+#     AGENT_TARGET_DIR) must equal AGENT_TARGET_DIR. `flake update` is
+#     special: its positionals are flake INPUT PATHS (not references) — a
+#     name or a `/`-separated nested path such as `dep/child` — so they are
+#     validated as input paths rather than flake refs.
 #   * Options: per-subcommand ALLOWLIST. Anything not listed is denied
 #     (this rejects --expr/--apply/--option/--store/--override-input/...).
 #     Value-taking options (develop's --keep-env-var / --unset-env-var /
@@ -29,9 +33,14 @@
 #     rejected for them so an extra token cannot smuggle past validation.
 #   * --impure is permitted only because every accepted flake reference is
 #     the workspace root (dotfiles management requires it).
-#   * Lock files are updated by the HUMAN outside the session. Ordinary
-#     commands get --no-update-lock-file (and --no-write-lock-file) injected
-#     in the Nix-option region, BEFORE any `--command` payload boundary.
+#   * Ordinary commands get --no-update-lock-file (and --no-write-lock-file)
+#     injected in the Nix-option region, BEFORE any `--command` payload
+#     boundary. `flake update` is the exception: it must WRITE the lock
+#     file, so it receives no lock-policy flags. The updated lock file is
+#     always the workspace flake.lock; --flake/--output-lock-file/
+#     --reference-lock-file/--override-input/--inputs-from/--commit-lock-file
+#     are denied so the agent cannot redirect the lock, repoint an input at
+#     an arbitrary flake, or create a git commit behind the git guard.
 #   * Nix configuration/location environment variables are scrubbed and
 #     redirected to ephemeral per-invocation directories.
 #
@@ -117,6 +126,11 @@ mkdir -p "$NIX_CONFIG_HOME" "$NIX_STATE_HOME" "$NIX_CACHE_HOME"
 # 4. Argument grammar.
 # ---------------------------------------------------------------------------
 ATTRPATH_RE='^[A-Za-z0-9][A-Za-z0-9._-]*$'
+# Flake input paths for `nix flake update` positionals are `/`-separated
+# attribute-name segments (`nixpkgs`, `dep/child`, `a/b/c`). Each segment has
+# the same grammar as ATTRPATH_RE; anchoring the whole path rejects absolute
+# paths, leading/trailing/doubled slashes, and `.`/`..` segments.
+INPUT_PATH_RE='^[A-Za-z0-9][A-Za-z0-9._-]*(/[A-Za-z0-9][A-Za-z0-9._-]*)*$'
 
 # is_flake_ref <arg>: 0 if the arg is an accepted installable spelling.
 is_flake_ref() {
@@ -232,6 +246,11 @@ option_allowed() {
     flake-check:--impure | flake-check:--help | flake-show:--impure | flake-show:--json | flake-show:--help)
       return 0
       ;;
+    # `flake update` writes the lock file itself; no lock-policy flags are
+    # accepted (nor injected, see LOCK_FLAGS). --impure matches check/show.
+    flake-update:--impure | flake-update:--help)
+      return 0
+      ;;
     *)
       return 1
       ;;
@@ -282,15 +301,15 @@ case "$CMD" in
     validate_workspace_flake
     ;;
   flake)
-    [ "$#" -ge 1 ] || die "nix flake requires exactly one of: check, show"
+    [ "$#" -ge 1 ] || die "nix flake requires exactly one of: check, update, show"
     case "$1" in
-      check | show) ;;
-      *) die "nix flake subcommand '$1' is not allowed; only check and show are" ;;
+      check | update | show) ;;
+      *) die "nix flake subcommand '$1' is not allowed; only check, update and show are" ;;
     esac
     validate_workspace_flake
     ;;
   *)
-    die "subcommand '$CMD' is not allowed in agent sessions (allowed: build, eval, fmt, develop, print-dev-env, flake check, flake show)"
+    die "subcommand '$CMD' is not allowed in agent sessions (allowed: build, eval, fmt, develop, print-dev-env, flake check, flake update, flake show)"
     ;;
 esac
 
@@ -300,11 +319,17 @@ CKEY="$CMD"
 
 # Commands that accept the lock-policy flags. `nix fmt` evaluates the
 # workspace flake to obtain its formatter and supports the lock options, so it
-# also gets the flags (lock files are human-managed exclusively).
+# also gets the flags. `nix flake update` is the exception: it exists to WRITE
+# the lock file, so injecting --no-write-lock-file would make it a no-op.
 LOCK_FLAGS=0
 case "$CMD" in
   build | eval | fmt | develop | print-dev-env) LOCK_FLAGS=1 ;;
-  flake) LOCK_FLAGS=1 ;;
+  flake)
+    case "$1" in
+      update) LOCK_FLAGS=0 ;;
+      *) LOCK_FLAGS=1 ;;
+    esac
+    ;;
 esac
 
 out=("$CMD")
@@ -326,6 +351,19 @@ append_operand() {
     local operand="$1"
     if [ "$CMD" = "fmt" ]; then
         validate_target_path "$operand"
+        out+=("$operand")
+        return 0
+    fi
+    if [ "$CKEY" = "flake-update" ]; then
+        # `nix flake update` positionals are flake INPUT PATHS: a single input
+        # name or a `/`-separated path into a nested input (e.g. `dep/child`),
+        # not installables. Validate them as such so they cannot be absolute
+        # paths, flake refs, `..`/`.` traversal, or option-like tokens (the
+        # lock file itself is always the workspace flake.lock; --flake and
+        # lock-redirection options are not on the allowlist).
+        if [[ ! "$operand" =~ $INPUT_PATH_RE ]]; then
+            die "input path '$operand' is not allowed (expected a flake input path)"
+        fi
         out+=("$operand")
         return 0
     fi

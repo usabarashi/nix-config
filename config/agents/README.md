@@ -184,7 +184,8 @@ unauthenticated with a warning on stderr. Side-effect-free invocations
 
 The sandbox can talk to the Nix daemon so agents can run the packages defined
 in the workspace flake (`nix build`, `nix eval`, `nix fmt`, `nix develop`,
-`nix print-dev-env`, `nix flake check`, `nix flake show`, `nix --version`).
+`nix print-dev-env`, `nix flake check`, `nix flake update`, `nix flake show`,
+`nix --version`).
 
 **Accepted threat model — read this before relying on the sandbox.** The macOS
 account is a Nix `trusted-user`; granting the daemon UNIX socket means the
@@ -216,18 +217,28 @@ gain of an in-session edit → build → verify loop.
   for this workspace flake (required for the dotfiles configuration);
   combination with expression flags remains blocked.
 - **Commands are allowlisted.** Core set only: `build`, `eval`, `fmt`,
-  `develop`, `print-dev-env`, `flake check`, `flake show`, `--version`.
+  `develop`, `print-dev-env`, `flake check`, `flake update`, `flake show`,
+  `--version`.
   `nix run` (including the `.#mac14-9` / `.#mac14-10` darwin-rebuild apps),
-  `nix shell`, `nix flake update`, `nix flake lock`, and anything unknown are
+  `nix shell`, `nix flake lock`, and anything unknown are
   denied. Legacy standalone front-ends (`nix-store`, `nix-env`, `nix-build`,
   `nix-instantiate`, `nix-shell`, `nix-collect-garbage`, `nix-channel`,
   `nix-copy-closure`, `darwin-rebuild`, `home-manager`) are additionally
   exec-denied as defense-in-depth (again not a boundary).
-- **Lock files are managed by the human.** Ordinary commands run with
-  `--no-update-lock-file --no-write-lock-file` (injected before any
-  `--command` payload). If the flake needs a new/changed lock entry, the
-  command fails and the agent reports that `flake.lock` must be updated outside
-  the session. The human runs `nix flake update` / `nix flake lock` as usual.
+- **Lock files are updatable in-session, but only the workspace lock.**
+  `nix flake update` is the one flake command that receives no
+  `--no-update-lock-file --no-write-lock-file` injection, because it exists to
+  rewrite the lock. Its positionals are flake **input paths** (a name or a
+  `/`-separated nested path such as `dep/child`; validated as input paths, not
+  flake refs), and the lock it writes is always the workspace
+  `flake.lock`: `--flake`, `--output-lock-file`, `--reference-lock-file`,
+  `--override-input`, `--inputs-from`, and `--commit-lock-file` are denied, so
+  the agent cannot redirect the lock to another path, repoint an input at an
+  arbitrary flake, or create a git commit behind the `git` guard. New revisions
+  are fetched over the profile's HTTPS egress (the daemon substitutes/building
+  outside the Seatbelt as usual). Every other allowed command still runs with
+  `--no-update-lock-file --no-write-lock-file` (injected before any `--command`
+  payload).
 - **Ephemeral Nix state.** The shim scrubs inherited Nix configuration/
   location variables (`NIX_CONFIG`, `NIX_USER_CONF_FILES`, `NIX_CONF_DIR`,
   `NIX_PATH`, `NIX_*_HOME`, `NIX_REGISTRY`, `XDG_CONFIG_DIRS`, …) and points
@@ -241,21 +252,25 @@ gain of an in-session edit → build → verify loop.
 - **`nix develop` is non-interactive.** The agent shell has no TTY, so run
   payloads with `nix develop --command <argv>…` — e.g.
   `nix develop --command nixd -- --version`; use `--command bash -c '<snippet>'`
-  for shell syntax. `develop` (like every allowed command) also injects the
-  lock-policy flags and accepts only workspace references. The devShell's
+  for shell syntax. `develop` (like every allowed command except
+  `flake update`) also injects the lock-policy flags and accepts only
+  workspace references. The devShell's
   `treefmt`/`nixfmt-tree` normally write their cache to `~/Library/Caches`
   (Go's `os.UserCacheDir`), which the Seatbelt denies; the sandbox wrappers
   export `TREEFMT_NO_CACHE=1` (and redirect `XDG_CACHE_HOME` to the granted
   cache dir), so `nix fmt -- --fail-on-change` works unmodified inside the
   sandbox.
-- **OpenCode Cabal state is isolated.** The OpenCode wrapper sets `CABAL_DIR`
-  to `~/.cache/opencode/cabal`, an existing read/write sandbox tree. Cabal can
-  therefore create its config, download cache and compiled package store
-  without reading or modifying the user's `~/.config/cabal`, `~/.cache/cabal`
-  or `~/.local/state/cabal`. The wrapper creates or narrowly migrates the
-  isolated config to use `https://hackage.haskell.org/`; the profile permits
-  DNS TCP/UDP 53 for GHC's `res_query(3)` resolver path and `/dev/fd` for
-  Nixpkgs compiler-wrapper process substitution.
+- **Package-manager state is the project's concern, not nix-config's.** The
+  sandbox only denies the user environment; it does not redirect individual
+  development package managers (Cargo, Cabal, Go, npm, …). Such tools default
+  to the user home (`~/.cargo`, `~/.cabal`, `~/.cache`, `~/.local`, …), which
+  `cloud-restricted.sb` does not grant, so a project that needs them must set
+  its own project-local state (e.g. `CARGO_HOME`/`CABAL_DIR` in its devShell
+  or `direnv`). Keeping tool-specific policy in each project avoids baking one
+  project's conventions into the shared agent configuration. (The profile
+  still grants DNS TCP/UDP 53 for GHC's `res_query(3)` resolver path and
+  `/dev/fd` for Nixpkgs compiler-wrapper process substitution, which dev
+  builds generally need.)
 - **Client is the pinned nixpkgs `nix`, baked into the shim at deployment.**
   home-manager renders the guard shim with `${pkgs.nix}`'s path and version
   embedded, so the sandbox cannot repoint the shim's real binary through the
