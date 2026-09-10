@@ -13,6 +13,7 @@
   git,
   gh,
   _1password-cli,
+  coreutils,
 }:
 let
   # Same dedicated-credential provisioning as the opencode wrapper: the 1Password
@@ -299,6 +300,12 @@ writeShellScriptBin "claude" ''
           fi
       fi
   fi
+
+  # Home Manager may expose these as chained out-of-store symlinks. Pass
+  # only the resolved managed inputs instead of allowing their repository.
+  AGENT_CONFIG_FILE="$(${coreutils}/bin/realpath "$AGENT_CONFIG_FILE")"
+  AGENT_COMMANDS_DIR="$(${coreutils}/bin/realpath "$AGENT_COMMANDS_DIR")"
+  AGENT_SKILLS_DIR="$(${coreutils}/bin/realpath "$AGENT_SKILLS_DIR")"
 
   case " $* " in
       *" --version "*|*" --help "*|*" -h "*) ;;
