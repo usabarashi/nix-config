@@ -34,10 +34,10 @@ Deny-default profile:
   accept only `*`/`localhost`, which covers the whole loopback range) so dev
   servers can be started inside the sandbox and reached via `curl`/browser on
   the same host; nothing accepts connections from outside the loopback
-  interface. `gh` and `curl` are executable
-  (other remote-capable tools such as `ssh`/`wget`/`git-remote-https` are
-  denied by execute-list). Note this does not prevent arbitrary executables
-  from sending data over HTTPS or DNS.
+  interface. `gh` and `curl` are executable, as is the git HTTP(S) remote
+  helper that `git fetch` needs (other remote-capable tools such as
+  `ssh`/`wget`/`git-remote-ssh` are denied by execute-list). Note this does not
+  prevent arbitrary executables from sending data over HTTPS or DNS.
 - **Processes**: `process-fork`/`process-exec` plus `process-info*`
   (setpriority/setpgid), so shells can background jobs with `&`/`nohup` (zsh's
   "nice(5) failed" otherwise). Signals are allowed only to processes in the
@@ -57,6 +57,18 @@ Deny-default profile:
     wrapper's EXIT trap; for claude, by a tiny C supervisor); a SIGKILLed
     wrapper may leave it behind until the OS cleans the system temp area —
     timing is not guaranteed.
+  - **`git fetch` is allowed and authenticated with the agent PAT.** The
+    `git-agent-guard` shim no longer denies `fetch`, and the profile permits the
+    HTTPS remote helper — both `git-remote-https` and its symlink target
+    `git-remote-http`, because Seatbelt matches the resolved path. The wrappers
+    export command-scope git configuration that resets the credential-helper
+    list (the host git system config otherwise selects `osxkeychain`) and binds
+    `github.com` to `gh auth git-credential` against the staged disposable
+    config, with `GIT_TERMINAL_PROMPT=0` and no askpass fallback. `https` is the
+    only allowed git transport (`GIT_ALLOW_PROTOCOL`), so the permitted HTTP
+    helper cannot be used in plaintext. `fetch` can still update remote-tracking
+    refs and, with an explicit `src:dst` refspec, local refs; the guard remains
+    friction, not a boundary.
   - **Fail-closed**: if the PAT cannot be provisioned (item missing, `op` not
     signed in, malformed token), the cloud session refuses to start. Set
     `AGENT_GH_ALLOW_UNAUTHENTICATED=1` to continue without GitHub instead.

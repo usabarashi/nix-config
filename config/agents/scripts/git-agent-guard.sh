@@ -2,10 +2,11 @@
 # git-agent-guard: a `git` shim placed FIRST on the agent-sandbox PATH.
 #
 # Agent sessions are granted read/write on the current project, so a naive
-# `git commit` would succeed even though the session's seatbelt already blocks
-# the network path to any remote and hides the user's signing identity. This
-# shim turns commit/history mutations into a loud failure inside agent
-# sessions instead of leaving them to be discovered at push time.
+# `git commit` would succeed even though the session hides the user's signing
+# identity and is bound to a dedicated, read-only GitHub credential. This shim
+# turns commit/history mutations into a loud failure inside agent sessions
+# instead of leaving them to be discovered at push time. `git fetch` is
+# deliberately allowed (a network read the PR skills need); see the deny list.
 #
 # This is friction, not a security boundary: a model executing arbitrary code
 # as the user can craft a commit through other means (e.g. invoking the store
@@ -122,12 +123,18 @@ fi
 #    state. Intentional conservative superset of the agents' own permission
 #    denylists (Claude denies branch/checkout/switch; an agent that merges or
 #    rebases is just as autonomous as one that commits directly).
+#
+#    `fetch` is intentionally NOT denied: the PR skills fetch to diff against
+#    the base branch, and the seatbelt routes it over HTTPS with the dedicated
+#    read-only GitHub PAT. It can still update remote-tracking refs (and, with
+#    an explicit `src:dst` refspec, local refs); this guard is friction, so the
+#    agents' permission configuration remains the real wall.
 # ---------------------------------------------------------------------------
 case "$cmd" in
   commit | push | commit-tree | update-ref | replace | notes | tag \
   | reset | restore | clean | stash | gc | prune | repack | maintenance \
   | filter-branch | merge | rebase | cherry-pick | revert | am | pull \
-  | checkout | switch | branch | fast-import | fetch | symbolic-ref)
+  | checkout | switch | branch | fast-import | symbolic-ref)
     echo "error: git-agent-guard: '$cmd' is not allowed in agent sessions." >&2
     echo >&2
     echo "  AI agents may edit files but must not create commits, rewrite" >&2
@@ -141,14 +148,16 @@ case "$cmd" in
 esac
 
 # ---------------------------------------------------------------------------
-# 5. Read-only commands agents legitimately need; skipped for the alias check
-#    so pre-existing aliases on those names never false-block.
+# 5. Commands agents legitimately need; skipped for the alias check so a stray
+#    `alias.x` on these names never false-blocks. (git ignores an alias that
+#    shadows a builtin, so skipping the check here cannot enable alias
+#    expansion.) `fetch` belongs here now that section 4 allows it.
 # ---------------------------------------------------------------------------
 case "$cmd" in
   status | diff | log | show | grep | shortlog | blame | whatchanged \
   | rev-parse | rev-list | ls-files | ls-tree | cat-file | for-each-ref \
   | verify-commit | verify-tag | version | help | config \
-  | clone | init | apply | archive | describe | fsck) ;;
+  | clone | init | apply | archive | describe | fsck | fetch) ;;
   *)
     # Repository-local aliases: a stale or adversarial `alias.x` for a
     # non-safe subcommand could expand to anything (including `!` shell

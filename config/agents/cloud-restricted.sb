@@ -9,9 +9,17 @@
 ;; Seatbelt. The `nix` PATH shim is friction only, not a security boundary.
 (deny default)
 
-;; Block commands that can directly access remotes, except gh and curl which
-;; are permitted for GitHub API interaction over HTTPS. This is defense in
-;; depth; network access below is also limited to HTTPS, DNS, and loopback.
+;; Block commands that can directly access remotes, except `gh` and `curl`
+;; (GitHub API over HTTPS) and the git HTTP(S) remote helper, which `git fetch`
+;; needs. This is defense in depth; network access below is also limited to
+;; HTTPS, DNS, and loopback. The git remote helper is intentionally NOT exec-
+;; denied: `git fetch` is the one allowed network git operation, and the
+;; wrappers bind GitHub HTTPS auth to the dedicated read-only agent PAT (via
+;; GIT_CONFIG_* + `gh auth git-credential`) rather than the personal Keychain,
+;; and pin `GIT_ALLOW_PROTOCOL=https` so the helper cannot be used for plaintext
+;; HTTP. Note `git-remote-https` is a symlink to `git-remote-http`, and Seatbelt
+;; matches the RESOLVED path, so both names must stay exec-allowed. SSH git
+;; remains denied (`git-remote-ssh` below, and no outbound port 22).
 ;; Also block the 1Password CLI (`op` and its helpers): its absolute Nix-store
 ;; path must not
 ;; be exec-able inside the sandbox even though the wrapper provisions the
@@ -34,7 +42,7 @@
 ;; of the multi-call `nix` binary or speaking the daemon protocol bypasses the
 ;; shim entirely (documented in README).
 (deny process-exec
-  (regex #"/(ssh|scp|sftp|wget|nc|ncat|netcat|ftp|rsync|git-remote-http|git-remote-https|git-remote-ssh|op|op-please|op-http-call|nix-store|nix-instantiate|nix-env|nix-collect-garbage|nix-channel|nix-build|nix-shell|nix-copy-closure|darwin-rebuild|home-manager)$"))
+  (regex #"/(ssh|scp|sftp|wget|nc|ncat|netcat|ftp|rsync|git-remote-ssh|op|op-please|op-http-call|nix-store|nix-instantiate|nix-env|nix-collect-garbage|nix-channel|nix-build|nix-shell|nix-copy-closure|darwin-rebuild|home-manager)$"))
 (allow process-exec
        process-fork)
 ;; Job control and process self-management: shells backgrounding jobs with
@@ -136,7 +144,12 @@
   ;; per-invocation temp dir (GH_CONFIG_DIR). Personal git configuration
   ;; (gh hosts, ~/.gitconfig, ~/.config/git — identity, credential helper,
   ;; signing keys) is deliberately NOT granted, so the agent's gh/git have no
-  ;; readable path to the personal GitHub identity.
+  ;; readable path to the personal GitHub identity. `git fetch` is instead
+  ;; authenticated through the staged PAT: the wrappers export command-scope
+  ;; GIT_CONFIG_* that resets the helper list (the nixpkgs git system config
+  ;; sets credential.helper=osxkeychain) and binds github.com to
+  ;; `gh auth git-credential` with GH_CONFIG_DIR pointing at the disposable
+  ;; config, plus GIT_TERMINAL_PROMPT=0 / GIT_ALLOW_PROTOCOL=https.
   ;; Claude Code global state file (~/.claude.json: settings and MCP wiring such
   ;; as Serena), read/write. Only the claude wrapper passes its real path; the
   ;; opencode wrapper passes an inert path inside its own state dir so this
