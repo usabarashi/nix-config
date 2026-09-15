@@ -878,6 +878,37 @@ writeShellScriptBin "opencode" ''
           fi
       fi
 
+      # Git over HTTPS authenticates with the dedicated read-only GitHub PAT,
+      # never the personal Keychain credential. The nixpkgs git system config
+      # sets credential.helper=osxkeychain; command-scope config (GIT_CONFIG_*)
+      # resets that list and binds github.com to `gh auth git-credential`, with
+      # GH_CONFIG_DIR pointing at the disposable staged config. This is the only
+      # credential path for the fetch transport the profile allows
+      # (git-remote-https -> git-remote-http): the personal ~/.gitconfig and
+      # ~/.config/git stay unreadable, and GIT_TERMINAL_PROMPT=0 plus the
+      # askpass scrub prevent a prompt fallback to the personal identity.
+      # GIT_ALLOW_PROTOCOL keeps the exec-allowed HTTP remote helper from being
+      # used for plaintext HTTP. When PAT provisioning was skipped or failed
+      # (informational args, or AGENT_GH_ALLOW_UNAUTHENTICATED=1), the helper is
+      # a failing command so git fetch cannot silently fall back to `gh`'s
+      # Keychain lookup and authenticate as the personal account.
+      if [ "''${GH_PROVISIONED:-0}" = "1" ]; then
+          GIT_GH_HELPER="!${ghBin} auth git-credential"
+      else
+          GIT_GH_HELPER="!false"
+      fi
+      export GIT_TERMINAL_PROMPT=0
+      export GIT_ALLOW_PROTOCOL=https
+      # GIT_ASKPASS must be set EMPTY, not unset: when unset, git falls back to
+      # core.askPass and SSH_ASKPASS; an empty value disables askpass entirely.
+      export GIT_ASKPASS=
+      unset GIT_CONFIG_PARAMETERS SSH_ASKPASS
+      export GIT_CONFIG_COUNT=2
+      export GIT_CONFIG_KEY_0=credential.helper
+      export GIT_CONFIG_VALUE_0=
+      export GIT_CONFIG_KEY_1=credential.https://github.com.helper
+      export GIT_CONFIG_VALUE_1="$GIT_GH_HELPER"
+
       # Home Manager may expose these as chained out-of-store symlinks. Pass
       # only the resolved managed inputs instead of allowing their repository.
       AGENT_CONFIG_FILE="$(realpath "$OPENCODE_CONFIG_FILE")"
