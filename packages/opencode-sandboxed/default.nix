@@ -899,7 +899,10 @@ writeShellScriptBin "opencode" ''
       fi
       export GIT_TERMINAL_PROMPT=0
       export GIT_ALLOW_PROTOCOL=https
-      unset GIT_CONFIG_PARAMETERS GIT_ASKPASS SSH_ASKPASS
+      # GIT_ASKPASS must be set EMPTY, not unset: when unset, git falls back to
+      # core.askPass and SSH_ASKPASS; an empty value disables askpass entirely.
+      export GIT_ASKPASS=
+      unset GIT_CONFIG_PARAMETERS SSH_ASKPASS
       export GIT_CONFIG_COUNT=2
       export GIT_CONFIG_KEY_0=credential.helper
       export GIT_CONFIG_VALUE_0=
