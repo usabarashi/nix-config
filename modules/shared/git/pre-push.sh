@@ -3,12 +3,15 @@
 # core.hooksPath (~/.config/git/hooks/pre-push). Runs on every push from
 # every repository on this machine, before anything is sent to the remote.
 #
-# Local enforcement boundary: no commit may leave this machine without a
-# valid SSH signature (verified against gpg.ssh.allowedSignersFile). This
-# catches every bypass at commit time, including `--no-gpg-sign`. The only
-# escape hatch is `git push --no-verify`, which cannot be blocked from inside
-# hooks — that is what GitHub's "Require signed commits" branch rule exists
-# for.
+# Local enforcement boundary: no commit may leave this machine without ANY
+# signature attached. This only guards against fully unsigned commits (e.g.
+# a coding agent bypassing commit signing) — it does not verify signer
+# identity, so a signature from a key outside gpg.ssh.allowedSignersFile, or
+# even one git cannot check at all (different signing scheme, missing key),
+# still passes. Identity verification is GitHub's job (branch protection).
+# The only escape hatch is `git push --no-verify`, which cannot be blocked
+# from inside hooks — that is what GitHub's "Require signed commits" branch
+# rule exists for.
 set -eu
 
 # Buffer stdin first: regardless of what the repository's own pre-push hook
@@ -79,10 +82,14 @@ while read -r local_ref local_sha remote_ref remote_sha; do
     reject "$local_ref" "could not verify signatures for $local_ref:" "$log_out"
   fi
 
-  # %G? => G: good / U: good but unknown signer / N: no signature / ...
-  # U is rejected too: signing with a key outside allowed_signers is not
-  # something we should propagate silently.
-  unsigned=$(printf '%s\n' "$log_out" | grep -v '^G ' || true)
+  # %G? => G: good / U: good but unknown signer / X/Y/R: good but
+  # expired / expired key / revoked / B: bad signature / E: signature
+  # present but could not be checked (e.g. different signing scheme,
+  # missing key — this is where a GitHub-signed squash-merge commit lands
+  # when the local git config only knows SSH signatures) / N: no signature
+  # at all. Only N is rejected — this hook enforces "a signature exists",
+  # not "the signature is valid" or "the signer is known".
+  unsigned=$(printf '%s\n' "$log_out" | grep '^N ' || true)
 
   if [ -n "$unsigned" ]; then
     reject "$local_ref" "$unsigned"
