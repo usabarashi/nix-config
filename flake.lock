@@ -213,6 +213,22 @@
         "type": "github"
       }
     },
+    "quintNixpkgs": {
+      "locked": {
+        "lastModified": 1789960332,
+        "narHash": "sha256-MQ5my6vvo0z2iVQcKqrysutFWvsNw3/ynNxzjJon4yc=",
+        "owner": "NixOS",
+        "repo": "nixpkgs",
+        "rev": "35e212742ceab4ae1dcfbfd9039a39215c816e8e",
+        "type": "github"
+      },
+      "original": {
+        "owner": "NixOS",
+        "repo": "nixpkgs",
+        "rev": "35e212742ceab4ae1dcfbfd9039a39215c816e8e",
+        "type": "github"
+      }
+    },
     "root": {
       "inputs": {
         "flake-utils": "flake-utils",
@@ -251,11 +267,11 @@
         "uv2nix": "uv2nix"
       },
       "locked": {
-        "lastModified": 1785401039,
-        "narHash": "sha256-GKuqZueDX2oewucKUhN4q/0Y36THDrc9Ex89mEHpIZE=",
+        "lastModified": 1785593678,
+        "narHash": "sha256-QveKIMNWwzw9uaBcW0sEOG+wslYbU22Cn5/bZlAEqI4=",
         "owner": "oraios",
         "repo": "serena",
-        "rev": "dd12fa032f473a53595763b8d731817e19c15475",
+        "rev": "c7dbe3bd1198cf451bf7aa8fdeeab88571fa3a6e",
         "type": "github"
       },
       "original": {
@@ -339,14 +355,15 @@
         "crane": "crane",
         "fenix": "fenix",
         "flake-utils": "flake-utils_3",
-        "nixpkgs": "nixpkgs_2"
+        "nixpkgs": "nixpkgs_2",
+        "quintNixpkgs": "quintNixpkgs"
       },
       "locked": {
-        "lastModified": 1776782920,
-        "narHash": "sha256-ioSxbfX2yb+l/bvUp0tswjLXO4cNUjzpBZcPoGGlr1A=",
+        "lastModified": 1790114660,
+        "narHash": "sha256-3WqfsG+/TQ3BUocorW32nhKH1O72kudeDz5E9EvFR5k=",
         "owner": "usabarashi",
         "repo": "voicevox-cli",
-        "rev": "00832e845442760349e5b2f0bf20252f7e76e8b0",
+        "rev": "bc0f4bc63ae7e12f91dda3c80f8159495414d418",
         "type": "github"
       },
       "original": {

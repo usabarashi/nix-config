@@ -222,14 +222,21 @@
 ;; Seatbelt accepts only "*" or "localhost" as a host filter. Restrict remote
 ;; transport to HTTPS plus DNS: Cabal/GHC uses res_query(3), which sends DNS
 ;; directly rather than exclusively using the mDNSResponder UNIX socket.
-;; Localhost is granted so local MCP servers (voicevox engine, Chrome DevTools,
-;; Slack) can reach their peers.
+;; Localhost is granted so local MCP servers (Chrome DevTools, Slack, the
+;; llama.cpp provider) can reach their peers.
 ;; The Nix daemon UNIX socket is granted so the Nix client can talk to the
 ;; daemon (accepted threat model: full trusted-user daemon authority).
+;; The voicevox MCP server reaches its speech daemon over a UNIX socket under
+;; ~/.local/state (the rest of the home directory stays unreadable). Connecting
+;; to a UNIX socket is a network-outbound operation on the socket node, so the
+;; literal path must be granted here. The daemon runs OUTSIDE the sandbox and
+;; must already be running: auto-starting it from inside would additionally
+;; require write access to the state dir and read access to the model tree.
 (allow network-outbound
   (literal "/private/var/run/mDNSResponder")
   (literal "/private/var/run/systemkeychaincheck.socket")
   (literal "/nix/var/nix/daemon-socket/socket")
+  (literal (string-append (param "HOME_DIR") "/.local/state/voicevox/voicevox-daemon.sock"))
   (remote tcp "*:53")
   (remote udp "*:53")
   (remote tcp "*:443")
@@ -276,4 +283,15 @@
   (global-name "com.apple.securityd.xpc")
   (global-name "com.apple.SystemConfiguration.configd")
   (global-name "com.apple.trustd.agent")
-  (global-name "com.apple.system.opendirectoryd.libinfo"))
+  (global-name "com.apple.system.opendirectoryd.libinfo")
+  ;; Audio playback for the voicevox MCP `text_to_speech` tool, which renders
+  ;; speech and plays it on the host. The default backend shells out to
+  ;; `/usr/bin/afplay` (CoreAudio AudioQueue); without `audiohald` the queue
+  ;; fails to start, and without `AudioComponentRegistrar` the default output
+  ;; AudioUnit is not registered. `coreaudiod` is granted for the alternative
+  ;; in-process rodio backend (`VOICEVOX_LOW_LATENCY`), which enumerates the
+  ;; default device through the HAL. All three are local audio services that
+  ;; expose no user data.
+  (global-name "com.apple.audio.coreaudiod")
+  (global-name "com.apple.audio.audiohald")
+  (global-name "com.apple.audio.AudioComponentRegistrar"))
