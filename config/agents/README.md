@@ -8,7 +8,7 @@ Seatbelt (`sandbox-exec`) profiles for agent runtimes. Selected by the
 
 | Profile | Network | Filesystem | Use case |
 |---------|---------|------------|----------|
-| `cloud-restricted.sb` | Remote TCP 443 + DNS TCP/UDP 53 + loopback TCP (all ports) + Nix daemon UNIX socket | Project + OpenCode/Claude state/cache read-write; OS/Nix runtime and `/nix/store` read-only; everything else denied | Default for opencode and claude (paid cloud models: OpenAI Codex, Claude, normal opencode models) |
+| `cloud-restricted.sb` | Remote TCP 443 + DNS TCP/UDP 53 + loopback TCP (all ports) + Nix and voicevox daemon UNIX sockets | Project + OpenCode/Claude state/cache read-write; OS/Nix runtime and `/nix/store` read-only; everything else denied | Default for opencode and claude (paid cloud models: OpenAI Codex, Claude, normal opencode models) |
 | `free-tier.sb` | Remote TCP 443 + loopback TCP (all ports) | Project + dedicated free-tier data/state/cache read-write; immutable free-tier `auth.json` (read-only); NO Keychain, `~/.config/gh`, `~/.gitconfig`, paid auth | opencode free-tier cloud providers (Gemini/Groq/OpenRouter no-cost) |
 
 `strict-closed.sb` and the unrestricted `permissive-open.sb` have both been
@@ -27,8 +27,9 @@ Deny-default profile:
   area, so the sandboxed process can also read other same-machine temp files.
   Everything else (home directory, `~/.ssh`, `~/.codex`, …) is denied.
 - **Network**: outbound remote TCP port 443 and DNS TCP/UDP port 53, plus
-  unrestricted loopback TCP (`localhost:*`) so local MCP servers (VoiceVox
-  engine, Chrome DevTools, Slack) can reach their peers. Loopback **inbound**
+  unrestricted loopback TCP (`localhost:*`) so local MCP servers (Chrome
+  DevTools, Slack, the local llama.cpp provider) can reach their HTTP peers.
+  Loopback **inbound**
   is also granted
   (`network-bind` + `network-inbound` on `localhost`; seatbelt host filters
   accept only `*`/`localhost`, which covers the whole loopback range) so dev
@@ -191,6 +192,22 @@ unauthenticated with a warning on stderr. Side-effect-free invocations
   against a temporary user-data directory inside the wrapper's private temp
   dir. End-to-end browser automation (launch → page → DevTools protocol)
   should be validated once under the actual profile before relying on it.
+- **VoiceVox audio playback.** The `voicevox` MCP `text_to_speech` tool renders
+  speech and plays it on the host through CoreAudio: it shells out to
+  `/usr/bin/afplay` (or the in-process rodio backend when
+  `VOICEVOX_LOW_LATENCY` is set), writing a temp WAV into `AGENT_TMP_DIR`. The
+  profile therefore grants `mach-lookup` for `com.apple.audio.audiohald` and
+  `com.apple.audio.AudioComponentRegistrar` (required for the AudioQueue) plus
+  `com.apple.audio.coreaudiod` (default-device enumeration for the rodio
+  backend). Without these, `afplay` fails with `AudioQueueStart failed
+  (-66680)`. These are local audio services that expose no user data; playback
+  is the intended side effect of the tool. The server also talks to its speech
+  daemon over a UNIX socket under `~/.local/state/voicevox`, which is granted
+  as a network-outbound literal (synthesis would otherwise fail with `Operation
+  not permitted`). The daemon is detached and long-lived but is **not**
+  auto-started from inside the sandbox — that would need write access to the
+  state dir and read access to the model tree, so it must already be running
+  (any voicevox use outside the sandbox starts it).
 
 ### Nix access (daemon)
 
