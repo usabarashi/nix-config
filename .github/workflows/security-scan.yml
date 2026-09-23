@@ -53,7 +53,7 @@ jobs:
 
     - name: Generate SBOM
       run: |
-        nix run nixpkgs#sbomnix -- result \
+        nix run nixpkgs#sbomnix -- ./result \
           --cdx sbom.cdx.json \
           --spdx sbom.spdx.json \
           --csv sbom.csv
