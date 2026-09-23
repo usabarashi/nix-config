@@ -7,10 +7,10 @@
   stdenvNoCC,
 }:
 let
-  version = "2.1.236";
+  version = "2.1.280";
   src = fetchurl {
     url = "https://storage.googleapis.com/claude-code-dist-86c565f3-f756-42ad-8dfa-d59b1c096819/claude-code-releases/${version}/darwin-arm64/claude";
-    hash = "sha256-a8S6mS0nhsvwI3xEU8pTwf3ww7PYP/oAJcDYGQ7SeEg=";
+    hash = "sha256-OHpcXc27gVCF7fC695WR+diJTv6SK86vPXWxsIBVIp0=";
   };
 in
 stdenvNoCC.mkDerivation {

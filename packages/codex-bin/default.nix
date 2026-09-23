@@ -7,11 +7,11 @@
   stdenvNoCC,
 }:
 let
-  version = "0.154.0";
+  version = "0.156.0";
   asset = "codex-package-aarch64-apple-darwin";
   src = fetchurl {
     url = "https://github.com/openai/codex/releases/download/rust-v${version}/${asset}.tar.gz";
-    hash = "sha256-QnynTAJwSeDNGjMNYR5/jR/g8etqbYWsFvYbzyy0pIU=";
+    hash = "sha256-b3va0laT9GShRq1vJNR3rW+//ge2JVb4Ke5dOwT0j4s=";
   };
 in
 stdenvNoCC.mkDerivation {
