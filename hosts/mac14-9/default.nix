@@ -19,9 +19,14 @@
       NSGlobalDomain = {
         AppleICUForce24HourTime = true;
         AppleInterfaceStyle = "Dark";
+        ApplePressAndHoldEnabled = false;
         AppleShowAllExtensions = true;
         AppleShowAllFiles = true;
         NSAutomaticCapitalizationEnabled = false;
+        NSAutomaticPeriodSubstitutionEnabled = false;
+        NSAutomaticSpellingCorrectionEnabled = false;
+        NSAutomaticDashSubstitutionEnabled = false;
+        NSAutomaticQuoteSubstitutionEnabled = false;
       };
 
       SoftwareUpdate.AutomaticallyInstallMacOSUpdates = false;
@@ -49,6 +54,11 @@
         Show24Hour = true;
         ShowDate = 0; # Show the date
         ShowSeconds = true;
+      };
+
+      screencapture = {
+        location = "/Users/${userName}/Desktop";
+        target = "file";
       };
 
       screensaver.askForPassword = true;

@@ -47,11 +47,5 @@ in
         force = true;
       };
     };
-
-    activation.vscodeVimConfig = config.lib.dag.entryAfter [ "writeBoundary" ] ''
-      echo "Setting VSCode Vim Extension configuration..."
-      /usr/bin/defaults write com.microsoft.VSCode ApplePressAndHoldEnabled -bool false
-      /usr/bin/defaults write com.microsoft.VSCodeInsiders ApplePressAndHoldEnabled -bool false
-    '';
   };
 }
