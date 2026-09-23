@@ -60,6 +60,8 @@ in
 
       init.defaultBranch = "main";
       pull.ff = "only";
+
+      ghq.root = "${config.home.homeDirectory}/ghq";
     };
     ignores = [
       "*~"
