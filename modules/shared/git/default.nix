@@ -25,6 +25,7 @@ in
   home.packages = with pkgs; [
     gh
     ghq
+    git
     gitleaks
     customPackages.git-tools-bin
   ];
