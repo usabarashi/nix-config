@@ -659,8 +659,20 @@ writeShellScriptBin "opencode" ''
       # inherits this scrubbed environment.
       unset GH_TOKEN GITHUB_TOKEN GH_ENTERPRISE_TOKEN GITHUB_ENTERPRISE_TOKEN
 
-      mkdir -p "$CODEX_HOME_DIR"
+      umask 077
+      if ! mkdir -p "$CODEX_HOME_DIR"; then
+          echo "Error: failed to create Codex home at $CODEX_HOME_DIR" >&2
+          exit 1
+      fi
       CODEX_HOME_CANONICAL="$(cd "$CODEX_HOME_DIR" && pwd -P)"
+      if [ -z "$CODEX_HOME_CANONICAL" ]; then
+          echo "Error: failed to resolve Codex home at $CODEX_HOME_DIR" >&2
+          exit 1
+      fi
+      if ! chmod 700 "$CODEX_HOME_CANONICAL"; then
+          echo "Error: failed to secure Codex home at $CODEX_HOME_CANONICAL" >&2
+          exit 1
+      fi
       # second_opinion authenticates Codex from an isolated auth.json inside the
       # sandbox-writable CODEX_HOME rather than the login Keychain. The legacy
       # Keychain API rewrites the whole keychain database (a `.sb-<id>-<rand>`
@@ -669,14 +681,20 @@ writeShellScriptBin "opencode" ''
       # letting the sandboxed model corrupt the user's login keychain. Copying
       # the user's Codex auth.json on every launch also keeps the isolated
       # credential fresh (the former one-shot Keychain import went stale and
-      # was revoked by later interactive logins).
+      # was revoked by later interactive logins). Staging fails closed: a
+      # partial copy must never leave a stale or incomplete credential behind.
       if [ ! -r "$CODEX_AUTH_FILE" ]; then
           echo "Error: Codex auth not found at $CODEX_AUTH_FILE" >&2
           exit 1
       fi
-      umask 077
-      cp "$CODEX_AUTH_FILE" "$CODEX_HOME_CANONICAL/auth.json"
-      chmod 600 "$CODEX_HOME_CANONICAL/auth.json"
+      if ! cp "$CODEX_AUTH_FILE" "$CODEX_HOME_CANONICAL/auth.json"; then
+          echo "Error: failed to stage Codex auth at $CODEX_HOME_CANONICAL/auth.json" >&2
+          exit 1
+      fi
+      if ! chmod 600 "$CODEX_HOME_CANONICAL/auth.json"; then
+          echo "Error: failed to secure Codex auth at $CODEX_HOME_CANONICAL/auth.json" >&2
+          exit 1
+      fi
       export OPENCODE_CODEX_HOME="$CODEX_HOME_CANONICAL"
       export OPENCODE_CODEX_OUTER_SANDBOX="cloud-restricted"
 
