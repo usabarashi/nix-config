@@ -97,13 +97,18 @@ Deny-default profile:
     read Keychain items directly (still gated by each item's own ACL). The
     dedicated PAT bounds the *default* and *accidental* paths; these
     deliberate-override paths are defense-in-depth only.
-  - The Codex credential is imported (C helper, `codex-auth-keyring-import.c`)
-    into the login Keychain as a generic-password item whose ACL trusts only
-    the pinned Codex binary. `CODEX_HOME` points to an isolated cache dir
-    keyed by Codex version.
-  - Direct reads of `login.keychain-db` are permitted because
-    Security.framework requires it inside a Seatbelt sandbox; the Codex item
-    itself remains protected by the application-bound ACL.
+  - The second-opinion tool authenticates Codex from an isolated
+    `auth.json` copied from the user's `~/.codex/auth.json` into
+    `CODEX_HOME` (a cache dir keyed by Codex version) on every launch, with
+    `cli_auth_credentials_store="file"`. The login Keychain is deliberately
+    not used: the legacy Keychain API rewrites the whole keychain database (a
+    `.sb-<id>-<rand>` temp file plus an unlink/rename of `login.keychain-db`)
+    even on reads, which a read-only-Keychain Seatbelt profile cannot permit
+    without also letting the sandboxed model corrupt the user's login
+    keychain. Copying on every launch also keeps the isolated credential
+    fresh (a one-shot import went stale and was revoked by later interactive
+    logins). Trade-off: the sandboxed model can read its own Codex token file;
+    it still cannot reach other Keychain items, which stay out of the sandbox.
 
 ### Provisioning the GitHub agent PAT
 

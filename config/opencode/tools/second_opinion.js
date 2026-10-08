@@ -62,7 +62,11 @@ async function executeCodex(question, directory) {
         "--config",
         'approval_policy="never"',
         "--config",
-        'cli_auth_credentials_store="keyring"',
+        // The credential lives in an isolated auth.json copied into CODEX_HOME
+        // by the opencode wrapper. The login Keychain is intentionally not used:
+        // the legacy Keychain API rewrites the whole keychain database even on
+        // reads, which a read-only-Keychain Seatbelt profile cannot permit.
+        'cli_auth_credentials_store="file"',
         "--config",
         'shell_environment_policy.inherit="none"',
         "--config",
