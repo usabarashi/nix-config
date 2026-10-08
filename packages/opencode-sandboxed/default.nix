@@ -7,7 +7,6 @@
   codex-bin,
   coreutils,
   opencode-bin,
-  stdenv,
   writeShellScriptBin,
   procps,
   ripgrep,
@@ -25,22 +24,6 @@ let
   # the model cannot reach the user's vault session from inside the sandbox.
   opBin = "${_1password-cli}/bin/op";
   ghBin = "${gh}/bin/gh";
-  codexAuthKeyringImport = stdenv.mkDerivation {
-    pname = "codex-auth-keyring-import";
-    version = "1";
-    src = ./codex-auth-keyring-import.c;
-    dontUnpack = true;
-    buildPhase = ''
-      $CC -Wall -Wextra -Werror -Wno-deprecated-declarations -O2 "$src" \
-        -framework CoreFoundation \
-        -framework Security \
-        -o codex-auth-keyring-import
-    '';
-    installPhase = ''
-      install -Dm755 codex-auth-keyring-import \
-        "$out/bin/codex-auth-keyring-import"
-    '';
-  };
   # Free-tier PATH: store-resolved components only. Deliberately excludes gh,
   # codex (remote-facing tools the free-tier model must not invoke) and git
   # itself: a low-trust model gets no local git at all rather than a sandbox
@@ -80,8 +63,6 @@ writeShellScriptBin "opencode" ''
   AGENT_AUX_STATE_DIR="$HOME/.local/state/opencode"
   AGENT_CACHE_DIR="$HOME/.cache/opencode"
   CODEX_AUTH_FILE="$HOME/.codex/auth.json"
-  CODEX_BIN="${codex-bin}/bin/codex"
-  CODEX_AUTH_KEYRING_IMPORT="${codexAuthKeyringImport}/bin/codex-auth-keyring-import"
   CODEX_HOME_DIR="$AGENT_CACHE_DIR/second-opinion-${codex-bin.version}"
   AGENT_TMP_DIR=""
   LAUNCH_DIR="$(pwd -P)"
@@ -678,25 +659,41 @@ writeShellScriptBin "opencode" ''
       # inherits this scrubbed environment.
       unset GH_TOKEN GITHUB_TOKEN GH_ENTERPRISE_TOKEN GITHUB_ENTERPRISE_TOKEN
 
-      mkdir -p "$CODEX_HOME_DIR"
+      umask 077
+      if ! mkdir -p "$CODEX_HOME_DIR"; then
+          echo "Error: failed to create Codex home at $CODEX_HOME_DIR" >&2
+          exit 1
+      fi
       CODEX_HOME_CANONICAL="$(cd "$CODEX_HOME_DIR" && pwd -P)"
-      CODEX_KEYRING_HASH="$(printf '%s' "$CODEX_HOME_CANONICAL" | /usr/bin/shasum -a 256 | /usr/bin/cut -c1-16)"
-      CODEX_KEYRING_ACCOUNT="cli|$CODEX_KEYRING_HASH"
-      if ! /usr/bin/security find-generic-password \
-          -s "Codex Auth" \
-          -a "$CODEX_KEYRING_ACCOUNT" >/dev/null 2>&1; then
-          if [ ! -r "$CODEX_AUTH_FILE" ]; then
-              echo "Error: Codex auth not found at $CODEX_AUTH_FILE" >&2
-              exit 1
-          fi
-          if ! jq -c . "$CODEX_AUTH_FILE" \
-              | "$CODEX_AUTH_KEYRING_IMPORT" \
-                  "Codex Auth" \
-                  "$CODEX_KEYRING_ACCOUNT" \
-                  "$CODEX_BIN"; then
-              echo "Error: Failed to initialize the Codex-only Keychain credential" >&2
-              exit 1
-          fi
+      if [ -z "$CODEX_HOME_CANONICAL" ]; then
+          echo "Error: failed to resolve Codex home at $CODEX_HOME_DIR" >&2
+          exit 1
+      fi
+      if ! chmod 700 "$CODEX_HOME_CANONICAL"; then
+          echo "Error: failed to secure Codex home at $CODEX_HOME_CANONICAL" >&2
+          exit 1
+      fi
+      # second_opinion authenticates Codex from an isolated auth.json inside the
+      # sandbox-writable CODEX_HOME rather than the login Keychain. The legacy
+      # Keychain API rewrites the whole keychain database (a `.sb-<id>-<rand>`
+      # temp file plus an unlink/rename of login.keychain-db) even on reads,
+      # which a read-only-Keychain Seatbelt profile cannot permit without also
+      # letting the sandboxed model corrupt the user's login keychain. Copying
+      # the user's Codex auth.json on every launch also keeps the isolated
+      # credential fresh (the former one-shot Keychain import went stale and
+      # was revoked by later interactive logins). Staging fails closed: a
+      # partial copy must never leave a stale or incomplete credential behind.
+      if [ ! -r "$CODEX_AUTH_FILE" ]; then
+          echo "Error: Codex auth not found at $CODEX_AUTH_FILE" >&2
+          exit 1
+      fi
+      if ! cp "$CODEX_AUTH_FILE" "$CODEX_HOME_CANONICAL/auth.json"; then
+          echo "Error: failed to stage Codex auth at $CODEX_HOME_CANONICAL/auth.json" >&2
+          exit 1
+      fi
+      if ! chmod 600 "$CODEX_HOME_CANONICAL/auth.json"; then
+          echo "Error: failed to secure Codex auth at $CODEX_HOME_CANONICAL/auth.json" >&2
+          exit 1
       fi
       export OPENCODE_CODEX_HOME="$CODEX_HOME_CANONICAL"
       export OPENCODE_CODEX_OUTER_SANDBOX="cloud-restricted"

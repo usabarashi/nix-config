@@ -165,13 +165,7 @@
   (literal (string-append (param "HOME_DIR") "/Library/Preferences/.GlobalPreferences_m.plist"))
   (regex (string-append
     "^" (param "HOME_DIR")
-    "/Library/Preferences/ByHost/\\.GlobalPreferences\\.[^/]+\\.plist$"))
-  ;; Security.framework reads the encrypted login Keychain database directly
-  ;; inside a Seatbelt sandbox; removing this breaks Codex keychain retrieval
-  ;; even though the query itself is mediated by securityd. The database is
-  ;; encrypted, and the Codex item is additionally protected by an
-  ;; application-bound ACL that trusts only the pinned Codex binary.
-  (literal (string-append (param "HOME_DIR") "/Library/Keychains/login.keychain-db")))
+    "/Library/Preferences/ByHost/\\.GlobalPreferences\\.[^/]+\\.plist$")))
 (allow file-read-metadata
   (literal (string-append (param "HOME_DIR") "/Library"))
   (literal (string-append (param "HOME_DIR") "/Library/Keychains")))
@@ -234,7 +228,6 @@
 ;; require write access to the state dir and read access to the model tree.
 (allow network-outbound
   (literal "/private/var/run/mDNSResponder")
-  (literal "/private/var/run/systemkeychaincheck.socket")
   (literal "/nix/var/nix/daemon-socket/socket")
   (literal (string-append (param "HOME_DIR") "/.local/state/voicevox/voicevox-daemon.sock"))
   (remote tcp "*:53")
@@ -256,12 +249,7 @@
   (local tcp "localhost:*")
   (remote tcp "localhost:*"))
 
-;; Security.framework checks Keychain readiness through this marker/socket and
-;; uses notification shared memory. The encrypted login Keychain database is
-;; read-only; its Codex item still requires the item ACL enforced by securityd.
-(allow file-read-metadata
-  (literal "/private/var/run/systemkeychaincheck.done")
-  (literal "/private/var/run/systemkeychaincheck.socket"))
+;; Security.framework uses notification shared memory.
 (allow user-preference-read
   (preference-domain "com.apple.security")
   (preference-domain "com.apple.security-common"))
@@ -276,11 +264,6 @@
 (allow mach-lookup
   (global-name "com.apple.logd")
   (global-name "com.apple.system.notification_center")
-  ;; Codex credentials are held in a Keychain item whose ACL trusts only the
-  ;; pinned Codex binary, rather than in a sandbox-readable auth.json file.
-  (global-name "com.apple.SecurityServer")
-  (global-name "com.apple.securityd")
-  (global-name "com.apple.securityd.xpc")
   (global-name "com.apple.SystemConfiguration.configd")
   (global-name "com.apple.trustd.agent")
   (global-name "com.apple.system.opendirectoryd.libinfo")
