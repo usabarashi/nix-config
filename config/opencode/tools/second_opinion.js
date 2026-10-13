@@ -28,13 +28,11 @@ export default {
 };
 
 async function executeCodex(question, directory) {
-  if (process.env.OPENCODE_CODEX_OUTER_SANDBOX !== "cloud-restricted") {
-    return "second opinion unavailable: OpenCode is not running inside the cloud-restricted outer sandbox";
+  const launch = resolveCodexLaunch();
+  if (typeof launch === "string") {
+    return `second opinion unavailable: ${launch}`;
   }
-  const codexHome = process.env.OPENCODE_CODEX_HOME;
-  if (!codexHome) {
-    return "second opinion unavailable: isolated Codex home is not configured";
-  }
+  const { codexHome, codexSandbox } = launch;
 
   const timeoutMs = readTimeout();
   const prompt = [
@@ -62,8 +60,9 @@ async function executeCodex(question, directory) {
         "--config",
         'approval_policy="never"',
         "--config",
-        // The credential lives in an isolated auth.json copied into CODEX_HOME
-        // by the opencode wrapper. The login Keychain is intentionally not used:
+        // The credential is read from an auth.json file: the isolated copy the
+        // wrapper stages under cloud-restricted, or the user's own ~/.codex
+        // under --no-sandbox. The login Keychain is intentionally not used:
         // the legacy Keychain API rewrites the whole keychain database even on
         // reads, which a read-only-Keychain Seatbelt profile cannot permit.
         'cli_auth_credentials_store="file"',
@@ -72,14 +71,11 @@ async function executeCodex(question, directory) {
         "--config",
         'web_search="live"',
         "--sandbox",
-        "danger-full-access",
+        codexSandbox,
         prompt,
       ],
       cwd: directory,
-      env: {
-        ...process.env,
-        CODEX_HOME: codexHome,
-      },
+      env: childEnvironment(codexHome),
       stdin: "ignore",
       stdout: "pipe",
       stderr: "pipe",
@@ -119,6 +115,51 @@ async function executeCodex(question, directory) {
   } finally {
     clearTimeout(timer);
   }
+}
+
+// Resolve how Codex should be launched for the current opencode session.
+// The OPENCODE_CODEX_OUTER_SANDBOX marker is a trusted launch assertion set by
+// the wrapper, not proof of containment. Returns an error string when the
+// session is unsupported, otherwise { codexHome, codexSandbox }.
+function resolveCodexLaunch() {
+  const outerSandbox = process.env.OPENCODE_CODEX_OUTER_SANDBOX;
+  const isolatedHome = process.env.OPENCODE_CODEX_HOME;
+
+  if (outerSandbox === "cloud-restricted") {
+    // The wrapper staged an isolated credential and the cloud-restricted
+    // Seatbelt already contains the whole process tree, so Codex relies on
+    // that outer boundary rather than applying its own.
+    if (!isolatedHome) {
+      return "isolated Codex home is not configured";
+    }
+    return { codexHome: isolatedHome, codexSandbox: "danger-full-access" };
+  }
+
+  if (outerSandbox === "none") {
+    // No outer Seatbelt is known to contain this process, so do not trust an
+    // inherited credential path as evidence of one, nor reuse it: pin a
+    // read-only inner sandbox that enforces the tool's non-mutating contract
+    // and read the user's own ~/.codex (an inherited CODEX_HOME is dropped so
+    // a stale staging path cannot shadow it). A nested launch inside a
+    // sandboxed session keeps the cloud-restricted marker instead (see the
+    // wrapper) and never reaches this branch.
+    return { codexHome: undefined, codexSandbox: "read-only" };
+  }
+
+  return "OpenCode is not running under a supported sandbox (cloud-restricted or --no-sandbox)";
+}
+
+// An isolated home staged by a wrapper is used as-is; otherwise drop any
+// inherited CODEX_HOME so Codex resolves its default $HOME/.codex (the
+// credential source the wrapper itself copies for cloud-restricted).
+function childEnvironment(codexHome) {
+  const env = { ...process.env };
+  if (codexHome) {
+    env.CODEX_HOME = codexHome;
+  } else {
+    delete env.CODEX_HOME;
+  }
+  return env;
 }
 
 function readTimeout() {

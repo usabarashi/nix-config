@@ -186,6 +186,16 @@ writeShellScriptBin "opencode" ''
           echo "Error: --no-sandbox is not permitted with the free-tier seatbelt" >&2
           exit 2
       fi
+      # No outer Seatbelt is added here, but the process may already be inside
+      # one: a nested --no-sandbox launch from an already-sandboxed session
+      # inherits that session's marker and staged Codex home. Preserve both in
+      # that case so the second_opinion tool knows the outer Seatbelt still
+      # contains the process. Otherwise mark a genuine no-sandbox launch, which
+      # the tool treats as uncontained (read-only inner Codex sandbox).
+      if [ "''${OPENCODE_CODEX_OUTER_SANDBOX:-}" != "cloud-restricted" ] \
+          || [ -z "''${OPENCODE_CODEX_HOME:-}" ]; then
+          export OPENCODE_CODEX_OUTER_SANDBOX="none"
+      fi
       exec "$OPENCODE_BIN" "$@"
   fi
 
