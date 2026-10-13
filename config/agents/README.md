@@ -109,6 +109,19 @@ Deny-default profile:
     fresh (a one-shot import went stale and was revoked by later interactive
     logins). Trade-off: the sandboxed model can read its own Codex token file;
     it still cannot reach other Keychain items, which stay out of the sandbox.
+  - **`--no-sandbox` launches.** When no outer Seatbelt wraps the session, the
+    wrapper marks it `OPENCODE_CODEX_OUTER_SANDBOX="none"` and the tool reads
+    the user's own `~/.codex` (same file credential store; an inherited
+    `CODEX_HOME` is ignored), pinning Codex to an inner `read-only` sandbox so
+    the second opinion cannot write the workspace. This reuses the user's real
+    Codex credential, which Codex may refresh in place, and requires the
+    `~/.codex/auth.json` file store (a Keychain-only login will not
+    authenticate). A `--no-sandbox` launch nested inside a cloud-restricted
+    session preserves that inherited marker and staged home instead, so the
+    tool uses the outer Seatbelt as in the normal sandboxed path; the marker is
+    a trusted launch assertion set by the wrapper, not proof of containment. A
+    session with no marker (raw binary, `free-tier.sb`) still refuses to run
+    the tool.
 
 ### Provisioning the GitHub agent PAT
 
