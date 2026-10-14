@@ -1,0 +1,4 @@
+{
+  "executor": "opencode-go/deepseek-v4.1-flash",
+  "advisor": "openai/gpt-6-astra"
+}

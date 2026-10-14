@@ -1,0 +1,12 @@
+{
+  "$schema": "https://pi.dev/schemas/settings.schema.json",
+  "enableInstallTelemetry": false,
+  "enableAnalytics": false,
+  "defaultProvider": "groq",
+  "defaultModel": "llama-3.3-70b-versatile",
+  "enabledModels": [
+    "google/gemini-2.5-flash",
+    "groq/llama-3.3-70b-versatile",
+    "openrouter/meta-llama/llama-3.3-70b-instruct:free"
+  ]
+}

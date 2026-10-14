@@ -1,14 +1,14 @@
 # Agent sandbox profiles
 
 Seatbelt (`sandbox-exec`) profiles for agent runtimes. Selected by the
-`opencode` and `claude` wrappers via `--seatbelt <name>` (both default to
+`opencode`, `claude`, and `pi` wrappers via `--seatbelt <name>` (all default to
 `cloud-restricted`).
 
 ## Profiles
 
 | Profile | Network | Filesystem | Use case |
 |---------|---------|------------|----------|
-| `cloud-restricted.sb` | Remote TCP 443 + DNS TCP/UDP 53 + loopback TCP (all ports) + Nix and voicevox daemon UNIX sockets | Project + OpenCode/Claude state/cache read-write; OS/Nix runtime and `/nix/store` read-only; everything else denied | Default for opencode and claude (paid cloud models: OpenAI Codex, Claude, normal opencode models) |
+| `cloud-restricted.sb` | Remote TCP 443 + DNS TCP/UDP 53 + loopback TCP (all ports) + Nix and voicevox daemon UNIX sockets | Project + OpenCode/Claude/Pi state/cache read-write; OS/Nix runtime and `/nix/store` read-only; everything else denied | Default for opencode, claude, and pi (paid cloud models: OpenAI Codex, Claude, normal opencode models) |
 | `free-tier.sb` | Remote TCP 443 + loopback TCP (all ports) | Project + dedicated free-tier data/state/cache read-write; immutable free-tier `auth.json` (read-only); NO Keychain, `~/.config/gh`, `~/.gitconfig`, paid auth | opencode free-tier cloud providers (Gemini/Groq/OpenRouter no-cost) |
 
 `strict-closed.sb` and the unrestricted `permissive-open.sb` have both been
@@ -356,6 +356,40 @@ requires it to launch at all, unconditionally and regardless of auth method
 (see "Accepted tradeoffs" under `cloud-restricted.sb`); this is a property of
 the shared profile, so opencode sessions get the same allowance even though
 only Claude Code needs it.
+
+## Pi
+
+The `pi` wrapper (`packages/pi-sandboxed`) also defaults to
+`cloud-restricted.sb`. Differences from the opencode/claude wrappers:
+
+- Pi's config files (`settings.json`, `mcp.json`, `models.json`) and the
+  `skills/`, `prompts/`, `extensions/` directories are out-of-store symlinks
+  into this repo; the wrapper realpaths each managed input before launching,
+  because Seatbelt matches the RESOLVED path (a `subpath` grant does not follow
+  a symlink out of the granted tree). The repo-backed config is therefore
+  read-only inside the sandbox, while Pi's runtime state under `~/.pi/agent`
+  (`auth.json`, sessions, installed packages, logs) and `~/.cache/pi` are
+  read+write.
+- **Node.js/npm is confined to the wrapper's PATH** (`packages/pi-sandboxed`
+  adds `pkgs.nodejs_22`), so Pi's package installer can fetch provider
+  extensions (e.g. `@rahularya01/pi-cursor`) without adding Node to
+  nix-config-wide packages. The sandbox cannot read `~/.npmrc`, so the wrapper
+  pins the Takumi Guard registry and a writable npm cache through
+  `npm_config_registry` / `npm_config_cache`.
+- `AGENT_CLAUDE_JSON` is passed an inert path inside Pi's state dir.
+- GitHub access uses the same dedicated read-only agent PAT as opencode/claude:
+  the wrapper provisions it from 1Password into the ephemeral `GH_CONFIG_DIR`
+  (fail-closed; set `AGENT_GH_ALLOW_UNAUTHENTICATED=1` to opt out), `gh` is on
+  the sandbox PATH, inherited GitHub token environment variables are scrubbed,
+  and command-scope git config binds `github.com` to the staged PAT. `pi
+  --no-sandbox` runs the bare binary for one-time browser logins (`/login`,
+  Cursor).
+- `pi --seatbelt free-tier.sb` uses the low-trust free-tier profile (shared
+  with the opencode free tier): an isolated runtime root under
+  `~/.local/share/pi-free`, an independent minimal config (free-tier providers
+  plus the chrome-devtools MCP only), an `env -i` allowlist, and a
+  sandbox-immutable `auth.json` that must be provisioned outside the sandbox.
+  Node/npm is not exposed in free-tier sessions.
 
 ## free-tier.sb
 
