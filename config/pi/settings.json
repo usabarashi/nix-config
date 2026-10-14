@@ -1,0 +1,21 @@
+{
+  "$schema": "https://pi.dev/schemas/settings.schema.json",
+  "enableInstallTelemetry": false,
+  "enableAnalytics": false,
+  "defaultProvider": "opencode-go",
+  "defaultModel": "deepseek-v4.1-flash",
+  "defaultTools": [
+    "+codemode"
+  ],
+  "enabledModels": [
+    "opencode-go/*",
+    "openai/*",
+    "llamacpp-local/*",
+    "cursor/*"
+  ],
+  "packages": [
+    "npm:@rahularya01/pi-cursor@1.4.38",
+    "npm:pi-advisor-flow@0.13.2"
+  ],
+  "lastChangelogVersion": "1.2.0"
+}

@@ -1,0 +1,29 @@
+{
+  "$schema": "https://pi.dev/schemas/models.schema.json",
+  "providers": {
+    "llamacpp-local": {
+      "name": "llama.cpp (local)",
+      "baseUrl": "http://127.0.0.1:18080/v1",
+      "api": "openai-completions",
+      "apiKey": "llamacpp-local",
+      "models": [
+        {
+          "id": "qwen3.6-35b-a3b",
+          "name": "Qwen3.6 35B-A3B MoE UD-IQ4_NL (local)",
+          "reasoning": false,
+          "input": ["text"],
+          "contextWindow": 65536,
+          "maxTokens": 8192
+        },
+        {
+          "id": "gemma-4-26b-a4b",
+          "name": "Gemma 4 26B-A4B MoE UD-IQ4_NL (local)",
+          "reasoning": true,
+          "input": ["text"],
+          "contextWindow": 49152,
+          "maxTokens": 8192
+        }
+      ]
+    }
+  }
+}

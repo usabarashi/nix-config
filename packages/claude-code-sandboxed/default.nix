@@ -6,7 +6,7 @@
   cacert,
   claude-code-bin,
   writeShellScriptBin,
-  stdenv,
+  sandbox-supervisor,
   procps,
   ripgrep,
   jq,
@@ -21,22 +21,6 @@ let
   # PATH and cloud-restricted.sb denies it on the exec list.
   opBin = "${_1password-cli}/bin/op";
   ghBin = "${gh}/bin/gh";
-  # Minimal supervisor with explicit waitpid(2)/EINTR handling. The wrapper
-  # execs it INSTEAD of backgrounding sandbox-exec, which removes the shell
-  # signal/wait races (see sandbox-supervisor.c header). It also owns removal of
-  # the per-invocation temp dir after the sandboxed agent exits.
-  sandboxSupervisor = stdenv.mkDerivation {
-    pname = "sandbox-supervisor";
-    version = "1";
-    src = ./sandbox-supervisor.c;
-    dontUnpack = true;
-    buildPhase = ''
-      $CC -Wall -Wextra -Werror -O2 "$src" -o sandbox-supervisor
-    '';
-    installPhase = ''
-      install -Dm755 sandbox-supervisor "$out/bin/sandbox-supervisor"
-    '';
-  };
 in
 writeShellScriptBin "claude" ''
   export DISABLE_AUTOUPDATER=1
@@ -367,7 +351,7 @@ writeShellScriptBin "claude" ''
   # wait/trap races, and the supervisor removes AGENT_TMP_DIR only after the
   # sandboxed agent has actually exited (never while it is still running).
   # The EXIT trap in the wrapper handles abort paths before this exec.
-  exec "${sandboxSupervisor}/bin/sandbox-supervisor" \
+  exec "${sandbox-supervisor}/bin/sandbox-supervisor" \
       --cleanup "$AGENT_TMP_DIR" \
       -- /usr/bin/sandbox-exec -f "$SANDBOX_PROFILE_PATH" \
       -D TARGET_DIR="$TARGET_DIR" \

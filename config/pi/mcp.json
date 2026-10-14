@@ -1,0 +1,27 @@
+{
+  "mcpServers": {
+    "voicevox": {
+      "command": "voicevox-mcp-server",
+      "args": [],
+      "timeout": 120
+    },
+    "library": {
+      "url": "https://library.usabarashi.net/mcp",
+      "headers": {
+        "Authorization": "Bearer ${LIBRARY_API_KEY}"
+      },
+      "timeout": 120
+    },
+    "chrome-devtools": {
+      "command": "chrome-devtools-mcp",
+      "args": [
+        "--isolated",
+        "--headless",
+        "--channel=stable",
+        "--no-usage-statistics",
+        "--no-performance-crux"
+      ],
+      "timeout": 120
+    }
+  }
+}
