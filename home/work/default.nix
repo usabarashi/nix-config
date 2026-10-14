@@ -24,7 +24,6 @@
   ];
 
   imports = [
-    ../../modules/shared/agents-antigravity.nix
     ../../modules/shared/agents-claude-code.nix
     ../../modules/shared/container.nix
     ../../modules/shared/extra.nix

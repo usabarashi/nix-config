@@ -1,4 +1,10 @@
 {
+  "advisor": "openai/gpt-6-astra",
+  "advisorJevFilterEnabled": true,
+  "advisorJevTurnGateEveryTurns": 4,
+  "advisorJevTurnGateNoulThreshold": 0.8,
+  "advisorRedactSecrets": true,
   "executor": "opencode-go/deepseek-v4.1-flash",
-  "advisor": "openai/gpt-6-astra"
+  "advisorJevTransport": "typesafe",
+  "advisorOutcomeLogging": false
 }

@@ -53,9 +53,9 @@ let
     recursive = true;
   };
   # Only cloud-restricted.sb is made available to the claude wrapper (it is the
-  # shared default for both agents). Other profiles in config/agents (free-tier)
-  # require opencode-specific wrapper env/params and must not be selectable or
-  # advertised by `claude --list-seatbelts`.
+  # shared default). Other profiles in config/agents (free-tier) require
+  # pi-specific wrapper env/params and must not be selectable or advertised by
+  # `claude --list-seatbelts`.
   seatbeltProfileNames = [ "cloud-restricted.sb" ];
   seatbeltProfiles = builtins.listToAttrs (
     map (name: {
@@ -103,7 +103,8 @@ in
     ".claude/skills" = agentSkills;
     # git-agent-guard: plain-script git deny shim (config/agents/scripts/),
     # copied here because ~/.claude is the tree the cloud-restricted seatbelt
-    # grants the claude session. See agents-opencode.nix for the rationale.
+    # grants the claude session; a symlink into this repo would be unreadable
+    # when the agent runs in a project outside this checkout.
     ".claude/bin/git" = {
       text = builtins.readFile "${repoPath}/config/agents/scripts/git-agent-guard.sh";
       executable = true;

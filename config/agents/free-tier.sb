@@ -21,7 +21,7 @@
 ;; the primary control: permitted binaries, interpreters, and renamed copies
 ;; can still open HTTPS directly because network egress on *:443 is allowed.
 (deny process-exec
-  (regex #"/(ssh|scp|sftp|gh|curl|wget|nc|ncat|netcat|ftp|rsync|git-remote-http|git-remote-https|git-remote-ssh|codex)$"))
+  (regex #"/(ssh|scp|sftp|gh|curl|wget|nc|ncat|netcat|ftp|rsync|git-remote-http|git-remote-https|git-remote-ssh)$"))
 (allow process-exec
        process-fork)
 
@@ -79,8 +79,9 @@
 
 ;; The target directory is the only general-purpose filesystem tree visible to
 ;; the agent. The wrapper rejects any TARGET_DIR that is or contains a
-;; protected root ($HOME, ~/.config, ~/.local, ~/.ssh, ~/.codex, ~/.claude,
-;; managed roots, dedicated free-tier roots) before sandbox-exec.
+;; protected root ($HOME, ~/.config, ~/.local, ~/.ssh, ~/.pi, ~/.codex,
+;; ~/.claude, ~/.cursor, managed roots, dedicated free-tier roots) before
+;; sandbox-exec.
 (allow file-read*
        file-write*
   (subpath (param "TARGET_DIR")))
@@ -101,7 +102,7 @@
 ;;
 ;; auth.json holds ONLY free-tier static API keys, provisioned outside the
 ;; sandbox before the session. Credential refresh is memory-only (policy a) or
-;; fail-closed re-provisioned on expiry (policy d); OpenCode is never allowed
+;; fail-closed re-provisioned on expiry (policy d); Pi is never allowed
 ;; to mutate the file. deny rules take precedence over the broader state-dir
 ;; allowances below, blocking write, truncate, rename-over, unlink, create and
 ;; atomic replacement of the credential file.
@@ -141,7 +142,8 @@
 (allow file-ioctl
   (literal "/dev/dtracehelper")
   ;; Interactive TUIs use ioctl(2) on the controlling terminal to enter raw
-  ;; mode. Without this, OpenCode fails at startup with setRawMode errno 1.
+  ;; mode. Without this, the interactive agent (Pi) fails at startup with
+  ;; setRawMode errno 1.
   (regex #"^/dev/tty.*"))
 
 ;; Seatbelt accepts only "*" or "localhost" as a host filter. Restrict

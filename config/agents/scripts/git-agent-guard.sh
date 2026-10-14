@@ -12,13 +12,13 @@
 # as the user can craft a commit through other means (e.g. invoking the store
 # git directly, git mktree/write-tree plumbing, or a trivial C program). The
 # real walls are the agents' own permission configuration
-# (config/claude/settings.json, config/opencode/opencode.json) and the global
+# (config/claude/settings.json) and the global
 # pre-push signature check in modules/shared/git.nix.
 #
 # Deployment: copied (NOT symlinked, because a symlink into this repo is not
 # readable by the sandbox when the agent runs in another project) to
-#   ~/.config/opencode/bin/git   (opencode cloud sessions)
 #   ~/.claude/bin/git            (claude sessions)
+#   ~/.pi/agent/bin/git          (pi sessions)
 # and the wrapper puts the directory first on the sandbox PATH. Editing this
 # file takes effect after the next darwin-rebuild (home-manager copies it).
 #
