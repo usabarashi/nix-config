@@ -408,8 +408,9 @@ Deny-default, modeled on `cloud-restricted.sb` with the following differences:
   `SLACK_USER_TOKEN`, `LIBRARY_API_KEY`, `SSH_AUTH_SOCK`, and provider keys
   from the caller are dropped.
 - **TARGET_DIR guard**: refuses to run from `$HOME`, an ancestor of `$HOME`, or
-  any protected root (`~/.config`, `~/.local`, `~/.ssh`, `~/.pi`, `~/.claude`,
-  `~/.cursor`, the dedicated free-tier root).
+  any protected root (`~/.config`, `~/.local`, `~/.ssh`, `~/.pi`, `~/.codex`
+  — leftover Codex state, kept protected until that tree is cleaned up —
+  `~/.claude`, `~/.cursor`, the dedicated free-tier root).
 - **No mandatory model selector**: unlike a versioned per-provider allowlist,
   confinement rests on the minimal
   `enabledModels` and on `auth.json` holding only free-tier keys — the paid

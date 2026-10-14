@@ -79,8 +79,9 @@
 
 ;; The target directory is the only general-purpose filesystem tree visible to
 ;; the agent. The wrapper rejects any TARGET_DIR that is or contains a
-;; protected root ($HOME, ~/.config, ~/.local, ~/.ssh, ~/.claude,
-;; managed roots, dedicated free-tier roots) before sandbox-exec.
+;; protected root ($HOME, ~/.config, ~/.local, ~/.ssh, ~/.pi, ~/.codex,
+;; ~/.claude, ~/.cursor, managed roots, dedicated free-tier roots) before
+;; sandbox-exec.
 (allow file-read*
        file-write*
   (subpath (param "TARGET_DIR")))

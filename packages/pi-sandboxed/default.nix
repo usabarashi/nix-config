@@ -159,6 +159,9 @@ writeShellScriptBin "pi" ''
 
       # TARGET_DIR guard: refuse the filesystem root, $HOME, any ancestor of
       # $HOME, and overlap (either direction) with sensitive protected trees.
+      # `~/.codex` stays protected even though Codex support was removed: the
+      # stale state tree is only cleaned up as a manual step, and this guard
+      # must not lapse while it can still exist.
       reject=0
       [ "$TARGET_DIR" = "/" ] && reject=1
       [ "$TARGET_DIR" = "$HOME" ] && reject=1
@@ -172,6 +175,7 @@ writeShellScriptBin "pi" ''
           "$HOME/.local" \
           "$HOME/.ssh" \
           "$HOME/.pi" \
+          "$HOME/.codex" \
           "$HOME/.claude" \
           "$HOME/.cursor" \
           "$FREE_ROOT"; do
