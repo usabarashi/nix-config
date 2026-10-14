@@ -1,4 +1,4 @@
-// Auto mode: a toggleable disposition equivalent to OpenCode's `auto` agent —
+// Auto mode: a toggleable disposition equivalent to Claude Code's auto mode —
 // act on reasonable assumptions instead of stopping for clarifying questions,
 // while still stopping when genuinely blocked. Off by default; `/auto` toggles
 // it for the session.

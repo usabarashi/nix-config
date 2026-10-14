@@ -30,8 +30,8 @@
 ;; `allow process-exec` below): claude-code-bin spawns it unconditionally very
 ;; early at startup, regardless of auth method (verified with dummy
 ;; ANTHROPIC_API_KEY / CLAUDE_CODE_OAUTH_TOKEN — same EPERM crash either way),
-;; so denying it breaks `claude` outright under this profile. gh/codex still
-;; use the Security framework in-process rather than this binary, so allowing
+;; so denying it breaks `claude` outright under this profile. gh still
+;; uses the Security framework in-process rather than this binary, so allowing
 ;; the binary is only load-bearing for Claude Code.
 ;;
 ;; The legacy standalone Nix front-ends (`nix-store`, `nix-instantiate`,
@@ -152,15 +152,14 @@
   ;; config, plus GIT_TERMINAL_PROMPT=0 / GIT_ALLOW_PROTOCOL=https.
   ;; Claude Code global state file (~/.claude.json: settings and MCP wiring such
   ;; as Serena), read/write. Only the claude wrapper passes its real path; the
-  ;; opencode wrapper passes an inert path inside its own state dir so this
-  ;; grant does not widen opencode sessions.
+  ;; pi wrapper passes an inert path inside its own state dir so this
+  ;; grant does not widen Pi sessions.
   (literal (param "AGENT_CLAUDE_JSON"))
 )
 (allow file-read*
   (literal "/Library/Preferences/com.apple.security.plist")
   (literal "/Library/Preferences/.GlobalPreferences.plist")
   (literal (string-append (param "HOME_DIR") "/Library/Preferences/com.apple.security.plist"))
-  (literal (string-append (param "HOME_DIR") "/Library/Preferences/com.openai.codex.plist"))
   (literal (string-append (param "HOME_DIR") "/Library/Preferences/.GlobalPreferences.plist"))
   (literal (string-append (param "HOME_DIR") "/Library/Preferences/.GlobalPreferences_m.plist"))
   (regex (string-append
@@ -173,7 +172,7 @@
   (subpath (param "AGENT_STATE_DIR"))
   (subpath (param "AGENT_AUX_STATE_DIR"))
   (subpath (param "AGENT_CACHE_DIR"))
-  ;; Claude ~/.claude.json (see read grant above; opencode passes an inert path).
+  ;; Claude ~/.claude.json (see read grant above; the pi wrapper passes an inert path).
   (literal (param "AGENT_CLAUDE_JSON")))
 
 ;; The wrapper creates a private per-invocation temporary directory. Parent
@@ -210,7 +209,8 @@
 (allow file-ioctl
   (literal "/dev/dtracehelper")
   ;; Interactive TUIs use ioctl(2) on the controlling terminal to enter raw
-  ;; mode. Without this, OpenCode fails at startup with setRawMode errno 1.
+  ;; mode. Without this, interactive agents (Pi, Claude) fail at startup with
+  ;; setRawMode errno 1.
   (regex #"^/dev/tty.*"))
 
 ;; Seatbelt accepts only "*" or "localhost" as a host filter. Restrict remote

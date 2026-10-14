@@ -1,15 +1,15 @@
 # Agent sandbox profiles
 
 Seatbelt (`sandbox-exec`) profiles for agent runtimes. Selected by the
-`opencode`, `claude`, and `pi` wrappers via `--seatbelt <name>` (all default to
+`claude` and `pi` wrappers via `--seatbelt <name>` (both default to
 `cloud-restricted`).
 
 ## Profiles
 
 | Profile | Network | Filesystem | Use case |
 |---------|---------|------------|----------|
-| `cloud-restricted.sb` | Remote TCP 443 + DNS TCP/UDP 53 + loopback TCP (all ports) + Nix and voicevox daemon UNIX sockets | Project + OpenCode/Claude/Pi state/cache read-write; OS/Nix runtime and `/nix/store` read-only; everything else denied | Default for opencode, claude, and pi (paid cloud models: OpenAI Codex, Claude, normal opencode models) |
-| `free-tier.sb` | Remote TCP 443 + loopback TCP (all ports) | Project + dedicated free-tier data/state/cache read-write; immutable free-tier `auth.json` (read-only); NO Keychain, `~/.config/gh`, `~/.gitconfig`, paid auth | opencode free-tier cloud providers (Gemini/Groq/OpenRouter no-cost) |
+| `cloud-restricted.sb` | Remote TCP 443 + DNS TCP/UDP 53 + loopback TCP (all ports) + Nix and voicevox daemon UNIX sockets | Project + Claude/Pi state/cache read-write; OS/Nix runtime and `/nix/store` read-only; everything else denied | Default for claude and pi (paid cloud models: Claude, OpenCode Go, ChatGPT, Vertex AI, Cursor, local llama.cpp) |
+| `free-tier.sb` | Remote TCP 443 + loopback TCP (all ports) | Project + a dedicated free-tier runtime read-write; immutable free-tier `auth.json` (read-only); NO Keychain, `~/.config/gh`, `~/.gitconfig`, paid auth | Pi free-tier cloud providers (Google/Groq/OpenRouter no-cost) |
 
 `strict-closed.sb` and the unrestricted `permissive-open.sb` have both been
 removed; there is no network-zero or fully-open profile. For sensitive work use
@@ -19,13 +19,13 @@ the deny-default profiles or run without a remote model.
 
 Deny-default profile:
 
-- **Filesystem**: `TARGET_DIR` (the agent's working directory), OpenCode
+- **Filesystem**: `TARGET_DIR` (the agent's working directory), the agent's
   config/state/cache dirs are read-write (state/cache) or read-only (config).
   `/nix/store` and OS runtimes are read-only. `/tmp` (`/private/tmp`) is
   read-write scratch so dev-server logs/artifacts (`/tmp/foo.log`, `curl -o
   /tmp/x.ts`) work as in a normal shell — note this is the shared system temp
   area, so the sandboxed process can also read other same-machine temp files.
-  Everything else (home directory, `~/.ssh`, `~/.codex`, …) is denied.
+  Everything else (home directory, `~/.ssh`, …) is denied.
 - **Network**: outbound remote TCP port 443 and DNS TCP/UDP port 53, plus
   unrestricted loopback TCP (`localhost:*`) so local MCP servers (Chrome
   DevTools, Slack, the local llama.cpp provider) can reach their HTTP peers.
@@ -54,10 +54,9 @@ Deny-default profile:
     (`GH_TOKEN`, `GITHUB_TOKEN`, `GH_ENTERPRISE_TOKEN`,
     `GITHUB_ENTERPRISE_TOKEN`) are scrubbed before launch, and personal git
     configuration (`~/.config/gh`, `~/.gitconfig`, `~/.config/git`) is not
-    granted by the profile. On normal exit the temp dir is removed (by the
-    wrapper's EXIT trap; for claude, by a tiny C supervisor); a SIGKILLed
-    wrapper may leave it behind until the OS cleans the system temp area —
-    timing is not guaranteed.
+    granted by the profile. The per-invocation temp dir is removed after the
+    agent exits (by the shared C supervisor); a SIGKILLed wrapper may leave it
+    behind until the OS cleans the system temp area — timing is not guaranteed.
   - **`git fetch` is allowed and authenticated with the agent PAT.** The
     `git-agent-guard` shim no longer denies `fetch`, and the profile permits the
     HTTPS remote helper — both `git-remote-https` and its symlink target
@@ -83,45 +82,19 @@ Deny-default profile:
     method — confirmed by launching it with a dummy `ANTHROPIC_API_KEY` and
     with a dummy `CLAUDE_CODE_OAUTH_TOKEN`, both hitting the identical
     `EPERM posix_spawn 'security'` crash — so denying it makes `claude`
-    unusable under this profile. This means the model can now run `security`
+    unusable under this profile. This means the model can run `security`
     directly (list/dump Keychain items subject to each item's own ACL), which
     is a real widening of what a compromised/prompt-injected model can reach;
     see "Accepted tradeoffs".
   - **Residual risk (prompt-injection / compromised model):** Keychain and
-    `securityd` access remain granted so the pinned Codex binary can retrieve
-    its own credential, and Seatbelt applies to the whole process tree — not
-    per binary. A compromised model that constructs an alternate `gh` config
-    (in a writable location) naming the *personal* account could therefore
-    still recover the personal GitHub Keychain item through the permitted
-    `gh` binary; with `security` now exec-allowed, it could also attempt to
-    read Keychain items directly (still gated by each item's own ACL). The
-    dedicated PAT bounds the *default* and *accidental* paths; these
-    deliberate-override paths are defense-in-depth only.
-  - The second-opinion tool authenticates Codex from an isolated
-    `auth.json` copied from the user's `~/.codex/auth.json` into
-    `CODEX_HOME` (a cache dir keyed by Codex version) on every launch, with
-    `cli_auth_credentials_store="file"`. The login Keychain is deliberately
-    not used: the legacy Keychain API rewrites the whole keychain database (a
-    `.sb-<id>-<rand>` temp file plus an unlink/rename of `login.keychain-db`)
-    even on reads, which a read-only-Keychain Seatbelt profile cannot permit
-    without also letting the sandboxed model corrupt the user's login
-    keychain. Copying on every launch also keeps the isolated credential
-    fresh (a one-shot import went stale and was revoked by later interactive
-    logins). Trade-off: the sandboxed model can read its own Codex token file;
-    it still cannot reach other Keychain items, which stay out of the sandbox.
-  - **`--no-sandbox` launches.** When no outer Seatbelt wraps the session, the
-    wrapper marks it `OPENCODE_CODEX_OUTER_SANDBOX="none"` and the tool reads
-    the user's own `~/.codex` (same file credential store; an inherited
-    `CODEX_HOME` is ignored), pinning Codex to an inner `read-only` sandbox so
-    the second opinion cannot write the workspace. This reuses the user's real
-    Codex credential, which Codex may refresh in place, and requires the
-    `~/.codex/auth.json` file store (a Keychain-only login will not
-    authenticate). A `--no-sandbox` launch nested inside a cloud-restricted
-    session preserves that inherited marker and staged home instead, so the
-    tool uses the outer Seatbelt as in the normal sandboxed path; the marker is
-    a trusted launch assertion set by the wrapper, not proof of containment. A
-    session with no marker (raw binary, `free-tier.sb`) still refuses to run
-    the tool.
+    `securityd` access remain granted, and Seatbelt applies to the whole
+    process tree — not per binary. A compromised model that constructs an
+    alternate `gh` config (in a writable location) naming the *personal*
+    account could therefore still recover the personal GitHub Keychain item
+    through the permitted `gh` binary; with `security` now exec-allowed, it
+    could also attempt to read Keychain items directly (still gated by each
+    item's own ACL). The dedicated PAT bounds the *default* and *accidental*
+    paths; these deliberate-override paths are defense-in-depth only.
 
 ### Provisioning the GitHub agent PAT
 
@@ -169,7 +142,7 @@ comments); all other permissions stay at **Read** at most, never
   single 1Password item update — the wrapper re-reads it on the next launch,
   no Nix rebuild or profile change required.
 
-The host `op` CLI must be signed in before launching opencode; provisioning is
+The host `op` CLI must be signed in before launching the agent; provisioning is
 **fail-closed** — if the read fails or the item value is not a well-formed
 GitHub token, the session exits with an error unless
 `AGENT_GH_ALLOW_UNAUTHENTICATED=1` is set, in which case `gh` runs
@@ -187,7 +160,7 @@ unauthenticated with a warning on stderr. Side-effect-free invocations
   profile. Allowing it means the model can run `security` directly inside the
   sandbox (subject to each Keychain item's own ACL), which is a real widening
   versus the previous "no direct Keychain binary access" design. This is a
-  shared profile (`cloud-restricted.sb` is also the opencode default), so the
+  shared profile (`cloud-restricted.sb` is also the pi default), so the
   allowance is not scoped to Claude Code sessions only. Accepted to keep
   `claude` launchable; revisit if a narrower mechanism (e.g. a Claude-specific
   profile, or upstream env-var support that avoids the `security` spawn)
@@ -246,7 +219,7 @@ gain of an in-session edit → build → verify loop.
 
 **Controls provided, and their limits:**
 
-- **`nix` guard shim** (`~/.config/opencode/bin/nix`, `~/.claude/bin/nix`): a
+- **`nix` guard shim** (`~/.pi/agent/bin/nix`, `~/.claude/bin/nix`): a
   PATH-first shim (the first `nix` on the agent PATH) that validates normal
   `nix` invocations. This is **friction,
   not a security boundary** — the same qualification as `git-agent-guard`.
@@ -334,33 +307,32 @@ no `/etc/nix` grant. Low-trust providers get no store/daemon authority at all.
 ## Claude Code (unified profile)
 
 `claude-code.sb` has been removed; the `claude` wrapper now defaults to
-`cloud-restricted.sb`, the same profile opencode uses. The wrapper maps Claude's
-paths onto the profile parameters so behavior is preserved:
+`cloud-restricted.sb`, the profile the pi wrapper shares. The wrapper maps
+Claude's paths onto the profile parameters so behavior is preserved:
 
 - `~/.claude` → `AGENT_CONFIG_DIR` (read) and `AGENT_STATE_DIR` /
   `AGENT_AUX_STATE_DIR` (write): settings, skills, commands, agents, scripts
   and the installed seatbelt copies stay read/write.
 - `~/.cache/claude` → `AGENT_CACHE_DIR` (read/write).
 - `~/.claude.json` → `AGENT_CLAUDE_JSON` (read/write; Claude's global state /
-  MCP wiring such as Serena). The opencode wrapper passes an inert path inside
-  its own state dir, so this grant does not widen opencode sessions.
+  MCP wiring such as Serena). The pi wrapper passes an inert path inside its
+  own state dir, so this grant does not widen Pi sessions.
 - Scratch/temp is redirected to the wrapper's private per-invocation temp dir
   (`AGENT_TMP_DIR`, removed on exit).
 
-Authentication and credentials are the same as opencode: the dedicated
-GitHub agent PAT is provisioned from 1Password into the ephemeral
-`GH_CONFIG_DIR` (fail-closed, same env overrides), and inherited GitHub token
-environment variables are scrubbed. The 1Password CLI is exec-denied here as
-well. `/usr/bin/security` is NOT exec-denied — `claude` (claude-code-bin)
-requires it to launch at all, unconditionally and regardless of auth method
-(see "Accepted tradeoffs" under `cloud-restricted.sb`); this is a property of
-the shared profile, so opencode sessions get the same allowance even though
-only Claude Code needs it.
+Authentication and credentials: the dedicated GitHub agent PAT is provisioned
+from 1Password into the ephemeral `GH_CONFIG_DIR` (fail-closed, same env
+overrides), and inherited GitHub token environment variables are scrubbed. The
+1Password CLI is exec-denied here as well. `/usr/bin/security` is NOT
+exec-denied — `claude` (claude-code-bin) requires it to launch at all,
+unconditionally and regardless of auth method (see "Accepted tradeoffs" under
+`cloud-restricted.sb`); this is a property of the shared profile, so Pi
+sessions get the same allowance even though only Claude Code needs it.
 
 ## Pi
 
 The `pi` wrapper (`packages/pi-sandboxed`) also defaults to
-`cloud-restricted.sb`. Differences from the opencode/claude wrappers:
+`cloud-restricted.sb`. Differences from the claude wrapper:
 
 - Pi's config files (`settings.json`, `mcp.json`, `models.json`) and the
   `skills/`, `prompts/`, `extensions/` directories are out-of-store symlinks
@@ -369,7 +341,8 @@ The `pi` wrapper (`packages/pi-sandboxed`) also defaults to
   a symlink out of the granted tree). The repo-backed config is therefore
   read-only inside the sandbox, while Pi's runtime state under `~/.pi/agent`
   (`auth.json`, sessions, installed packages, logs) and `~/.cache/pi` are
-  read+write.
+  read+write. The gcloud ADC directory (`~/.config/gcloud`) is also readable,
+  for the Vertex AI provider.
 - **Node.js/npm is confined to the wrapper's PATH** (`packages/pi-sandboxed`
   adds `pkgs.nodejs_22`), so Pi's package installer can fetch provider
   extensions (e.g. `@rahularya01/pi-cursor`) without adding Node to
@@ -377,26 +350,26 @@ The `pi` wrapper (`packages/pi-sandboxed`) also defaults to
   pins the Takumi Guard registry and a writable npm cache through
   `npm_config_registry` / `npm_config_cache`.
 - `AGENT_CLAUDE_JSON` is passed an inert path inside Pi's state dir.
-- GitHub access uses the same dedicated read-only agent PAT as opencode/claude:
-  the wrapper provisions it from 1Password into the ephemeral `GH_CONFIG_DIR`
+- GitHub access uses the same dedicated read-only agent PAT as claude: the
+  wrapper provisions it from 1Password into the ephemeral `GH_CONFIG_DIR`
   (fail-closed; set `AGENT_GH_ALLOW_UNAUTHENTICATED=1` to opt out), `gh` is on
   the sandbox PATH, inherited GitHub token environment variables are scrubbed,
   and command-scope git config binds `github.com` to the staged PAT. `pi
   --no-sandbox` runs the bare binary for one-time browser logins (`/login`,
   Cursor).
-- `pi --seatbelt free-tier.sb` uses the low-trust free-tier profile (shared
-  with the opencode free tier): an isolated runtime root under
-  `~/.local/share/pi-free`, an independent minimal config (free-tier providers
-  plus the chrome-devtools MCP only), an `env -i` allowlist, and a
-  sandbox-immutable `auth.json` that must be provisioned outside the sandbox.
-  Node/npm is not exposed in free-tier sessions.
+- `pi --seatbelt free-tier.sb` uses the low-trust free-tier profile: an
+  isolated runtime root under `~/.local/share/pi-free`, an independent minimal
+  config (free-tier providers plus the chrome-devtools MCP only), an `env -i`
+  allowlist, and a sandbox-immutable `auth.json` that must be provisioned
+  outside the sandbox. Node/npm is not exposed in free-tier sessions.
 
 ## free-tier.sb
 
-Dedicated profile for opencode sessions against **free-tier cloud providers**
-(Gemini free tier, Groq no-cost, OpenRouter no-cost models), which are treated
-as **low-trust**: they may retain or train on data. The design goal is to hand
-such models **no secrets and no identity beyond what the session itself needs**.
+Dedicated profile for `pi --seatbelt free-tier.sb` sessions against
+**free-tier cloud providers** (Google/Gemini free tier, Groq no-cost,
+OpenRouter no-cost models), which are treated as **low-trust**: they may retain
+or train on data. The design goal is to hand such models **no secrets and no
+identity beyond what the session itself needs**.
 
 ### Design
 
@@ -406,49 +379,32 @@ Deny-default, modeled on `cloud-restricted.sb` with the following differences:
   `systemkeychaincheck`, Keychain preference/shared-memory allowances are
   absent. Security.framework *code* stays readable (it is not a credential
   store); `trustd` and SystemConfiguration services are kept for HTTPS.
-- **No `~/.config/gh/*`, no `~/.gitconfig`.** The wrapper injects a **synthetic
-  git identity** (`opencode-free <opencode-free@localhost>`) instead.
-- **No paid auth.** `XDG_DATA_HOME`/`STATE_HOME`/`CACHE_HOME`/`CONFIG_HOME`
-  are redirected to a **dedicated free-tier root**
-  (`~/.local/share/opencode-free/...`) whose `auth.json` is provisioned
-  outside the sandbox with **only free-tier static API keys** and is
-  **immutable during the session** (the profile denies writes to it).
+- **No `~/.config/gh/*`, no `~/.gitconfig`.**
+- **No paid auth / isolated runtime.** The wrapper redirects Pi's runtime into
+  a **dedicated free-tier root** (`~/.local/share/pi-free`), populated from an
+  independent minimal config deployed as immutable Nix-store content:
+  `enabledModels` limited to the free-tier providers, and only the
+  `chrome-devtools` MCP. The credentials file (`agent/auth.json`) is
+  provisioned **outside the sandbox** with only free-tier static API keys and
+  is **immutable during the session** (the profile denies writes to it).
 - **Exec deny + PATH exclusion**: `ssh`, `scp`, `sftp`, `gh`, `curl`, `wget`,
-  `nc`, `ncat`, `netcat`, `ftp`, `rsync`, `git-remote-*`, `codex` are denied
-  by the Seatbelt exec list **and** excluded from the wrapper-built PATH.
+  `nc`, `ncat`, `netcat`, `ftp`, `rsync`, `git-remote-*` are denied by the
+  Seatbelt exec list **and** excluded from the wrapper-built PATH (which is
+  only `chrome-devtools-mcp` plus procps/ripgrep/jq/coreutils; no Node, no git,
+  no gh).
 - **Environment scrubbing**: the wrapper rebuilds the environment with
   `env -i` from an explicit allowlist (PATH, HOME, TERM, USER, LOGNAME, SHELL,
-  TMPDIR/TMP/TEMP, SSL_CERT_FILE, XDG_*, synthetic GIT_*, and wrapper-owned
-  OPENCODE_*). `SLACK_USER_TOKEN`, `LIBRARY_API_KEY`, `SSH_AUTH_SOCK`, and any
-  caller-supplied `OPENCODE_CONFIG_CONTENT` / `OPENCODE_PERMISSION` are dropped.
-- **Independent config**: `free-tier.json` (deployed as immutable Nix-store
-  content) enables only allowed providers, disables paid built-ins
-  (`opencode-go`, `anthropic`, `openai`, `llamacpp-local`), whitelists exact
-  model IDs, and keeps only the `chrome-devtools` MCP.
-- **Mandatory allowlisted `-m`**: the wrapper requires an explicit
-  `-m <provider>/<model>` and validates it against the versioned
-  `free-tier-models.json` allowlist. Duplicate, malformed, or non-allowlisted
-  selectors fail closed before sandbox-exec. The allowlist also carries the
-  resolved upstream `api_id` / `sdk` / `base_url` tuple for each allowed model:
-  it documents the expected outbound binding, and the smoke suite asserts that
-  the actual request uses that tuple. This is a guardrail on the initial
-  selector, not a network-level block on later in-session model changes;
-  `enabled_providers`/`disabled_providers` in the minimal config constrain the
-  provider catalog accordingly.
-- **Wrapper option contract**: `--seatbelt`, `--seatbelt=`, `--list-seatbelts`,
-  and `--no-sandbox` are wrapper options and are recognized **only in the
-  leading option region** (before `--` or the first non-option argument).
-  Anything after that boundary is forwarded to opencode inside the Seatbelt.
-  `--no-sandbox` in the wrapper region is rejected for `free-tier.sb`
-  regardless of order; downstream occurrences cannot disable the sandbox.
-  Ordinary opencode options before `--seatbelt` (e.g. `--print-logs`) stop
-  wrapper parsing, so always place `--seatbelt` first.
-- **Managed config fail-closed**: if `/Library/Application Support/opencode`
-  or macOS managed preferences (`ai.opencode.managed.plist`) contain OpenCode
-  configuration, the wrapper refuses to launch unless independently verified.
-- **TARGET_DIR guard**: refuses to run from `$HOME` or any protected root
-  (`~/.config`, `~/.local`, `~/.ssh`, `~/.codex`, `~/.claude`, the dedicated
-  free-tier root).
+  TMPDIR/TMP/TEMP, SSL_CERT_FILE, `PI_CODING_AGENT_DIR`, and the `XDG_*` roots).
+  `SLACK_USER_TOKEN`, `LIBRARY_API_KEY`, `SSH_AUTH_SOCK`, and provider keys
+  from the caller are dropped.
+- **TARGET_DIR guard**: refuses to run from `$HOME`, an ancestor of `$HOME`, or
+  any protected root (`~/.config`, `~/.local`, `~/.ssh`, `~/.pi`, `~/.claude`,
+  `~/.cursor`, the dedicated free-tier root).
+- **No mandatory model selector**: unlike a versioned per-provider allowlist,
+  confinement rests on the minimal
+  `enabledModels` and on `auth.json` holding only free-tier keys — the paid
+  providers have no credential to resolve. Spending controls remain the real
+  gate (see below).
 
 ### NOT a billing or exfiltration boundary
 
@@ -464,17 +420,16 @@ exfiltration or paid usage by itself:
   processes; provider keys live in the immutable `auth.json` instead, but a
   low-trust model with a stolen key could still reach paid endpoints.
 
-The real gates are **server-side spending controls** (R30): for each free-tier
+The real gates are **server-side spending controls**: for each free-tier
 provider account, verify one of (a) billing disabled + hard zero-spend limit,
 (b) a server-side key restricted to the exact free models, or (c) a trusted
-proxy that enforces provider/model. The `free-tier` profile is **not enabled
-on any host** until this is verified and the smoke suite passes.
+proxy that enforces provider/model.
 
 ### Session contract
 
 - Free-tier credentials are provisioned **outside the sandbox** and are
   **immutable during the session** (static API keys; refresh is memory-only,
   or fails closed with re-provisioning on expiry).
-- The dedicated credential root is persistent and created securely (0700, no
-  symlinks, owner/link-count verified); per-session temporary data lives in
-  the private per-invocation temp dir and is removed on exit.
+- The dedicated runtime root is persistent and created securely (0700, no
+  symlink components, owner/link-count verified); per-session temporary data
+  lives in the private per-invocation temp dir and is removed on exit.

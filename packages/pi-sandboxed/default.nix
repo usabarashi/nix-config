@@ -1,6 +1,6 @@
 # Sandboxed Pi CLI. Runs the version-pinned pi-bin under macOS Seatbelt.
 #
-# Two profiles are supported, both shared with the opencode/claude wrappers:
+# Two profiles are supported, both shared with the claude wrapper:
 #   * cloud-restricted.sb (default): paid cloud models. The project directory and
 #     Pi's own runtime state are the only writable trees, plus HTTPS/DNS/loopback
 #     egress and the Nix daemon.
@@ -172,7 +172,6 @@ writeShellScriptBin "pi" ''
           "$HOME/.local" \
           "$HOME/.ssh" \
           "$HOME/.pi" \
-          "$HOME/.codex" \
           "$HOME/.claude" \
           "$HOME/.cursor" \
           "$FREE_ROOT"; do
@@ -357,7 +356,7 @@ writeShellScriptBin "pi" ''
   # Local MCP servers are resolved by name from PATH inside the sandbox. A PATH
   # hit under /etc/profiles resolves to a vnode path the profile does not grant,
   # so re-link each configured stdio command from its resolved Nix store path
-  # into the private temp dir and put that first on PATH (same as the opencode
+  # into the private temp dir and put that first on PATH (same as the claude
   # wrapper). Runs before sandbox-exec, so resolving the symlink chain is
   # unrestricted; the temp dir is private (0700) and removed on exit.
   MCP_BIN_DIR="$AGENT_TMP_DIR/mcp-bin"

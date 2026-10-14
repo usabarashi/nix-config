@@ -16,7 +16,7 @@
   coreutils,
 }:
 let
-  # Same dedicated-credential provisioning as the opencode wrapper: the 1Password
+  # Dedicated-credential provisioning: the 1Password
   # CLI is used only in the OUTER (unsandboxed) context; it is not on the sandbox
   # PATH and cloud-restricted.sb denies it on the exec list.
   opBin = "${_1password-cli}/bin/op";
@@ -164,8 +164,8 @@ writeShellScriptBin "claude" ''
       --version|--help|-h) INFO_ARGS=1 ;;
   esac
 
-  # Scrub inherited GitHub credential environment variables (same rationale as
-  # the opencode wrapper: gh gives GH_TOKEN/GITHUB_TOKEN precedence over config).
+  # Scrub inherited GitHub credential environment variables (gh gives
+  # GH_TOKEN/GITHUB_TOKEN precedence over config).
   unset GH_TOKEN GITHUB_TOKEN GH_ENTERPRISE_TOKEN GITHUB_ENTERPRISE_TOKEN
 
   # Private per-invocation temp dir. The root is the per-user system temp dir
@@ -211,8 +211,8 @@ writeShellScriptBin "claude" ''
   export GH_CONFIG_DIR="$GH_AGENT_DIR"
 
   if [ "$INFO_ARGS" = "0" ]; then
-      # Dedicated GitHub agent credential (read-only fine-grained PAT), identical
-      # to the opencode wrapper: provisioned from 1Password in the OUTER context
+      # Dedicated GitHub agent credential (read-only fine-grained PAT),
+      # provisioned from 1Password in the OUTER context
       # and staged in the ephemeral temp dir as gh's hosts.yml. GH_CONFIG_DIR
       # points gh at the disposable config, so the agent's gh never sees the
       # personal ~/.config/gh (the profile does not grant it). `op` is pinned to

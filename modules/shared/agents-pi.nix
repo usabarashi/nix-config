@@ -39,8 +39,7 @@ in
   ];
 
   # Pi reads user-scoped state from ~/.pi/agent (settings.json, mcp.json,
-  # models.json, skills/, prompts/, extensions/, ...). Like grok's
-  # ~/.grok/config.toml and codex's ~/.codex/config.toml, Pi rewrites
+  # models.json, skills/, prompts/, extensions/, ...). Pi rewrites
   # ~/.pi/agent/settings.json on /settings; the atomic write follows the leaf
   # symlink into this repo, so the managed file is the dotfiles-style source of
   # truth.
@@ -81,14 +80,14 @@ in
     ".pi/agent/skills" = agentSkills;
     # Pi extensions, auto-discovered from the agent-dir extensions/:
     # notification-sound.ts rings the host bell when control returns to the
-    # user; auto-mode.ts adds the `/auto` toggle (OpenCode `auto`-style);
+    # user; auto-mode.ts adds the `/auto` toggle (Claude Code auto-style);
     # goal.ts adds `/goal` (set/clear a session goal).
     ".pi/agent/extensions" = {
       source = config.lib.file.mkOutOfStoreSymlink "${repoPath}/config/pi/extensions";
       force = true;
       recursive = true;
     };
-    # Shared Seatbelt profile (same deny-default policy as opencode/claude).
+    # Shared Seatbelt profile (same deny-default policy as the claude wrapper).
     ".pi/agent/cloud-restricted.sb" = {
       source = config.lib.file.mkOutOfStoreSymlink "${repoPath}/config/agents/cloud-restricted.sb";
       force = true;
