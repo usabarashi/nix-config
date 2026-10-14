@@ -28,6 +28,7 @@
   imports = [
     ../../modules/shared/agents-antigravity.nix
     ../../modules/shared/agents-codex.nix
+    ../../modules/shared/agents-grok-build.nix
     ../../modules/shared/agents-opencode.nix
     ../../modules/shared/extra.nix
     ../../modules/shared/gcloud.nix

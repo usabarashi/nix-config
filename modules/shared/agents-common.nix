@@ -5,10 +5,11 @@
 }:
 
 {
-  # MCP servers referenced by all four agents (Claude Code, Codex, Antigravity,
-  # opencode). Each agents-*.nix imports this module so the runtime dependencies
-  # are always present whenever any agent is active; buildEnv dedups packages by
-  # store path, so listing them from several agents is harmless.
+  # MCP servers referenced by all agents (Claude Code, Codex, Antigravity,
+  # Grok Build, opencode). Each agents-*.nix imports this module so the runtime
+  # dependencies are always present whenever any agent is active; buildEnv
+  # dedups packages by store path, so listing them from several agents is
+  # harmless.
   #
   # - voicevox-cli provides `voicevox-mcp-server`.
   # - chrome-devtools-mcp provides `chrome-devtools-mcp` (Node hidden in the Nix

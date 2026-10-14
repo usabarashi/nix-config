@@ -1,0 +1,46 @@
+# Grok Build user configuration (`~/.grok/config.toml`), managed by nix-config
+# as an out-of-store symlink into this repository (see
+# modules/shared/agents-grok-build.nix). Grok rewrites this file on commands
+# like `/settings`; the atomic write follows the leaf symlink and edits this
+# repo file, mirroring how ~/.codex/config.toml and
+# ~/.config/opencode/opencode.json behave.
+#
+# Reference: https://docs.x.ai/build/overview
+
+[cli]
+# The binary is version-pinned by Nix (packages/grok-build-bin); keep the
+# self-updater from trying to replace the read-only store path.
+auto_update = false
+
+[features]
+# Opt out of anonymous usage telemetry, matching the other agents.
+telemetry = false
+
+# MCP servers, mirroring modules/shared/agents-common.nix and the set used by
+# the Codex/opencode/antigravity configs. Chrome DevTools flags:
+# - --isolated: ephemeral profile, never attaches to the real logged-in Chrome.
+# - --headless: avoids the singleton crash when the user's Chrome is running.
+# - --no-usage-statistics / --no-performance-crux: opt out of Google telemetry.
+[mcp_servers.voicevox]
+command = "voicevox-mcp-server"
+args = []
+tool_timeout_sec = 120
+
+[mcp_servers.library]
+url = "https://library.usabarashi.net/mcp"
+headers = { Authorization = "Bearer ${LIBRARY_API_KEY}" }
+tool_timeout_sec = 120
+
+[mcp_servers.chrome-devtools]
+command = "chrome-devtools-mcp"
+args = [
+    "--isolated",
+    "--headless",
+    "--channel=stable",
+    "--no-usage-statistics",
+    "--no-performance-crux",
+    "--chrome-arg=--no-sandbox",
+    "--chrome-arg=--disable-setuid-sandbox",
+]
+startup_timeout_sec = 30
+tool_timeout_sec = 120
