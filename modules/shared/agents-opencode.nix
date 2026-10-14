@@ -32,6 +32,17 @@ let
       [ "@NIX_REAL_PATH@" "@NIX_VERSION_STAMP@" ]
       [ "${pkgs.nix}/bin/nix" pkgs.nix.version ]
       (builtins.readFile "${repoPath}/config/agents/scripts/nix-agent-guard.sh");
+  # Notification plugins: the whole flakes's config/opencode/plugins tree is
+  # copied into the store, mirroring how commands/skills/tools deploy their
+  # directories as a whole. A store copy (rather than an out-of-store symlink)
+  # is required because the cloud-restricted Seatbelt grants read of /nix/store
+  # but not this checkout, so a repo-backed link would be unreadable whenever
+  # opencode runs in another project. Copying via Nix also avoids writing
+  # through a symlinked plugins/ directory into the repo during activation.
+  opencodePlugins = builtins.path {
+    path = "${repoPath}/config/opencode/plugins";
+    name = "opencode-plugins";
+  };
 in
 {
   imports = [ ./agents-common.nix ];
@@ -71,6 +82,13 @@ in
       source = config.lib.file.mkOutOfStoreSymlink "${repoPath}/config/opencode/tools";
       force = true;
       recursive = true;
+    };
+    # Notification-sound plugin: opencode auto-discovers {plugin,plugins}/*.{ts,js}
+    # from the global plugin directory (~/.config/opencode/plugins). See the
+    # `opencodePlugins` binding above for why this is a store directory.
+    ".config/opencode/plugins" = {
+      source = opencodePlugins;
+      force = true;
     };
   }
   // seatbeltProfiles;
