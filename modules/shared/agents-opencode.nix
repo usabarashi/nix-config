@@ -32,6 +32,15 @@ let
       [ "@NIX_REAL_PATH@" "@NIX_VERSION_STAMP@" ]
       [ "${pkgs.nix}/bin/nix" pkgs.nix.version ]
       (builtins.readFile "${repoPath}/config/agents/scripts/nix-agent-guard.sh");
+  # Notification plugin, deployed as an immutable store directory rather than an
+  # out-of-store symlink: the cloud-restricted Seatbelt grants read of
+  # /nix/store, so the plugin stays readable no matter which project opencode
+  # runs in, whereas a repo-backed symlink is only readable from inside this
+  # checkout. A store dir also avoids writing through a symlinked plugins/
+  # directory into the repo during activation.
+  opencodePlugins = pkgs.writeTextDir "notification-sound.js" (
+    builtins.readFile "${repoPath}/config/opencode/plugins/notification-sound.js"
+  );
 in
 {
   imports = [ ./agents-common.nix ];
@@ -71,6 +80,13 @@ in
       source = config.lib.file.mkOutOfStoreSymlink "${repoPath}/config/opencode/tools";
       force = true;
       recursive = true;
+    };
+    # Notification-sound plugin: opencode auto-discovers {plugin,plugins}/*.{ts,js}
+    # from the global plugin directory (~/.config/opencode/plugins). See the
+    # `opencodePlugins` binding above for why this is a store directory.
+    ".config/opencode/plugins" = {
+      source = opencodePlugins;
+      force = true;
     };
   }
   // seatbeltProfiles;

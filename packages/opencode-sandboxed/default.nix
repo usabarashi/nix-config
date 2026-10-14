@@ -624,17 +624,27 @@ writeShellScriptBin "opencode" ''
   fi
 
   if [ "$SANDBOX_PROFILE_FILE" = "cloud-restricted.sb" ]; then
-      # Skip repository-controlled configuration and external plugins so that
-      # only the trusted user configuration is in effect. No permission
+      # Keep only the trusted user configuration in effect: skip the project's
+      # own configuration and repo-controlled plugin discovery. No permission
       # overrides are applied: the user's policy in opencode.json is used
       # as-is, and the Seatbelt profile enforces the physical limits
       # (project directory read/write, read-only /nix/store, HTTPS-only).
       export OPENCODE_DISABLE_PROJECT_CONFIG=1
       export OPENCODE_DISABLE_CLAUDE_CODE=1
-      # Pure mode suppresses all external plugins (both config-declared and
-      # auto-discovered under .opencode/plugin(s)). User tools under the
-      # managed tools/ directory are loaded on a separate path and survive.
-      export OPENCODE_PURE=1
+      # OPENCODE_PURE is deliberately NOT set: it suppresses *all* external
+      # plugins, including the trusted global notification plugin in
+      # ~/.config/opencode/plugins/. Project-controlled plugins stay disabled
+      # via OPENCODE_DISABLE_PROJECT_CONFIG above (verified against the pinned
+      # binary: with that flag set, a repo's .opencode/plugin(s) is not
+      # discovered, while the global plugin loads). Caller-supplied OPENCODE_*
+      # config redirects are dropped and the XDG roots pinned so the invoking
+      # environment cannot widen the plugin/config sources.
+      unset OPENCODE_PURE
+      unset OPENCODE_CONFIG OPENCODE_CONFIG_CONTENT OPENCODE_CONFIG_DIR
+      unset OPENCODE_TEST_HOME OPENCODE_TEST_MANAGED_CONFIG_DIR
+      export XDG_CONFIG_HOME="$HOME/.config"
+      export XDG_DATA_HOME="$HOME/.local/share"
+      export XDG_STATE_HOME="$HOME/.local/state"
 
       # Resolve the workspace flake root: nearest ancestor of the launch dir
       # containing flake.nix, never above $HOME or "/". Cloud sessions work on
