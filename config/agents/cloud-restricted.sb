@@ -156,6 +156,12 @@
   ;; grant does not widen Pi sessions.
   (literal (param "AGENT_CLAUDE_JSON"))
 )
+;; Google Cloud ADC, read-only, for Pi's Vertex AI provider. The credential is
+;; provisioned OUTSIDE the sandbox by `gcloud auth application-default login`;
+;; the agent only reads it. Shared profile, so claude sessions can read the
+;; same directory (see README "Accepted tradeoffs").
+(allow file-read*
+  (subpath (string-append (param "HOME_DIR") "/.config/gcloud")))
 (allow file-read*
   (literal "/Library/Preferences/com.apple.security.plist")
   (literal "/Library/Preferences/.GlobalPreferences.plist")

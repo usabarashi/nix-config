@@ -8,7 +8,7 @@ Seatbelt (`sandbox-exec`) profiles for agent runtimes. Selected by the
 
 | Profile | Network | Filesystem | Use case |
 |---------|---------|------------|----------|
-| `cloud-restricted.sb` | Remote TCP 443 + DNS TCP/UDP 53 + loopback TCP (all ports) + Nix and voicevox daemon UNIX sockets | Project + Claude/Pi state/cache read-write; OS/Nix runtime and `/nix/store` read-only; everything else denied | Default for claude and pi (paid cloud models: Claude, OpenCode Go, ChatGPT, Vertex AI, Cursor, local llama.cpp) |
+| `cloud-restricted.sb` | Remote TCP 443 + DNS TCP/UDP 53 + loopback TCP (all ports) + Nix and voicevox daemon UNIX sockets | Project + Claude/Pi state/cache read-write; OS/Nix runtime, `/nix/store`, and gcloud ADC read-only; everything else denied | Default for claude and pi (paid cloud models: Claude, OpenCode Go, ChatGPT, Vertex AI, Cursor, local llama.cpp) |
 | `free-tier.sb` | Remote TCP 443 + loopback TCP (all ports) | Project + a dedicated free-tier runtime read-write; immutable free-tier `auth.json` (read-only); NO Keychain, `~/.config/gh`, `~/.gitconfig`, paid auth | Pi free-tier cloud providers (Google/Groq/OpenRouter no-cost) |
 
 `strict-closed.sb` and the unrestricted `permissive-open.sb` have both been
@@ -25,7 +25,9 @@ Deny-default profile:
   read-write scratch so dev-server logs/artifacts (`/tmp/foo.log`, `curl -o
   /tmp/x.ts`) work as in a normal shell — note this is the shared system temp
   area, so the sandboxed process can also read other same-machine temp files.
-  Everything else (home directory, `~/.ssh`, …) is denied.
+  Beyond these, only explicit grants remain: the agent's own state file(s) and
+  the shared read-only gcloud ADC directory (`~/.config/gcloud`, see "Accepted
+  tradeoffs"). Everything else (home directory, `~/.ssh`, …) is denied.
 - **Network**: outbound remote TCP port 443 and DNS TCP/UDP port 53, plus
   unrestricted loopback TCP (`localhost:*`) so local MCP servers (Chrome
   DevTools, Slack, the local llama.cpp provider) can reach their HTTP peers.
@@ -165,6 +167,14 @@ unauthenticated with a warning on stderr. Side-effect-free invocations
   `claude` launchable; revisit if a narrower mechanism (e.g. a Claude-specific
   profile, or upstream env-var support that avoids the `security` spawn)
   becomes available.
+- **Gcloud ADC is readable, for Pi's Vertex AI provider.** The profile grants
+  read access to `~/.config/gcloud` so Pi can use Application Default
+  Credentials; the credential is provisioned outside the sandbox
+  (`gcloud auth application-default login`) and the agent never writes it.
+  Like `/usr/bin/security`, this is a shared-profile allowance, so claude
+  sessions can read the same directory, including the user refresh token.
+  Use `GOOGLE_CLOUD_API_KEY` instead (no file read), or a Pi-specific profile,
+  if the ADC should not be exposed to claude sessions.
 - **Environment variables are visible to the model.** The wrapper preserves
   the calling environment, and with `permission.bash = "allow"` the model's
   shell commands inherit it. Secrets such as `LIBRARY_API_KEY` and
@@ -341,8 +351,8 @@ The `pi` wrapper (`packages/pi-sandboxed`) also defaults to
   a symlink out of the granted tree). The repo-backed config is therefore
   read-only inside the sandbox, while Pi's runtime state under `~/.pi/agent`
   (`auth.json`, sessions, installed packages, logs) and `~/.cache/pi` are
-  read+write. The gcloud ADC directory (`~/.config/gcloud`) is also readable,
-  for the Vertex AI provider.
+  read+write. Vertex AI uses the shared gcloud ADC grant (`~/.config/gcloud`,
+  read-only; see "Accepted tradeoffs").
 - **Node.js/npm is confined to the wrapper's PATH** (`packages/pi-sandboxed`
   adds `pkgs.nodejs_22`), so Pi's package installer can fetch provider
   extensions (e.g. `@rahularya01/pi-cursor`) without adding Node to

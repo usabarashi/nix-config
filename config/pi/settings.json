@@ -10,6 +10,7 @@
   "enabledModels": [
     "opencode-go/*",
     "openai/*",
+    "google-vertex/*",
     "llamacpp-local/*",
     "cursor/*"
   ],
