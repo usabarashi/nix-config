@@ -10,6 +10,7 @@ rec {
   codex-bin = pkgs.callPackage ./codex-bin { };
   docker-compose = pkgs.callPackage ./docker-compose { };
   git-tools-bin = pkgs.callPackage ./git-tools-bin { };
+  grok-build-bin = pkgs.callPackage ./grok-build-bin { };
   opencode-bin = pkgs.callPackage ./opencode-bin { };
   opencode-sandboxed = pkgs.callPackage ./opencode-sandboxed {
     inherit codex-bin opencode-bin;
