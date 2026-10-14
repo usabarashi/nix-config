@@ -32,15 +32,17 @@ let
       [ "@NIX_REAL_PATH@" "@NIX_VERSION_STAMP@" ]
       [ "${pkgs.nix}/bin/nix" pkgs.nix.version ]
       (builtins.readFile "${repoPath}/config/agents/scripts/nix-agent-guard.sh");
-  # Notification plugin, deployed as an immutable store directory rather than an
-  # out-of-store symlink: the cloud-restricted Seatbelt grants read of
-  # /nix/store, so the plugin stays readable no matter which project opencode
-  # runs in, whereas a repo-backed symlink is only readable from inside this
-  # checkout. A store dir also avoids writing through a symlinked plugins/
-  # directory into the repo during activation.
-  opencodePlugins = pkgs.writeTextDir "notification-sound.js" (
-    builtins.readFile "${repoPath}/config/opencode/plugins/notification-sound.js"
-  );
+  # Notification plugins: the whole flakes's config/opencode/plugins tree is
+  # copied into the store, mirroring how commands/skills/tools deploy their
+  # directories as a whole. A store copy (rather than an out-of-store symlink)
+  # is required because the cloud-restricted Seatbelt grants read of /nix/store
+  # but not this checkout, so a repo-backed link would be unreadable whenever
+  # opencode runs in another project. Copying via Nix also avoids writing
+  # through a symlinked plugins/ directory into the repo during activation.
+  opencodePlugins = builtins.path {
+    path = "${repoPath}/config/opencode/plugins";
+    name = "opencode-plugins";
+  };
 in
 {
   imports = [ ./agents-common.nix ];
