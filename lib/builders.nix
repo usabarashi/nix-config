@@ -1,6 +1,7 @@
 {
   nix-darwin,
   home-manager,
+  nixpkgs-libffi-fix,
 }:
 
 {
@@ -30,7 +31,9 @@
           ids.gids.nixbld = 350; # Use fixed GID instead of runtime detection
           nixpkgs = {
             hostPlatform = system;
-            overlays = import ../lib/overlays.nix;
+            overlays = import ../lib/overlays.nix {
+              oldLibffi = nixpkgs-libffi-fix.legacyPackages.${system}.libffi;
+            };
             config.allowUnfree = true;
           };
           users.users.${userName} = {
