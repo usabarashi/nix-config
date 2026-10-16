@@ -24,6 +24,13 @@
       url = "github:oraios/serena";
       inputs.nixpkgs.follows = "nixpkgs";
     };
+    # Pinned pre-apple-libffi nixpkgs: google-cloud-sdk's python3 is relinked
+    # against this libffi in lib/overlays.nix to work around
+    # https://github.com/NixOS/nixpkgs/issues/541367 (libffi trampoline dylib
+    # aborts on macOS 27). Deliberately does not follow the main nixpkgs.
+    nixpkgs-libffi-fix = {
+      url = "github:nixos/nixpkgs/nixos-24.11";
+    };
   };
 
   outputs =
@@ -32,6 +39,7 @@
       nix-darwin,
       home-manager,
       flake-utils,
+      nixpkgs-libffi-fix,
       ...
     }:
     let
@@ -43,6 +51,7 @@
         inherit
           nix-darwin
           home-manager
+          nixpkgs-libffi-fix
           ;
       };
 

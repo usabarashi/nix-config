@@ -1,3 +1,4 @@
+{ oldLibffi }:
 [
   (final: _prev: {
     customPackages = import ../packages { pkgs = final; };
@@ -14,5 +15,16 @@
         };
       }
     );
+  })
+
+  # https://github.com/NixOS/nixpkgs/issues/541367: the current libffi
+  # (apple-source-releases fork) embeds chained-fixups metadata that macOS
+  # 27's dyld rejects, aborting any Python ctypes/cffi use (incl. gcloud).
+  # Relink just google-cloud-sdk's python3 against the pre-fork libffi from
+  # nixpkgs-libffi-fix until the upstream fix reaches nixpkgs-unstable.
+  (_final: prev: {
+    google-cloud-sdk = prev.google-cloud-sdk.override {
+      python314 = prev.python314.override { libffi = oldLibffi; };
+    };
   })
 ]
