@@ -20,6 +20,7 @@ nix run .#mac14-9  # or: nix run .#mac14-10
 
 # Build test (without applying) — env vars required for --impure eval
 CURRENT_USER=$(whoami) REPOSITORY_PATH=$(pwd) \
+  SERIAL_NUMBER=$(ioreg -rd1 -c IOPlatformExpertDevice | awk -F'"' '/IOPlatformSerialNumber/{print $4}') \
   nix build .#darwinConfigurations.mac14-9.system --impure --dry-run
 ```
 
@@ -71,6 +72,7 @@ See `config/nix-extra/*.example` for templates.
 |----------|----------|-------------|
 | `CURRENT_USER` | Auto | Via `whoami` |
 | `REPOSITORY_PATH` | Auto | Via `pwd` |
+| `SERIAL_NUMBER` | Auto | Via `ioreg`; used as the device name. Derived by `nix run`, required when evaluating a `darwinConfigurations.*` directly |
 
 ## Formatting
 

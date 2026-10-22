@@ -7,10 +7,21 @@
 }:
 
 let
-  llamaCpp = pkgs.llama-cpp.override {
-    cpuArchDynamicDispatch = false;
-    blasSupport = true;
-  };
+  llamaCpp =
+    (pkgs.llama-cpp.override {
+      cpuArchDynamicDispatch = false;
+      blasSupport = true;
+    }).overrideAttrs
+      (old: {
+        # nixpkgs' llama-cpp sets `GGML_METAL_DEVICES=0` in preCheck, which in
+        # llama.cpp v0.6.0 makes the test process register zero Metal devices
+        # (the variable is the device *count*, not an index). Disabling
+        # cpuArchDynamicDispatch (GGML_BACKEND_DL=OFF) additionally makes
+        # upstream build test-metal-graph-optimize, which requires a GPU device
+        # and aborts on `GGML_ASSERT(device)`. Skip that test, since the nixpkgs
+        # check environment deliberately runs without a GPU.
+        disabledTests = (old.disabledTests or [ ]) ++ [ "test-metal-graph-optimize" ];
+      });
 
   # Built at nix build time — store paths baked in, no TCC issues.
   # Must be executable in store (SwiftBar calls store path directly via plugin's SWITCH_TO)

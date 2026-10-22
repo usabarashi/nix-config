@@ -9,6 +9,7 @@
     {
       system,
       userName,
+      serialNumber,
       homeModule,
       hostPath,
       repoPath,
@@ -46,6 +47,7 @@
       specialArgs = {
         inherit
           userName
+          serialNumber
           homeDirectory
           repoPath
           ;

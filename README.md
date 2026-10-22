@@ -31,6 +31,7 @@ nix run .#mac14-9  # or: nix run .#mac14-10
 
 ```bash
 CURRENT_USER=$(whoami) REPOSITORY_PATH=$(pwd) \
+  SERIAL_NUMBER=$(ioreg -rd1 -c IOPlatformExpertDevice | awk -F'"' '/IOPlatformSerialNumber/{print $4}') \
   nix build .#darwinConfigurations.mac14-9.system --impure --dry-run
 ```
 
@@ -64,6 +65,7 @@ Supports plain module (`default.nix`) or flake (`flake.nix`) with two optional o
 |----------|----------|-------------|
 | `CURRENT_USER` | Auto | Detected via `whoami` |
 | `REPOSITORY_PATH` | Auto | Detected via `pwd` |
+| `SERIAL_NUMBER` | Auto | Detected via `ioreg`; used as the device name. `nix run` derives it (override via the env var), but evaluating a `darwinConfigurations.*` directly requires it |
 
 ## Build Requirements
 
