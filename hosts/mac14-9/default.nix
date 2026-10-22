@@ -1,4 +1,4 @@
-{ userName, ... }:
+{ userName, serialNumber, ... }:
 {
   imports = [
     ../../modules/darwin/karabiner.nix
@@ -8,6 +8,21 @@
     ../../modules/darwin/llama-server.nix
     ../../modules/darwin/swiftbar.nix
   ];
+
+  # Restore the device name on activation instead of keeping the numbered name
+  # macOS derives on its own (observed as "<serial> (<n>)"). The name is the
+  # hardware serial number, which the deploy wrapper reads with ioreg.
+  #
+  # macOS appends " (N)" to ComputerName when it believes the name is taken on
+  # the network; "wake for network access" (sleep/wake + proxied address) is
+  # the most commonly reported trigger, so it is disabled here as well.
+  # https://apple.stackexchange.com/q/153080 https://apple.stackexchange.com/q/125411
+  networking = {
+    computerName = serialNumber;
+    hostName = serialNumber;
+    localHostName = serialNumber;
+    wakeOnLan.enable = false;
+  };
 
   # See: https://daiderd.com/nix-darwin/manual/
   system = {

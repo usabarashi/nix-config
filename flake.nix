@@ -76,9 +76,15 @@
             pkgs.writeShellScript "apply-${name}" ''
               set -euo pipefail
               echo "Applying '${name}' configuration... (sudo password may be required)"
+              serial="''${SERIAL_NUMBER:-$(/usr/sbin/ioreg -rd1 -c IOPlatformExpertDevice | /usr/bin/awk -F'"' '/IOPlatformSerialNumber/{print $4}')}"
+              if [[ ! $serial =~ ^[A-Za-z0-9]+$ ]]; then
+                echo "error: no valid hardware serial number (got '$serial')" >&2
+                exit 1
+              fi
               sudo env \
                 CURRENT_USER="''${CURRENT_USER:-$(whoami)}" \
                 REPOSITORY_PATH="''${REPOSITORY_PATH:-$(pwd)}" \
+                SERIAL_NUMBER="$serial" \
                 ${darwinRebuild} switch --flake ".#${name}" --impure "$@"
             ''
           );
@@ -105,7 +111,7 @@
         mac14-9 = builders.mkDarwinSystem {
           system = "aarch64-darwin";
           userName = env.currentUser;
-          inherit (env) repoPath;
+          inherit (env) repoPath serialNumber;
           homeModule = homeModules.mac14-9;
           hostPath = hostPaths.mac14-9;
           flakeInputs = mkFlakeInputs "aarch64-darwin";
@@ -113,7 +119,7 @@
         mac14-10 = builders.mkDarwinSystem {
           system = "aarch64-darwin";
           userName = env.currentUser;
-          inherit (env) repoPath;
+          inherit (env) repoPath serialNumber;
           homeModule = homeModules.mac14-10;
           hostPath = hostPaths.mac14-10;
           flakeInputs = mkFlakeInputs "aarch64-darwin";
