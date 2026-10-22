@@ -40,13 +40,15 @@ let
   ghBin = "${gh}/bin/gh";
   # Distrust roots for compromised eMudhra intermediates (CVE-2026-111943,
   # https://github.com/NixOS/nixpkgs/issues/576485). Mirrors nix-darwin PR
-  # #1876. Remove an entry once `${cacert}`'s ca-bundle.crt no longer
-  # contains it (nixpkgs#576347 drops the three emSign roots from the
-  # package itself; Comodo AAA Services root stays blacklisted upstream
-  # even after that bump).
+  # #1876. The three emSign entries only exist in cacert's certdata before
+  # 3.131.1 (nixpkgs#576347); buildcatrust hard-fails on an unknown
+  # blocklist name, so they must drop out once cacert is bumped past that
+  # version. Comodo AAA Services root stays blacklisted upstream even
+  # after that bump, so it is unconditional.
   cacertSecure = cacert.override {
     blacklist = [
       "Comodo AAA Services root"
+    ] ++ lib.optionals (lib.versionOlder cacert.version "3.131.1") [
       "emSign ECC Root CA - G3"
       "emSign Root CA - C1"
       "emSign ECC Root CA - C3"

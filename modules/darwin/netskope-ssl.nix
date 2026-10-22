@@ -65,7 +65,7 @@ _: {
           cat "$cert" >> "$CERT_DIR/filtered.pem"
         done
         kept=$(grep -c "BEGIN CERTIFICATE" "$CERT_DIR/filtered.pem" 2>/dev/null || echo 0)
-        if [ "$kept" -gt 0 ] && [ "$kept" -ge "$((total - 4))" ]; then
+        if [ "$kept" -gt 0 ] && [ "$((kept + removed))" -eq "$total" ]; then
           cat "$CERT_DIR/filtered.pem" > "$TARGET"
           echo "Netskope SSL: updated $TARGET (removed $removed distrusted root(s) of $total)"
         else
