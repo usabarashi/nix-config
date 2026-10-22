@@ -58,4 +58,7 @@ jobs:
       run: |
         export CURRENT_USER=$(whoami)
         export REPOSITORY_PATH=$(pwd)
+        # Synthetic serial for CI builds; these configurations are never
+        # activated (the real serial is read on the target machine).
+        export SERIAL_NUMBER=CI
         nix build .#darwinConfigurations.${{ matrix.config_name }}.system --dry-run --impure
