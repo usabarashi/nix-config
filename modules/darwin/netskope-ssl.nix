@@ -23,22 +23,59 @@ _: {
   };
 
   system.activationScripts.postActivation.text = ''
-    # Regenerate combined CA certificate bundle (system CAs + Netskope CA)
+    # Regenerate combined CA certificate bundle (system CAs + Netskope CA),
+    # excluding roots distrusted for the eMudhra intermediate CA compromise
+    # (CVE-2026-111943, https://github.com/NixOS/nixpkgs/issues/576485).
+    # Mirrors the blacklist in nix-darwin's security.pki module (PR #1876);
+    # update both lists together if upstream's set changes.
     NETSKOPE_CERT="/Library/Application Support/Netskope/STAgent/data/nscacert.pem"
     TARGET="/etc/nix/ca_cert.pem"
     if [ -f "$NETSKOPE_CERT" ]; then
       TMPFILE=$(mktemp)
-      trap 'rm -f "$TMPFILE"' EXIT
+      CERT_DIR=$(mktemp -d)
+      trap 'rm -f "$TMPFILE"; rm -rf "$CERT_DIR"' EXIT
       if security find-certificate -a -p \
         /System/Library/Keychains/SystemRootCertificates.keychain \
         /Library/Keychains/System.keychain \
         > "$TMPFILE" && [ -s "$TMPFILE" ]; then
-        cat "$TMPFILE" "$NETSKOPE_CERT" > "$TARGET"
-        echo "Netskope SSL: updated $TARGET"
+        cat "$TMPFILE" "$NETSKOPE_CERT" > "$CERT_DIR/combined.pem"
+        awk -v dir="$CERT_DIR" '
+          /-----BEGIN CERTIFICATE-----/ { n++; if (out) close(out); out = dir "/cert-" n ".pem" }
+          out { print > out }
+        ' "$CERT_DIR/combined.pem"
+        total=0
+        removed=0
+        : > "$CERT_DIR/filtered.pem"
+        for cert in "$CERT_DIR"/cert-*.pem; do
+          [ -f "$cert" ] || continue
+          total=$((total + 1))
+          subject=$(/usr/bin/openssl x509 -noout -subject -in "$cert" 2>/dev/null) || {
+            cat "$cert" >> "$CERT_DIR/filtered.pem"
+            continue
+          }
+          case "$subject" in
+            *"CN=AAA Certificate Services"* | \
+            *"CN=emSign ECC Root CA - G3"* | \
+            *"CN=emSign Root CA - C1"* | \
+            *"CN=emSign ECC Root CA - C3"*)
+              removed=$((removed + 1))
+              continue
+              ;;
+          esac
+          cat "$cert" >> "$CERT_DIR/filtered.pem"
+        done
+        kept=$(grep -c "BEGIN CERTIFICATE" "$CERT_DIR/filtered.pem" 2>/dev/null || echo 0)
+        if [ "$kept" -gt 0 ] && [ "$kept" -ge "$((total - 4))" ]; then
+          cat "$CERT_DIR/filtered.pem" > "$TARGET"
+          echo "Netskope SSL: updated $TARGET (removed $removed distrusted root(s) of $total)"
+        else
+          echo "Netskope SSL: filtered bundle looks wrong (kept $kept of $total certs), leaving $TARGET unchanged" >&2
+        fi
       else
         echo "Netskope SSL: failed to extract system CAs, leaving $TARGET unchanged" >&2
       fi
       rm -f "$TMPFILE"
+      rm -rf "$CERT_DIR"
     else
       echo "Netskope SSL: $NETSKOPE_CERT not found, skipping"
     fi
