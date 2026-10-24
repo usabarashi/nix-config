@@ -116,4 +116,65 @@ jobs:
           sbom.csv
           grype-results.sarif
           grype-report.txt
+        if-no-files-found: warn
+        retention-days: 90
+
+    # vulnxscan re-scans the same build output with vulnix, Grype and OSV and
+    # reports how many scanners agree on each finding (`sum` column).
+    # --triage adds Repology version info; --nixprs adds GitHub searches for
+    # nixpkgs PRs that mention each CVE. vulnxscan queries unauthenticated, so
+    # the PR search is capped at roughly 10 requests/minute and is the slowest
+    # part of the run.
+    #
+    # This step is deliberately last: it is informational only and must never
+    # delay the Grype SARIF upload or the SBOM artifacts above. timeout-minutes
+    # bounds it, and its own report is uploaded separately below.
+    #
+    # How to triage a finding (is the fix already on our nixpkgs branch?):
+    #   1. Open https://tracker.security.nixos.org and search the CVE id to see
+    #      the affected nixpkgs package and whether a fix is tracked.
+    #   2. PR numbers are listed in the nixpkgs_pr column of vulns.triage.csv.
+    #      That search matches any PR mentioning the CVE, so confirm first that
+    #      the PR is the one that actually fixes the package in question.
+    #   3. Check that PR on https://nixpk.gs/pr-tracker.html to see whether it has
+    #      reached nixpkgs-unstable, the branch our `nixpkgs` input tracks.
+    #   4. If it has: `nix flake update nixpkgs`. If not: wait, or record the
+    #      decision (false positive, not applicable, waiting on fix) in a
+    #      vulnxscan whitelist. `vuln_id` and `comment` are mandatory columns.
+    #      CI does not pass a whitelist, so re-run the scan locally with
+    #      `--whitelist` to apply it. See README "Vulnerability triage".
+    - name: vulnxscan (vulnix + Grype + OSV)
+      id: vulnxscan
+      continue-on-error: true
+      timeout-minutes: 40
+      run: |
+        nix shell --inputs-from . nixpkgs#sbomnix -c \
+          vulnxscan ./result --triage --nixprs
+
+    - name: vulnxscan summary
+      if: always()
+      env:
+        VULNXSCAN_OUTCOME: ${{ steps.vulnxscan.outcome }}
+      run: |
+        {
+          echo "## vulnxscan (vulnix + Grype + OSV)"
+          if [ "${VULNXSCAN_OUTCOME}" != "success" ]; then
+            echo "Status: ${VULNXSCAN_OUTCOME} (informational only; see the step log)"
+          fi
+          if [ -f vulns.triage.csv ]; then
+            echo "Findings: $(($(wc -l < vulns.triage.csv) - 1)) (see the vulnxscan artifact)"
+          elif [ -f vulns.csv ]; then
+            echo "Findings: $(($(wc -l < vulns.csv) - 1)) (see the vulnxscan artifact)"
+          fi
+        } >> "$GITHUB_STEP_SUMMARY"
+
+    - name: Upload vulnxscan report
+      if: always()
+      uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+      with:
+        name: vulnxscan-${{ matrix.config_name }}-${{ github.sha }}
+        path: |
+          vulns.csv
+          vulns.triage.csv
+        if-no-files-found: ignore
         retention-days: 90

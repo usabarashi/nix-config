@@ -1,0 +1,51 @@
+name: "Flake Checker"
+
+# Weekly health check of flake.lock (Determinate Systems flake-checker).
+# - check-supported: the root nixpkgs input must track a supported branch
+#   (e.g. nixpkgs-unstable, nixos-YY.MM, nixpkgs-YY.MM-darwin).
+# - check-outdated: the root nixpkgs input must be less than 30 days old.
+# - check-owner: the root nixpkgs input must come from the NixOS GitHub org.
+#
+# Only `nixpkgs` is checked. `nixpkgs-libffi-fix` is deliberately pinned to
+# nixos-24.11 (see flake.nix) and would always fail check-supported/outdated.
+
+on:
+  push:
+    branches: [ "main" ]
+    paths:
+      - "flake.lock"
+      - ".github/workflows/flake-checker.yml"
+  pull_request:
+    paths:
+      - "flake.lock"
+      - ".github/workflows/flake-checker.yml"
+  schedule:
+    - cron: "0 3 * * 1"
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  flake-checker:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+    - name: Check flake.lock
+      uses: DeterminateSystems/flake-checker-action@786422608c7bded2bbc9741ad9f91356842bf520 # v14
+      with:
+        flake-lock-path: flake.lock
+        # Fail instead of silently passing when flake.lock is missing (the
+        # action ignores a missing lock file by default).
+        ignore-missing-flake-lock: false
+        nixpkgs-keys: nixpkgs
+        check-supported: true
+        check-outdated: true
+        check-owner: true
+        fail-mode: true
+        send-statistics: false
