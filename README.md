@@ -73,6 +73,29 @@ Supports plain module (`default.nix`) or flake (`flake.nix`) with two optional o
 - **Build flag**: `--impure` (required for environment variable access)
 - **Nix**: Flakes enabled
 
+## Vulnerability triage
+
+CI checks this flake in two workflows:
+
+- `Flake Checker` (weekly, and on `flake.lock` changes): fails if the `nixpkgs`
+  input is not on a supported branch, is older than 30 days, or is not from the
+  NixOS org. `nixpkgs-libffi-fix` is pinned on purpose and is not checked.
+- `Security Scan` (weekly, and on `*.nix` / `flake.lock` changes): builds each
+  host, generates an SBOM with sbomnix, uploads Grype results to Code Scanning,
+  and runs vulnxscan (vulnix + Grype + OSV) as an informational report
+  (`vulns.csv` / `vulns.triage.csv` artifacts).
+
+When a CVE shows up:
+
+1. Search the CVE id on the [NixOS Security Tracker](https://tracker.security.nixos.org)
+   to find the affected nixpkgs package and the fix, if one is tracked.
+2. Check the fixing PR on the [nixpkgs PR tracker](https://nixpk.gs/pr-tracker.html)
+   (the PR number is also in the `nix_prs` column of `vulns.triage.csv`) to see
+   whether it has landed in `nixpkgs-unstable`, the branch our `nixpkgs` input tracks.
+3. If it has landed, run `nix flake update nixpkgs` and rebuild. If not, wait for
+   it, or record the decision (false positive, not applicable, waiting on fix)
+   in a vulnxscan whitelist with a comment.
+
 ## References
 
 - [Nix](https://nixos.org/) | [Manual](https://nixos.org/manual/nix/stable/) | [Installer](https://github.com/NixOS/nix-installer)
