@@ -182,14 +182,23 @@ start_model_local() {
 # SwiftBar passes parameters as param1=xxx, param2=yyy, etc.
 first_param=${1:-}
 first_param=${first_param#param1=}
-case "${first_param:-gemma}" in
-    gemma)
+# Bolt is excluded from the coding agent on purpose: `-rea off` and
+# `conversational_mode` cap replies to a sentence or two, and its 64k context is
+# smaller than the agent sessions this repo typically runs. Pick it by hand.
+case "${first_param:-qwen}" in
+    bolt)
+        # Nemotron 3.5 Bolt E4B (Gemma-4-E4B based, Q4_K_M, 6.2 GB).
+        # VOICE ONLY: Open WebUI Voice Mode. Do not use it from a coding agent.
+        #   -rea off              keeps TTFT low by disabling thinking
+        #   --chat-template-kwargs forces speech-length replies (1-2 sentences)
         start_model \
-            "unsloth/gemma-4-26B-A4B-it-GGUF:UD-IQ4_NL" \
-            "gemma-4-26b-a4b" \
-            -c 49152 \
-            --temp 0.6 --top-p 0.85 --top-k 30 --min-p 0.1 \
-            -rea on --reasoning-format auto --reasoning-budget 2048
+            "nvidia/NVIDIA-Nemotron-3.5-Bolt-E4B-4GB" \
+            "nemotron-bolt-e4b" \
+            --hf-file "Nemotron-3.5-Bolt-E4B-Q4_K_M.gguf" \
+            -c 65536 \
+            --temp 1.0 --top-p 0.95 \
+            -rea off \
+            --chat-template-kwargs '{"conversational_mode":true}'
         warmup_server
         ;;
     qwen)
