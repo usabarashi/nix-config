@@ -26,8 +26,12 @@ _: {
     # Regenerate combined CA certificate bundle (system CAs + Netskope CA),
     # excluding roots distrusted for the eMudhra intermediate CA compromise
     # (CVE-2026-111943, https://github.com/NixOS/nixpkgs/issues/576485).
-    # Mirrors the blacklist in nix-darwin's security.pki module (PR #1876);
-    # update both lists together if upstream's set changes.
+    # This filters the *macOS* system keychain, which Apple maintains separately
+    # from Nix's cacert. nix-darwin's security.pki blacklist is version-gated on
+    # pkgs.cacert >= 3.131.1 (NSS dropped the emSign roots), but Apple's root
+    # store still ships emSign ECC Root CA - G3 and AAA Certificate Services.
+    # Keep these entries until the keychain itself no longer contains them.
+    # Verified 2026-10-27: G3 and AAA present; C1 and C3 absent (no-ops).
     NETSKOPE_CERT="/Library/Application Support/Netskope/STAgent/data/nscacert.pem"
     TARGET="/etc/nix/ca_cert.pem"
     if [ -f "$NETSKOPE_CERT" ]; then
