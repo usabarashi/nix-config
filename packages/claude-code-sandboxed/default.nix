@@ -87,7 +87,7 @@ writeShellScriptBin "claude" ''
   trap cleanup_cloud_tmp EXIT
 
   # --no-sandbox: bypass sandbox and execute the binary directly.
-  # Useful when invoked from an already-sandboxed context (e.g., Gemini CLI).
+  # Useful when invoked from an already-sandboxed context.
   if [ "''${1:-}" = "--no-sandbox" ]; then
       shift
       exec "$CLAUDE_BIN" "$@"

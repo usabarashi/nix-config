@@ -46,6 +46,18 @@ Deny-default profile:
   "nice(5) failed" otherwise). Signals are allowed only to processes in the
   same sandbox, so bounded tests can terminate their own process groups without
   granting signal access to host processes.
+- **Nix startup probe**: `file-read-metadata` for
+  `/Library/Apple/usr/libexec/oah/libRosettaRuntime` and its ancestors, so Nix's
+  Rosetta 2 detection can stat the runtime. In Nix 2.34.x on aarch64-darwin,
+  `pathExists()` rethrows the sandbox EPERM during static settings
+  initialization, so without this grant `nix --version` and every other
+  invocation abort ("getting status of ...: Operation not permitted"). This
+  grants metadata only, not read access to the runtime's contents.
+- **Clipboard**: the pasteboard Mach service (`com.apple.pasteboard.1`) is
+  granted so in-TUI copy (`ctrl+c`), `pbcopy`, and image paste work. The Mach
+  lookup does not distinguish clipboard reads from writes, so this also allows
+  clipboard **reads** (`pbpaste`, native getText) inside the sandbox.
+  `free-tier.sb` does not grant it. See "Accepted tradeoffs".
 - **Authentication**:
   - `gh` uses a **dedicated GitHub agent PAT** (read-only except
     `Pull requests: Write`, the minimum needed to reply to PR review comments)
@@ -154,6 +166,19 @@ unauthenticated with a warning on stderr. Side-effect-free invocations
 
 ### Accepted tradeoffs
 
+- **The clipboard is readable, for in-TUI copy and `pbcopy`.** Pi's copy path
+  is a native NSPasteboard module with a `pbcopy` fallback, and both need the
+  pasteboard Mach service (`com.apple.pasteboard.1`); without it copy fails and
+  `pbcopy` exits non-zero. The Mach lookup does not distinguish reads from
+  writes, so the grant also lets the model read and replace the clipboard
+  (`pbpaste`, native getText, image paste) — including a password or token
+  copied during the session — and send it over the permitted HTTPS/DNS egress.
+  OSC 52 is not a verified workaround for this setup: Pi only emits it when
+  `PI_CLIPBOARD_OSC52=1` (or SSH), and the VS Code integrated terminal the
+  wrapper is normally run from may not support it (untested). This is a shared
+  profile, so claude sessions gain the same access; `free-tier.sb` keeps the
+  pasteboard denied. Accepted for convenience; a write-only host-side
+  clipboard bridge would be the way to keep reads denied.
 - **`/usr/bin/security` is exec-allowed, for Claude Code.** claude-code-bin
   spawns `security` unconditionally during startup — confirmed independent of
   auth method (dummy `ANTHROPIC_API_KEY` and dummy `CLAUDE_CODE_OAUTH_TOKEN`
