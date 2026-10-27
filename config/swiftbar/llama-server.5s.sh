@@ -121,12 +121,16 @@ elif is_transitioning; then
     echo "---"
     echo "Starting..."
     echo "---"
-    # All actions grayed out during transition
+    # Start actions are useless while a launch is in flight. Stop, however, only
+    # works while the port is bound (switch-to stops by port), so keep it
+    # readable exactly when a listener exists: otherwise a server whose health
+    # never reaches 200 would have no way out.
     all="color=gray"
+    if [ -n "${PID:-}" ]; then stop_all=""; else stop_all="color=gray"; fi
     echo "Open Web UI (starting...) | href=http://127.0.0.1:${PORT} $all"
     echo "Start Qwen3.6 35B | bash=$SWITCH_TO param1=qwen terminal=false refresh=5s $all"
     echo "Start Bolt E4B | bash=$SWITCH_TO param1=bolt terminal=false refresh=5s $all"
-    echo "Stop | bash=$SWITCH_TO param1=stopped terminal=false refresh=5s $all"
+    echo "Stop | bash=$SWITCH_TO param1=stopped terminal=false refresh=5s $stop_all"
 
 else
     echo " | sfimage=brain"
