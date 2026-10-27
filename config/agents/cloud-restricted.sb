@@ -118,6 +118,20 @@
   (literal "/run")
   (literal "/run/current-system")
   (literal "/var")
+  ;; Nix probes Rosetta 2 during the static initialization of its settings
+  ;; (globals.cc: pathExists("/Library/Apple/usr/libexec/oah/libRosettaRuntime")),
+  ;; because an aarch64-darwin host with Rosetta also accepts x86_64-darwin.
+  ;; In Nix 2.34.x, pathExists() lets the EPERM escape as nix::SysError, so a
+  ;; denied stat aborts the invocation ("getting status of ...: Operation not
+  ;; permitted") before any subcommand runs. Metadata only: this grants no read
+  ;; access to the runtime's contents. The parent literals are
+  ;; path-resolution traversal.
+  (literal "/Library")
+  (literal "/Library/Apple")
+  (literal "/Library/Apple/usr")
+  (literal "/Library/Apple/usr/libexec")
+  (literal "/Library/Apple/usr/libexec/oah")
+  (literal "/Library/Apple/usr/libexec/oah/libRosettaRuntime")
   (subpath "/System/Cryptexes"))
 
 ;; Project files remain the only general-purpose filesystem tree available to
@@ -273,6 +287,14 @@
   (global-name "com.apple.SystemConfiguration.configd")
   (global-name "com.apple.trustd.agent")
   (global-name "com.apple.system.opendirectoryd.libinfo")
+  ;; Pasteboard (clipboard), so in-TUI copy (ctrl+c), `pbcopy`, and paste of
+  ;; images work. Pi reaches it twice: a native NSPasteboard module and, if that
+  ;; throws, a `pbcopy` spawn. Seatbelt exposes the pasteboard through a single
+  ;; Mach lookup that does not distinguish reads from writes, so this grant also
+  ;; exposes clipboard READS (`pbpaste`, native getText) to the sandboxed
+  ;; process. The free-tier profile deliberately omits it. See README "Accepted
+  ;; tradeoffs".
+  (global-name "com.apple.pasteboard.1")
   ;; Audio playback for the voicevox MCP `text_to_speech` tool, which renders
   ;; speech and plays it on the host. The default backend shells out to
   ;; `/usr/bin/afplay` (CoreAudio AudioQueue); without `audiohald` the queue
