@@ -1,6 +1,7 @@
 {
   "advisor": "openai/gpt-6-astra",
   "advisorJevFilterEnabled": true,
+  "advisorJevClassifier": "typesafe/jev-latest",
   "advisorJevTurnGateEveryTurns": 4,
   "advisorJevTurnGateNoulThreshold": 0.8,
   "advisorRedactSecrets": true,

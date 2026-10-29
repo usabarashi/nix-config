@@ -15,8 +15,10 @@
     "cursor/*"
   ],
   "packages": [
-    "npm:@rahularya01/pi-cursor@1.4.38",
-    "npm:pi-advisor-flow@0.13.2"
+    "git:github.com/czottmann/pi-automode@e69c02036b56",
+    "npm:@rahularya01/pi-cursor@1.4.39",
+    "npm:pi-advisor-flow@0.14.3",
+    "npm:pi-goal-moonland@0.2.0"
   ],
   "lastChangelogVersion": "1.2.0"
 }
