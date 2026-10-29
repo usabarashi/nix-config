@@ -6,10 +6,7 @@
       "timeout": 120
     },
     "library": {
-      "url": "https://library.usabarashi.net/mcp",
-      "headers": {
-        "Authorization": "Bearer ${LIBRARY_API_KEY}"
-      },
+      "url": "https://library-mcp.usabarashi.net/mcp",
       "timeout": 120
     },
     "chrome-devtools": {

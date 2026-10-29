@@ -79,9 +79,7 @@ in
     ".pi/agent/prompts" = agentPrompts;
     ".pi/agent/skills" = agentSkills;
     # Pi extensions, auto-discovered from the agent-dir extensions/:
-    # notification-sound.ts rings the host bell when control returns to the
-    # user; auto-mode.ts adds the `/auto` toggle (Claude Code auto-style);
-    # goal.ts adds `/goal` (set/clear a session goal).
+    # notification-sound.ts rings the host bell when control returns to the user.
     ".pi/agent/extensions" = {
       source = config.lib.file.mkOutOfStoreSymlink "${repoPath}/config/pi/extensions";
       force = true;
