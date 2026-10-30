@@ -17,7 +17,7 @@
 # Binary version lives in packages/pi-bin/default.nix.
 {
   _1password-cli,
-  cacert,
+  cacertSecure,
   chrome-devtools-mcp,
   coreutils,
   freeTierConfig,
@@ -38,26 +38,12 @@ let
   # sandbox PATH, and cloud-restricted.sb denies it on the exec list.
   opBin = "${_1password-cli}/bin/op";
   ghBin = "${gh}/bin/gh";
-  # Distrust roots for compromised eMudhra intermediates (CVE-2026-111943,
-  # https://github.com/NixOS/nixpkgs/issues/576485). Mirrors nix-darwin PR
-  # #1876. The three emSign entries only exist in cacert's certdata before
-  # 3.131.1 (nixpkgs#576347); buildcatrust hard-fails on an unknown
-  # blocklist name, so they must drop out once cacert is bumped past that
-  # version. Comodo AAA Services root stays blacklisted upstream even
-  # after that bump, so it is unconditional.
-  cacertSecure = cacert.override {
-    blacklist = [
-      "Comodo AAA Services root"
-    ]
-    ++ lib.optionals (lib.versionOlder cacert.version "3.131.1") [
-      "emSign ECC Root CA - G3"
-      "emSign Root CA - C1"
-      "emSign ECC Root CA - C3"
-    ];
-  };
 in
 writeShellScriptBin "pi" ''
   export SSL_CERT_FILE="${cacertSecure}/etc/ssl/certs/ca-bundle.crt"
+  # nodejs_22 (npm / provider installs) keeps its own root store unless told
+  # to use OpenSSL's. The Bun-compiled `pi` binary does not honor this.
+  export NODE_OPTIONS="''${NODE_OPTIONS:+''${NODE_OPTIONS} }--use-openssl-ca"
 
   # git-agent-guard / nix-agent-guard are materialized in ~/.pi/agent/bin by
   # home-manager; this dir precedes the store binaries so agent-spawned git/nix

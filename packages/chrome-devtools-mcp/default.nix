@@ -28,6 +28,7 @@
   stdenvNoCC,
   fetchurl,
   nodejs_22,
+  cacertSecure,
   makeWrapper,
 }:
 let
@@ -55,8 +56,13 @@ stdenvNoCC.mkDerivation {
     cp -R package.json build "$out/lib/chrome-devtools-mcp/"
     install -Dm644 LICENSE "$out/share/doc/chrome-devtools-mcp/LICENSE"
 
+    # Node's bundled store ignores SSL_CERT_FILE; --use-openssl-ca switches it to
+    # the bundle above. Appended rather than set, so NODE_OPTIONS handed in by
+    # the MCP client (e.g. --max-old-space-size) survives.
     makeWrapper "${nodejs_22}/bin/node" "$out/bin/chrome-devtools-mcp" \
-      --add-flags "$out/lib/chrome-devtools-mcp/build/src/bin/chrome-devtools-mcp.js"
+      --add-flags "$out/lib/chrome-devtools-mcp/build/src/bin/chrome-devtools-mcp.js" \
+      --set SSL_CERT_FILE "${cacertSecure}/etc/ssl/certs/ca-bundle.crt" \
+      --run 'export NODE_OPTIONS="''${NODE_OPTIONS:+''${NODE_OPTIONS} }--use-openssl-ca"'
 
     runHook postInstall
   '';

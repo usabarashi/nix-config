@@ -1,6 +1,7 @@
 { userName, serialNumber, ... }:
 {
   imports = [
+    ../../modules/darwin/distrust-emudhra.nix
     ../../modules/darwin/karabiner.nix
     ../../modules/darwin/nix-maintenance.nix
     ../../modules/darwin/nix-settings.nix
@@ -82,6 +83,24 @@
     keyboard = {
       enableKeyMapping = true;
     };
+  };
+
+  # zsh exports these from /etc/zshenv (nix-darwin's environment.variables), so
+  # they only reach clients that read them. curl, openssl, python, nix and node
+  # with --use-openssl-ca reject AAA through the bundle's AUX "reject" data
+  # (checked against the eMudhra test host). Clients that ignore AUX (Go, rustls)
+  # may still accept the distrusted blocks the nix-darwin bundle keeps, so they
+  # are not covered by this variable; that is why Apple's /etc/ssl/cert.pem is
+  # filtered physically instead of relying on a blacklist. Security.framework
+  # consumers read the keychain and are unaffected either way.
+  # Pointing at the Mozilla bundle is deliberate: Apple's keychain roots (incl.
+  # MDM-installed ones) are not merged in. PIP_CERT steers the built-in pip off
+  # its private root copy. Do not set these on mac14-10: that host points the
+  # same variables at the Netskope bundle.
+  environment.variables = {
+    SSL_CERT_FILE = "/etc/ssl/certs/ca-certificates.crt";
+    REQUESTS_CA_BUNDLE = "/etc/ssl/certs/ca-certificates.crt";
+    PIP_CERT = "/etc/ssl/cert.pem";
   };
 
   programs.zsh.enable = true;
