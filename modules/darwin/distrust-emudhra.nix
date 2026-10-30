@@ -101,13 +101,18 @@ in
         found=$(count_cert_blocks "$TARGET")
 
         if [ "$unknown" -gt 0 ]; then
-          echo "distrust-emudhra: $unknown certificate(s) in $TARGET could not be parsed, kept as-is" >&2
+          echo "distrust-emudhra: $unknown of $found certificate(s) in $TARGET could not be parsed and were kept as-is" >&2
         fi
 
         # Invariant: nothing was lost and nothing but whole certificates was
         # dropped. An empty or partial result is never written back.
         if [ "$found" -eq 0 ]; then
           echo "distrust-emudhra: no certificates found in $TARGET, leaving it unchanged" >&2
+          rm -f "$TMP"
+        elif [ "$removed" -eq 0 ] && [ "$unknown" -eq "$found" ]; then
+          # openssl could not read any block: reporting "already filtered" here
+          # would claim a guarantee the filter never checked.
+          echo "distrust-emudhra: no certificate in $TARGET could be parsed; it was NOT filtered" >&2
           rm -f "$TMP"
         elif [ "$removed" -eq 0 ]; then
           echo "distrust-emudhra: $TARGET already has none of the distrusted roots ($kept kept)"
