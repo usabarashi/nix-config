@@ -28,9 +28,24 @@
   stdenvNoCC,
   fetchurl,
   nodejs_22,
+  cacert,
   makeWrapper,
 }:
 let
+  # Same blacklist as lib/overlays.nix. Node ignores SSL_CERT_FILE unless
+  # --use-openssl-ca is set, so the wrapper points it at this bundle.
+  # Comodo AAA Services root remains in cacert >= 3.131.1; the emSign roots
+  # do not, and buildcatrust rejects unknown blocklist names.
+  cacertSecure = cacert.override {
+    blacklist = [
+      "Comodo AAA Services root"
+    ]
+    ++ lib.optionals (lib.versionOlder cacert.version "3.131.1") [
+      "emSign ECC Root CA - G3"
+      "emSign Root CA - C1"
+      "emSign ECC Root CA - C3"
+    ];
+  };
   version = "1.6.0";
   src = fetchurl {
     url = "https://registry.npmjs.org/chrome-devtools-mcp/-/chrome-devtools-mcp-${version}.tgz";
@@ -56,7 +71,9 @@ stdenvNoCC.mkDerivation {
     install -Dm644 LICENSE "$out/share/doc/chrome-devtools-mcp/LICENSE"
 
     makeWrapper "${nodejs_22}/bin/node" "$out/bin/chrome-devtools-mcp" \
-      --add-flags "$out/lib/chrome-devtools-mcp/build/src/bin/chrome-devtools-mcp.js"
+      --add-flags "$out/lib/chrome-devtools-mcp/build/src/bin/chrome-devtools-mcp.js" \
+      --set SSL_CERT_FILE "${cacertSecure}/etc/ssl/certs/ca-bundle.crt" \
+      --set NODE_OPTIONS "--use-openssl-ca"
 
     runHook postInstall
   '';

@@ -16,10 +16,13 @@ _: {
   nix.settings."ssl-cert-file" = "/etc/nix/ca_cert.pem";
 
   # Expose the combined CA bundle to user-space tools (Rust/rustls, Python requests, curl, etc.)
+  # PIP_CERT is the filtered bundle, not /etc/ssl/cert.pem: built-in pip must
+  # keep trusting the Netskope inspection CA that this file appends.
   environment.variables = {
     SSL_CERT_FILE = "/etc/nix/ca_cert.pem";
     NIX_SSL_CERT_FILE = "/etc/nix/ca_cert.pem";
     REQUESTS_CA_BUNDLE = "/etc/nix/ca_cert.pem";
+    PIP_CERT = "/etc/nix/ca_cert.pem";
   };
 
   system.activationScripts.postActivation.text = ''

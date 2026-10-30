@@ -58,6 +58,9 @@ let
 in
 writeShellScriptBin "pi" ''
   export SSL_CERT_FILE="${cacertSecure}/etc/ssl/certs/ca-bundle.crt"
+  # nodejs_22 (npm / provider installs) keeps its own root store unless told
+  # to use OpenSSL's. The Bun-compiled `pi` binary does not honor this.
+  export NODE_OPTIONS="''${NODE_OPTIONS:+''${NODE_OPTIONS} }--use-openssl-ca"
 
   # git-agent-guard / nix-agent-guard are materialized in ~/.pi/agent/bin by
   # home-manager; this dir precedes the store binaries so agent-spawned git/nix

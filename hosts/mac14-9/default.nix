@@ -1,6 +1,7 @@
 { userName, serialNumber, ... }:
 {
   imports = [
+    ../../modules/darwin/distrust-emudhra.nix
     ../../modules/darwin/karabiner.nix
     ../../modules/darwin/nix-maintenance.nix
     ../../modules/darwin/nix-settings.nix
@@ -82,6 +83,17 @@
     keyboard = {
       enableKeyMapping = true;
     };
+  };
+
+  # zsh exports these from /etc/zshenv. They do not reach Finder-launched
+  # processes; those keep using the filtered /etc/ssl/cert.pem from
+  # distrust-emudhra.nix. PIP_CERT steers the built-in pip off its private
+  # root copy. Do not set these on mac14-10: that host points the same
+  # variables at the Netskope bundle.
+  environment.variables = {
+    SSL_CERT_FILE = "/etc/ssl/certs/ca-certificates.crt";
+    REQUESTS_CA_BUNDLE = "/etc/ssl/certs/ca-certificates.crt";
+    PIP_CERT = "/etc/ssl/cert.pem";
   };
 
   programs.zsh.enable = true;

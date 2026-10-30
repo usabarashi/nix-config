@@ -1,6 +1,7 @@
 { userName, ... }:
 {
   imports = [
+    ../../modules/darwin/distrust-emudhra.nix
     ../../modules/darwin/karabiner.nix
     ../../modules/darwin/netskope-ssl.nix
     ../../modules/darwin/nix-maintenance.nix
