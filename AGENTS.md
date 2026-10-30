@@ -39,7 +39,7 @@ home/                  User-level home-manager config per role
   private/             Personal packages and modules
   work/                Work packages and modules
 modules/
-  darwin/              nix-darwin modules (karabiner, nix-maintenance, nix-settings)
+  darwin/              nix-darwin modules (distrust-emudhra, netskope-ssl, karabiner, nix-maintenance, nix-settings)
   shared/              home-manager modules (git, terminal, neovim, vscode, agents, ...)
 packages/              Custom package definitions
 ```
@@ -89,3 +89,7 @@ See `config/nix-extra/*.example` for templates.
 - If manual `nix-store --gc` fails with "Operation not permitted", run from
   Terminal.app with Full Disk Access enabled
   (System Settings > Privacy & Security > Full Disk Access)
+- `lib/cacert-distrust.nix` is the single list of roots distrusted for the eMudhra
+  intermediate CA compromise. Activation rewrites `/etc/ssl/cert.pem` to drop them
+  (`modules/darwin/distrust-emudhra.nix`); a macOS update restores Apple's original
+  file *with* the distrusted roots, so run `nix run .#mac14-*` again after an OS update.

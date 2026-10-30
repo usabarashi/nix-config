@@ -38,23 +38,12 @@ let
   # sandbox PATH, and cloud-restricted.sb denies it on the exec list.
   opBin = "${_1password-cli}/bin/op";
   ghBin = "${gh}/bin/gh";
-  # Distrust roots for compromised eMudhra intermediates (CVE-2026-111943,
-  # https://github.com/NixOS/nixpkgs/issues/576485). Mirrors nix-darwin PR
-  # #1876. The three emSign entries only exist in cacert's certdata before
-  # 3.131.1 (nixpkgs#576347); buildcatrust hard-fails on an unknown
-  # blocklist name, so they must drop out once cacert is bumped past that
-  # version. Comodo AAA Services root stays blacklisted upstream even
-  # after that bump, so it is unconditional.
-  cacertSecure = cacert.override {
-    blacklist = [
-      "Comodo AAA Services root"
-    ]
-    ++ lib.optionals (lib.versionOlder cacert.version "3.131.1") [
-      "emSign ECC Root CA - G3"
-      "emSign Root CA - C1"
-      "emSign ECC Root CA - C3"
-    ];
-  };
+  # Roots distrusted after the eMudhra intermediate CA compromise
+  # (CVE-2026-111943, https://github.com/NixOS/nixpkgs/issues/576485).
+  # Single source: lib/cacert-distrust.nix. Applying it here yields the same
+  # derivation as the overlay's pkgs.cacert, so the wrapper stays correct even
+  # when built without the overlay.
+  cacertSecure = (import ../../lib/cacert-distrust.nix { inherit lib; }).secure cacert;
 in
 writeShellScriptBin "pi" ''
   export SSL_CERT_FILE="${cacertSecure}/etc/ssl/certs/ca-bundle.crt"

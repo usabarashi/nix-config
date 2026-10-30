@@ -1,4 +1,11 @@
-_: {
+{
+  lib,
+  ...
+}:
+let
+  distrust = import ../../lib/cacert-distrust.nix { inherit lib; };
+in
+{
   # Combined CA certificate bundle for Netskope SSL inspection.
   # Requires bootstrap: generate the bundle before first `nix run .#mac14-10`.
   # See activation script below for auto-regeneration on subsequent applies.
@@ -17,7 +24,9 @@ _: {
 
   # Expose the combined CA bundle to user-space tools (Rust/rustls, Python requests, curl, etc.)
   # PIP_CERT is the filtered bundle, not /etc/ssl/cert.pem: built-in pip must
-  # keep trusting the Netskope inspection CA that this file appends.
+  # keep trusting the Netskope inspection CA that this file appends. It only
+  # exists after the one-time bootstrap described above; until then pip fails
+  # loudly instead of silently using its own root copy.
   environment.variables = {
     SSL_CERT_FILE = "/etc/nix/ca_cert.pem";
     NIX_SSL_CERT_FILE = "/etc/nix/ca_cert.pem";
@@ -27,16 +36,17 @@ _: {
 
   system.activationScripts.postActivation.text = ''
     # Regenerate combined CA certificate bundle (system CAs + Netskope CA),
-    # excluding roots distrusted for the eMudhra intermediate CA compromise
+    # excluding the roots distrusted for the eMudhra intermediate CA compromise
     # (CVE-2026-111943, https://github.com/NixOS/nixpkgs/issues/576485).
     # This filters the *macOS* system keychain, which Apple maintains separately
-    # from Nix's cacert. nix-darwin's security.pki blacklist is version-gated on
-    # pkgs.cacert >= 3.131.1 (NSS dropped the emSign roots), but Apple's root
-    # store still ships emSign ECC Root CA - G3 and AAA Certificate Services.
-    # Keep these entries until the keychain itself no longer contains them.
+    # from Nix's cacert: the keychain still ships emSign ECC Root CA - G3 and
+    # AAA Certificate Services even after NSS dropped or distrusted them.
+    # Certificates are matched by SHA-256 fingerprint (lib/cacert-distrust.nix),
+    # not by subject, so a renamed CN cannot slip through.
     # Verified 2026-10-27: G3 and AAA present; C1 and C3 absent (no-ops).
     NETSKOPE_CERT="/Library/Application Support/Netskope/STAgent/data/nscacert.pem"
     TARGET="/etc/nix/ca_cert.pem"
+    DISTRUSTED_FPS="${lib.concatStringsSep " " distrust.fingerprints}"
     if [ -f "$NETSKOPE_CERT" ]; then
       TMPFILE=$(mktemp)
       CERT_DIR=$(mktemp -d)
@@ -56,15 +66,14 @@ _: {
         for cert in "$CERT_DIR"/cert-*.pem; do
           [ -f "$cert" ] || continue
           total=$((total + 1))
-          subject=$(/usr/bin/openssl x509 -noout -subject -in "$cert" 2>/dev/null) || {
+          fp=$(/usr/bin/openssl x509 -noout -fingerprint -sha256 -in "$cert" 2>/dev/null | cut -d= -f2) || fp=""
+          if [ -z "$fp" ]; then
+            echo "Netskope SSL: cannot parse a keychain certificate, keeping it as-is" >&2
             cat "$cert" >> "$CERT_DIR/filtered.pem"
             continue
-          }
-          case "$subject" in
-            *"CN=AAA Certificate Services"* | \
-            *"CN=emSign ECC Root CA - G3"* | \
-            *"CN=emSign Root CA - C1"* | \
-            *"CN=emSign ECC Root CA - C3"*)
+          fi
+          case " $DISTRUSTED_FPS " in
+            *" $fp "*)
               removed=$((removed + 1))
               continue
               ;;

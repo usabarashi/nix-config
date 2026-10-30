@@ -1,4 +1,7 @@
 { oldLibffi }:
+let
+  cacertDistrust = import ./cacert-distrust.nix;
+in
 [
   (final: _prev: {
     customPackages = import ../packages { pkgs = final; };
@@ -28,23 +31,10 @@
     };
   })
 
-  # CVE-2026-111943: eMudhra intermediate keys were compromised. NSS 3.131.1
-  # drops the emSign roots, but Comodo AAA Services root (the Sectigo
-  # cross-sign anchor) is still in that certdata. buildcatrust fails on a
-  # blocklist name that is not in certdata (NixOS/nixpkgs#249080), so the
-  # emSign names are included only while cacert is older than 3.131.1.
-  # https://emudhra.we-have-a-problem.com/
-  # https://github.com/NixOS/nixpkgs/issues/576485
+  # CVE-2026-111943: remove the roots compromised by (or chained to) the
+  # eMudhra intermediate CA leak from every bundle built out of certdata, incl.
+  # the cacert.pem that google-cloud-sdk symlinks. See lib/cacert-distrust.nix.
   (_final: prev: {
-    cacert = prev.cacert.override {
-      blacklist = [
-        "Comodo AAA Services root"
-      ]
-      ++ prev.lib.optionals (prev.lib.versionOlder prev.cacert.version "3.131.1") [
-        "emSign ECC Root CA - G3"
-        "emSign Root CA - C1"
-        "emSign ECC Root CA - C3"
-      ];
-    };
+    cacert = (cacertDistrust { inherit (prev) lib; }).secure prev.cacert;
   })
 ]
