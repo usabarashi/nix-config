@@ -1,9 +1,11 @@
 {
   lib,
+  pkgs,
   ...
 }:
 let
   distrust = import ../../lib/cacert-distrust.nix { inherit lib; };
+  extraRoots = distrust.extraRoots pkgs;
 in
 {
   # Combined CA certificate bundle for Netskope SSL inspection.
@@ -47,6 +49,8 @@ in
     NETSKOPE_CERT="/Library/Application Support/Netskope/STAgent/data/nscacert.pem"
     TARGET="/etc/nix/ca_cert.pem"
     DISTRUSTED_FPS="${lib.concatStringsSep " " distrust.fingerprints}"
+    REQUIRED_FPS="${lib.concatStringsSep " " distrust.requiredRoots}"
+    EXTRA_ROOTS="${extraRoots}"
     if [ -f "$NETSKOPE_CERT" ]; then
       TMPFILE=$(mktemp)
       CERT_DIR=$(mktemp -d)
@@ -62,6 +66,7 @@ in
         ' "$CERT_DIR/combined.pem"
         total=0
         removed=0
+        seen=""
         : > "$CERT_DIR/filtered.pem"
         for cert in "$CERT_DIR"/cert-*.pem; do
           [ -f "$cert" ] || continue
@@ -78,14 +83,29 @@ in
               continue
               ;;
           esac
+          seen="$seen $fp"
           cat "$cert" >> "$CERT_DIR/filtered.pem"
         done
+        # Same reason as distrust-emudhra.nix: without the self-signed SSL.com
+        # roots, dropping AAA would break SSL.com / Cloudflare chains.
+        added=0
+        for req in $REQUIRED_FPS; do
+          case " $seen " in
+            *" $req "*) continue ;;
+          esac
+          if [ -f "$EXTRA_ROOTS/$req.pem" ]; then
+            cat "$EXTRA_ROOTS/$req.pem" >> "$CERT_DIR/filtered.pem"
+            added=$((added + 1))
+          else
+            echo "Netskope SSL: no PEM for required root $req in $EXTRA_ROOTS" >&2
+          fi
+        done
         kept=$(grep -c "BEGIN CERTIFICATE" "$CERT_DIR/filtered.pem" 2>/dev/null || echo 0)
-        if [ "$kept" -gt 0 ] && [ "$((kept + removed))" -eq "$total" ]; then
+        if [ "$kept" -gt 0 ] && [ "$((kept - added + removed))" -eq "$total" ]; then
           cat "$CERT_DIR/filtered.pem" > "$TARGET"
-          echo "Netskope SSL: updated $TARGET (removed $removed distrusted root(s) of $total)"
+          echo "Netskope SSL: updated $TARGET (removed $removed of $total certs, added $added required root(s))"
         else
-          echo "Netskope SSL: filtered bundle looks wrong (kept $kept of $total certs), leaving $TARGET unchanged" >&2
+          echo "Netskope SSL: filtered bundle looks wrong (kept $kept, removed $removed, added $added of $total), leaving $TARGET unchanged" >&2
         fi
       else
         echo "Netskope SSL: failed to extract system CAs, leaving $TARGET unchanged" >&2

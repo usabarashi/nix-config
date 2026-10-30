@@ -90,6 +90,8 @@ See `config/nix-extra/*.example` for templates.
   Terminal.app with Full Disk Access enabled
   (System Settings > Privacy & Security > Full Disk Access)
 - `lib/cacert-distrust.nix` is the single list of roots distrusted for the eMudhra
-  intermediate CA compromise. Activation rewrites `/etc/ssl/cert.pem` to drop them
-  (`modules/darwin/distrust-emudhra.nix`); a macOS update restores Apple's original
-  file *with* the distrusted roots, so run `nix run .#mac14-*` again after an OS update.
+  intermediate CA compromise. Activation drops them from Apple's `/etc/ssl/cert.pem`
+  (`modules/darwin/distrust-emudhra.nix`) and, because that 2021 OpenBSD bundle has no
+  self-signed SSL.com root, appends the missing SSL.com roots from
+  `distrust.extraRoots` so `curl https://example.com` keeps working. A macOS update
+  restores the original file, so run `nix run .#mac14-*` again after an OS update.
