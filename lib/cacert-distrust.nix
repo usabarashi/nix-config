@@ -5,8 +5,10 @@
 #   - the nix-darwin system bundle, /etc/ssl/certs/ca-certificates.crt
 #     (modules/darwin/distrust-emudhra.nix; nix-darwin's security.pki already
 #     applies the same blacklist, this repo only repeats the policy)
-#   - Apple's /etc/ssl/cert.pem (modules/darwin/distrust-emudhra.nix)
-#   - the Netskope keychain-derived bundle (modules/darwin/netskope-ssl.nix)
+#   - Apple's /etc/ssl/cert.pem and the Netskope keychain-derived bundle
+#     (modules/darwin/distrust-emudhra.nix, modules/darwin/netskope-ssl.nix);
+#     both also gain the self-signed SSL.com roots Apple's 2021 bundle lacks, so
+#     dropping AAA there does not break SSL.com / Cloudflare chains
 #   - pkgs.cacertSecure, the filtered bundle for packages that embed a bundle
 #     path in their output: google-cloud-sdk (lib/overlays.nix) and the Node
 #     wrappers (packages/*-sandboxed, packages/chrome-devtools-mcp)
@@ -42,9 +44,7 @@ let
   # different certificate. Upper case to match `openssl x509 -fingerprint
   # -sha256`. emSign Root CA - G1 is deliberately absent: it is a different,
   # uncompromised root that remains trusted upstream.
-  fingerprints = [
-    # Comodo AAA Services root (the Sectigo cross-sign anchor)
-    "D7:A7:A0:FB:5D:7E:27:31:D7:71:E9:48:4E:BC:DE:F7:1D:5F:0C:3E:0A:29:48:78:2B:C8:3E:E0:EA:69:9E:F4"
+  retiredFingerprints = [
     # emSign ECC Root CA - G3 (the compromised hierarchy)
     "86:A1:EC:BA:08:9C:4A:8D:3B:BE:27:34:C6:12:BA:34:1D:81:3E:04:3C:F9:E8:A8:62:CD:5C:57:A3:6B:BE:6B"
     # emSign Root CA - C1 (retired alongside the compromise)
@@ -52,16 +52,61 @@ let
     # emSign ECC Root CA - C3 (retired alongside the compromise)
     "BC:4D:80:9B:15:18:9D:78:DB:3E:1D:8C:F4:F9:72:6A:79:5D:A1:64:3C:A5:F1:35:8E:1D:DB:0E:DC:0D:7E:B3"
   ];
+
+  # All four roots. Use for bundles that are current enough to carry the
+  # self-signed SSL.com roots the Sectigo cross-signs would otherwise be
+  # validated through: nixpkgs certdata (Mozilla) and the macOS keychain export.
+  fingerprints = [
+    # Comodo AAA Services root (the Sectigo cross-sign anchor)
+    "D7:A7:A0:FB:5D:7E:27:31:D7:71:E9:48:4E:BC:DE:F7:1D:5F:0C:3E:0A:29:48:78:2B:C8:3E:E0:EA:69:9E:F4"
+  ]
+  ++ retiredFingerprints;
+
+  # Apple's /etc/ssl/cert.pem is the 2021-vintage OpenBSD bundle: it ships no
+  # self-signed SSL.com root, so SSL.com / Cloudflare chains (e.g. example.com)
+  # reach AAA only through the cross-signed SSL.com root. Removing AAA from that
+  # file therefore broke them (`curl: unable to get local issuer certificate`),
+  # so the activation script adds these self-signed equivalents back: AAA stays
+  # distrusted while the legitimate chains keep validating.
+  # SSL.com TLS ECC Root CA 2022 / SSL.com TLS RSA Root CA 2022.
+  requiredRoots = [
+    "C3:2F:FD:9F:46:F9:36:D1:6C:36:73:99:09:59:43:4B:9A:D6:0A:AF:BB:9E:7C:F3:36:54:F1:44:CC:1B:A1:43"
+    "8F:AF:7D:2E:2C:B4:70:9B:B8:E0:B3:36:66:BF:75:A5:DD:45:B5:DE:48:0F:8E:A8:D4:BF:E6:BE:BC:17:F2:ED"
+  ];
+
   # Blacklist argument for pkgs.cacert and security.pki.caCertificateBlacklist.
   blacklist =
     cacert: always ++ lib.optionals (lib.versionOlder cacert.version removedIn) untilRemoved;
 in
 {
-  inherit blacklist fingerprints;
+  inherit blacklist fingerprints requiredRoots;
 
   # cacert with the distrusted roots removed, exposed as pkgs.cacertSecure.
   # buildcatrust keeps blacklisted roots in the trust-rules bundle as AUX
   # "reject" blocks; OpenSSL honours those, clients that ignore AUX (Go, rustls)
   # do not, so this is not a drop-in equivalent of removing the bytes.
   secure = cacert: cacert.override { blacklist = blacklist cacert; };
+
+  # One PEM file per entry in requiredRoots, extracted from certdata at build
+  # time so activation only has to concatenate them and never depends on a
+  # second openssl scan. The build fails if certdata stops carrying a root.
+  extraRoots =
+    pkgs:
+    pkgs.runCommandLocal "cacert-distrust-required-roots" { nativeBuildInputs = [ pkgs.openssl ]; } ''
+      mkdir -p blocks $out
+      awk -v dir=blocks '/^-----BEGIN CERTIFICATE-----$/{n++; f=dir "/" n ".pem"} f{print > f} /^-----END CERTIFICATE-----$/{f=""}' \
+        ${pkgs.cacert}/etc/ssl/certs/ca-no-trust-rules-bundle.crt
+      for f in blocks/*.pem; do
+        fp=$(openssl x509 -in "$f" -noout -fingerprint -sha256 | cut -d= -f2) || continue
+        case " ${lib.concatStringsSep " " requiredRoots} " in
+          *" $fp "*) cp "$f" "$out/$fp.pem" ;;
+        esac
+      done
+      for req in ${lib.concatStringsSep " " requiredRoots}; do
+        [ -f "$out/$req.pem" ] || {
+          echo "cacert-distrust: required root $req is not in ${pkgs.cacert}" >&2
+          exit 1
+        }
+      done
+    '';
 }
