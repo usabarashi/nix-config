@@ -17,7 +17,7 @@
 # Binary version lives in packages/pi-bin/default.nix.
 {
   _1password-cli,
-  cacert,
+  cacertSecure,
   chrome-devtools-mcp,
   coreutils,
   freeTierConfig,
@@ -38,12 +38,6 @@ let
   # sandbox PATH, and cloud-restricted.sb denies it on the exec list.
   opBin = "${_1password-cli}/bin/op";
   ghBin = "${gh}/bin/gh";
-  # Roots distrusted after the eMudhra intermediate CA compromise
-  # (CVE-2026-111943, https://github.com/NixOS/nixpkgs/issues/576485).
-  # Single source: lib/cacert-distrust.nix. Applying it here yields the same
-  # derivation as the overlay's pkgs.cacert, so the wrapper stays correct even
-  # when built without the overlay.
-  cacertSecure = (import ../../lib/cacert-distrust.nix { inherit lib; }).secure cacert;
 in
 writeShellScriptBin "pi" ''
   export SSL_CERT_FILE="${cacertSecure}/etc/ssl/certs/ca-bundle.crt"

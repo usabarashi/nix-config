@@ -28,14 +28,10 @@
   stdenvNoCC,
   fetchurl,
   nodejs_22,
-  cacert,
+  cacertSecure,
   makeWrapper,
 }:
 let
-  # Same roots as the overlay's pkgs.cacert (lib/cacert-distrust.nix); applying
-  # it here yields the same derivation, so the wrapper stays correct even when
-  # built without the overlay.
-  cacertSecure = (import ../../lib/cacert-distrust.nix { inherit lib; }).secure cacert;
   version = "1.6.0";
   src = fetchurl {
     url = "https://registry.npmjs.org/chrome-devtools-mcp/-/chrome-devtools-mcp-${version}.tgz";

@@ -2,12 +2,19 @@
 # intermediate CA key compromise (CVE-2026-111943).
 #
 # Every consumer of these roots must remove the same set:
-#   - pkgs.cacert and everything that embeds it (lib/overlays.nix)
 #   - the nix-darwin system bundle, /etc/ssl/certs/ca-certificates.crt
-#     (modules/darwin/distrust-emudhra.nix)
+#     (modules/darwin/distrust-emudhra.nix; nix-darwin's security.pki already
+#     applies the same blacklist, this repo only repeats the policy)
 #   - Apple's /etc/ssl/cert.pem (modules/darwin/distrust-emudhra.nix)
 #   - the Netskope keychain-derived bundle (modules/darwin/netskope-ssl.nix)
-#   - the Node wrappers (packages/pi-sandboxed, packages/chrome-devtools-mcp)
+#   - pkgs.cacertSecure, the filtered bundle for packages that embed a bundle
+#     path in their output: google-cloud-sdk (lib/overlays.nix) and the Node
+#     wrappers (packages/*-sandboxed, packages/chrome-devtools-mcp)
+#
+# pkgs.cacert itself is deliberately left alone: overriding it globally rebuilds
+# every package that only *tests* against it (certifi, requests,
+# cargo-auditable -> cargo -> tree-sitter -> neovim), and those rebuilds are not
+# in the binary cache.
 #
 # https://emudhra.we-have-a-problem.com/
 # https://github.com/NixOS/nixpkgs/issues/576485
@@ -52,8 +59,9 @@ in
 {
   inherit blacklist fingerprints;
 
-  # cacert with the distrusted roots removed. The overlay replaces pkgs.cacert
-  # with exactly this derivation, so applying it again is free (same hash) and
-  # keeps the packages correct when they are built without the overlay.
+  # cacert with the distrusted roots removed, exposed as pkgs.cacertSecure.
+  # buildcatrust keeps blacklisted roots in the trust-rules bundle as AUX
+  # "reject" blocks; OpenSSL honours those, clients that ignore AUX (Go, rustls)
+  # do not, so this is not a drop-in equivalent of removing the bytes.
   secure = cacert: cacert.override { blacklist = blacklist cacert; };
 }
