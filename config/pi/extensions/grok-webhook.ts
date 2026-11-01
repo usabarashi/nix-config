@@ -20,15 +20,15 @@
 // Wire them from a secret store later (sops-nix or equivalent). This flake
 // does not provision them.
 //
-// The default `pi` wrapper (config/agents/cloud-restricted.sb) already allows
-// outbound TCP 443 to any host. Seatbelt cannot name a host, and the model
-// APIs need that same egress, so no profile change is required for an
-// arbitrary webhook. That wrapper also inherits the caller environment (it
-// only scrubs GitHub token variables), so these two variables reach this
-// process. free-tier.sb rebuilds the environment with `env -i` and an
-// allowlist that omits them on purpose: that profile is for low-trust
-// providers and must not gain this secret, so the extension stays a no-op
-// there even though that profile also allows TCP 443.
+// The default sandbox profile (config/agents/cloud-restricted.sb) already
+// allows outbound TCP 443 to any host. Seatbelt cannot name a host, and the
+// model APIs need that same egress, so no profile change is required for an
+// arbitrary webhook. The pi-sandboxed wrapper preserves the caller environment
+// (it only scrubs GitHub token variables), so these two variables reach this
+// process. The free-tier wrapper rebuilds the environment with `env -i` and an
+// allowlist that omits them on purpose: that profile is for low-trust providers
+// and must not gain this secret, so the extension stays a no-op there even
+// though that profile also allows TCP 443.
 //
 // The secret is visible to the model, like every other inherited variable
 // (config/agents/README.md, "Environment variables are visible to the model").
@@ -132,31 +132,44 @@ function post(url: string, authorization: string, payload: unknown): void {
     const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
     timer.unref?.();
     // Not awaited. `redirect: "error"` so a redirect cannot carry the
-    // Authorization header to another host. The timer bounds a hung connect;
-    // unref keeps it from holding Pi open on shutdown.
-    void fetch(url, {
-      method: "POST",
-      headers: {
-        "content-type": "application/json",
-        authorization,
-      },
-      body: JSON.stringify(payload),
-      redirect: "error",
-      signal: controller.signal,
-    }).then(
-      () => {
+    // Authorization header to another host. Keep the abort deadline armed
+    // until the body is cancelled; clearing it when headers arrive would leave
+    // cleanup uncovered. unref only detaches the timer from the event loop; it
+    // does not bound the socket.
+    void (async () => {
+      try {
+        const response = await fetch(url, {
+          method: "POST",
+          headers: {
+            "content-type": "application/json",
+            authorization,
+          },
+          body: JSON.stringify(payload),
+          redirect: "error",
+          signal: controller.signal,
+        });
+        // Delivery is best-effort; discard the response body so the request
+        // cannot stay open on an unconsumed stream.
+        await response.body?.cancel();
+      } catch {
+        // Delivery is best-effort and must not affect the session.
+      } finally {
         clearTimeout(timer);
-      },
-      () => {
-        clearTimeout(timer);
-      },
-    );
+      }
+    })();
   } catch {
-    // Already settled; ignore a synchronous fetch failure.
+    // Best-effort: ignore a failure while arming the abort timer.
   }
 }
 
 export default function (pi: ExtensionAPI) {
+  // Environment-only configuration, captured once at extension initialization.
+  // Without both values there is nothing to send, so skip hook registration
+  // entirely instead of checking on every settle. Changing or removing the
+  // values mid-session takes effect only after a reload.
+  const target = webhookConfig();
+  if (!target) return;
+
   pi.on("agent_start", () => {
     runGeneration += 1;
   });
@@ -166,8 +179,6 @@ export default function (pi: ExtensionAPI) {
       // Only an interactive session. Stay silent in print/JSON/RPC runs.
       if (ctx && ctx.mode && ctx.mode !== "tui") return;
       if (notifiedGeneration === runGeneration) return;
-      const target = webhookConfig();
-      if (!target) return;
 
       const cwd = (ctx && ctx.cwd) || process.cwd();
       const { project, branch } = projectFacts(cwd);
