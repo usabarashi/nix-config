@@ -80,6 +80,12 @@ in
     ".pi/agent/skills" = agentSkills;
     # Pi extensions, auto-discovered from the agent-dir extensions/:
     # notification-sound.ts rings the host bell when control returns to the user.
+    # grok-webhook.ts POSTs a small operational status (no conversation data)
+    # at that same moment. Silent no-op unless GROK_WEBHOOK_URL and
+    # GROK_WEBHOOK_AUTHORIZATION are both set. Those values are not in this
+    # repo; they are meant to come from a secret store later. cloud-restricted
+    # inherits the caller environment and already allows TCP 443, so no profile
+    # change. free-tier's `env -i` omits them.
     # herdr-agent-state.ts reports pane/agent state to herdr and is a no-op
     # outside it; `herdr integration install pi` generates it, but herdr is not
     # managed by this flake, so the generated file is committed as-is. It needs
