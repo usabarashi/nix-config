@@ -1,7 +1,6 @@
 {
   config,
   pkgs,
-  repoPath,
   ...
 }:
 
@@ -9,8 +8,8 @@
   home.packages = with pkgs; [
     _1password-cli
     age
+    herdr
     sops
-    tmux
   ];
 
   programs = {
@@ -55,12 +54,6 @@
       '';
 
       syntaxHighlighting.enable = true;
-    };
-  };
-
-  home.file = {
-    ".config/tmux/tmux.conf" = {
-      source = config.lib.file.mkOutOfStoreSymlink "${repoPath}/config/tmux/tmux.conf";
     };
   };
 }

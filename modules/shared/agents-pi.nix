@@ -80,6 +80,11 @@ in
     ".pi/agent/skills" = agentSkills;
     # Pi extensions, auto-discovered from the agent-dir extensions/:
     # notification-sound.ts rings the host bell when control returns to the user.
+    # herdr-agent-state.ts reports pane/agent state to herdr and is a no-op
+    # outside it; `herdr integration install pi` generates it, but herdr is not
+    # managed by this flake, so the generated file is committed as-is. It needs
+    # the herdr socket granted in config/agents/cloud-restricted.sb. Re-run the
+    # installer and commit the diff after upgrading herdr.
     ".pi/agent/extensions" = {
       source = config.lib.file.mkOutOfStoreSymlink "${repoPath}/config/pi/extensions";
       force = true;
