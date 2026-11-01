@@ -4,6 +4,11 @@
 // continue on its own. The handler must not change the run, so the POST is not
 // awaited and its rejection is discarded.
 //
+// Besides the operational fields, the payload carries the final assistant
+// message's text: text blocks only, joined with newlines and capped at
+// MAX_OUTPUT_CHARS. Thinking and tool results are not sent, but the assistant
+// text may itself quote prompts, tool output, or file contents.
+//
 // Deployed to ~/.pi/agent/extensions/ by modules/shared/agents-pi.nix. Pi loads
 // *.ts extensions from there with jiti, so there is no build step. Delivery is
 // best-effort: a failure never affects the session and is never printed.
@@ -45,16 +50,49 @@ import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 const TIMEOUT_MS = 3000;
 const MAX_GIT_WALK = 32;
 const MAX_HEAD_BYTES = 4096;
+const MAX_OUTPUT_CHARS = 8000;
 
 // One POST per agent run. `agent_start` bumps the generation (retries and
 // compaction start another low-level run before `agent_settled`); the settle
 // handler sends only when this generation has not been sent yet.
 let runGeneration = 0;
 let notifiedGeneration = -1;
+let pendingOutput: string | undefined;
 
 function envValue(name: string): string | undefined {
   const value = process.env[name]?.trim();
   return value ? value : undefined;
+}
+
+type MessageLike = { role?: string; content?: unknown };
+
+// Text blocks of the last assistant message captured in this run. Thinking,
+// tool calls, and tool results are deliberately ignored.
+function textFromAssistant(message: MessageLike): string | undefined {
+  if (message.role !== "assistant" || !Array.isArray(message.content)) return undefined;
+  const parts: string[] = [];
+  for (const block of message.content) {
+    if (
+      typeof block === "object" &&
+      block !== null &&
+      (block as { type?: unknown }).type === "text" &&
+      typeof (block as { text?: unknown }).text === "string"
+    ) {
+      const text = (block as { text: string }).text.trim();
+      if (text) parts.push(text);
+    }
+  }
+  return parts.length > 0 ? parts.join("\n") : undefined;
+}
+
+function boundedOutput(text: string | undefined): { output: string | null; truncated: boolean } {
+  if (!text) return { output: null, truncated: false };
+  if (text.length <= MAX_OUTPUT_CHARS) return { output: text, truncated: false };
+  let end = MAX_OUTPUT_CHARS;
+  const last = text.charCodeAt(end - 1);
+  // Do not cut between a UTF-16 surrogate pair.
+  if (last >= 0xd800 && last <= 0xdbff) end -= 1;
+  return { output: text.slice(0, end), truncated: true };
 }
 
 function webhookConfig(): { url: string; authorization: string } | undefined {
@@ -172,6 +210,16 @@ export default function (pi: ExtensionAPI) {
 
   pi.on("agent_start", () => {
     runGeneration += 1;
+    pendingOutput = undefined;
+  });
+
+  // Replace the captured text on every assistant message, including a textless
+  // final one: an unfinished or tool-only ending must not be reported as an
+  // earlier commentary.
+  pi.on("message_end", (event) => {
+    if (event.message.role === "assistant") {
+      pendingOutput = textFromAssistant(event.message);
+    }
   });
 
   pi.on("agent_settled", (event, ctx) => {
@@ -183,6 +231,7 @@ export default function (pi: ExtensionAPI) {
       const cwd = (ctx && ctx.cwd) || process.cwd();
       const { project, branch } = projectFacts(cwd);
       const pane = envValue("HERDR_PANE_ID") ?? null;
+      const { output, truncated } = boundedOutput(pendingOutput);
       const payload = {
         agent: "pi",
         state: event && event.aborted ? "aborted" : "done",
@@ -192,6 +241,8 @@ export default function (pi: ExtensionAPI) {
         pane,
         hostname: hostname(),
         timestamp: new Date().toISOString(),
+        output,
+        output_truncated: truncated,
       };
       notifiedGeneration = runGeneration;
       post(target.url, target.authorization, payload);
