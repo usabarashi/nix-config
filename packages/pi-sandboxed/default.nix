@@ -333,8 +333,8 @@ writeShellScriptBin "pi" ''
 
   # Scrub inherited GitHub credential environment variables.
   unset GH_TOKEN GITHUB_TOKEN GH_ENTERPRISE_TOKEN GITHUB_ENTERPRISE_TOKEN
-  # The rest of the caller environment is inherited into this profile, which
-  # is how config/pi/extensions/grok-webhook.ts sees GROK_WEBHOOK_URL and
+  # The rest of the caller environment is inherited by the sandboxed process,
+  # which is how config/pi/extensions/grok-webhook.ts sees GROK_WEBHOOK_URL and
   # GROK_WEBHOOK_AUTHORIZATION. Do not scrub those. The free-tier path above
   # rebuilds the environment with `env -i` and intentionally does not pass
   # them (low-trust providers must not receive that secret).

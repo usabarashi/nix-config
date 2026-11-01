@@ -83,14 +83,18 @@ in
     # grok-webhook.ts POSTs a small operational status (no conversation data)
     # at that same moment. Silent no-op unless GROK_WEBHOOK_URL and
     # GROK_WEBHOOK_AUTHORIZATION are both set. Those values are not in this
-    # repo; they are meant to come from a secret store later. cloud-restricted
-    # inherits the caller environment and already allows TCP 443, so no profile
-    # change. free-tier's `env -i` omits them.
+    # repo; they are meant to come from a secret store later. The pi-sandboxed
+    # wrapper preserves the caller environment and cloud-restricted.sb already
+    # allows TCP 443, so no profile change. free-tier's `env -i` omits them.
     # herdr-agent-state.ts reports pane/agent state to herdr and is a no-op
-    # outside it; `herdr integration install pi` generates it, but herdr is not
-    # managed by this flake, so the generated file is committed as-is. It needs
-    # the herdr socket granted in config/agents/cloud-restricted.sb. Re-run the
-    # installer and commit the diff after upgrading herdr.
+    # outside it. `herdr integration install pi` generates it into this
+    # directory, which is one live symlink into this repo, so the file lands
+    # here and is committed. Pointing at
+    # ${pkgs.herdr}/share/herdr/integrations/pi instead would require splitting
+    # the directory into per-file links, which also changes the realpath that
+    # the sandbox profile grants; that refactor is deferred, so re-run the
+    # installer and commit the diff after each herdr upgrade. The extension also
+    # needs the herdr socket granted in config/agents/cloud-restricted.sb.
     ".pi/agent/extensions" = {
       source = config.lib.file.mkOutOfStoreSymlink "${repoPath}/config/pi/extensions";
       force = true;
