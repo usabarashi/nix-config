@@ -240,6 +240,14 @@
 ;; llama.cpp provider) can reach their peers.
 ;; The Nix daemon UNIX socket is granted so the Nix client can talk to the
 ;; daemon (accepted threat model: full trusted-user daemon authority).
+;; herdr's agent integration (`herdr-agent-state.ts`) reports pane state by
+;; connecting to ~/.config/herdr/herdr.sock, which runs outside the sandbox;
+;; without this literal the connect() fails with EPERM and the extension is
+;; silently inert. Seatbelt cannot filter RPC methods, so the grant also lets a
+;; sandboxed process drive herdr's pane/agent API (send-keys, `pane run`) and
+;; thereby run commands outside the sandbox. Accepted alongside the Nix daemon
+;; socket: the sandbox is defense in depth, not a boundary against this user's
+;; own tooling.
 ;; The voicevox MCP server reaches its speech daemon over a UNIX socket under
 ;; ~/.local/state (the rest of the home directory stays unreadable). Connecting
 ;; to a UNIX socket is a network-outbound operation on the socket node, so the
@@ -249,6 +257,7 @@
 (allow network-outbound
   (literal "/private/var/run/mDNSResponder")
   (literal "/nix/var/nix/daemon-socket/socket")
+  (literal (string-append (param "HOME_DIR") "/.config/herdr/herdr.sock"))
   (literal (string-append (param "HOME_DIR") "/.local/state/voicevox/voicevox-daemon.sock"))
   (remote tcp "*:53")
   (remote udp "*:53")
