@@ -88,6 +88,9 @@
     "-Xms4G"
   ],
   "githubPullRequests.pullBranch": "never",
+  "githubPullRequests.allowFetch": false,
+  "githubPullRequests.webviewRefreshInterval": 0,
+  "gitlens.integrations.enabled": false,
   "diffEditor.codeLens": true,
   "lean4.alwaysAskBeforeInstallingLeanVersions": true
 }
