@@ -89,6 +89,9 @@ if is_running; then
         case "$ALIAS" in
             *bolt*) DISPLAY="BOLT E4B" ; MEM="~7 GB" ;;
             *qwen*) DISPLAY="QWEN3.6 35B" ; MEM="~18 GB" ;;
+            *plamo*-en) DISPLAY="PLAMO 8B → EN" ; MEM="~8 GB" ;;
+            *plamo*-ja-easy) DISPLAY="PLAMO 8B → EASY JA" ; MEM="~8 GB" ;;
+            *plamo*-ja) DISPLAY="PLAMO 8B → JA" ; MEM="~8 GB" ;;
             *)      DISPLAY=$(echo "$ALIAS" | grep -oE '^[[:alpha:]]+' | tr '[:lower:]' '[:upper:]' || true)
                     DISPLAY=${DISPLAY:-MODEL} ; MEM="?" ;;
         esac
@@ -106,13 +109,21 @@ if is_running; then
     echo "Open Web UI | href=http://127.0.0.1:${PORT}"
     echo "---"
 
-    # Gray out the currently active model
+    # Gray out the currently active model. The PLaMo direction is part of the
+    # alias, so only the active direction is grayed out and the other one stays
+    # selectable.
+    qwen_gray="" ; plamo_en_gray="" ; plamo_ja_gray="" ; plamo_easy_gray="" ; bolt_gray=""
     case "$ALIAS" in
-        *bolt*) qwen_gray="" ; bolt_gray="color=gray" ;;
-        *qwen*)  qwen_gray="color=gray" ; bolt_gray="" ;;
-        *)       qwen_gray="" ; bolt_gray="" ;;
+        *bolt*)         bolt_gray="color=gray" ;;
+        *qwen*)         qwen_gray="color=gray" ;;
+        *plamo*-en)     plamo_en_gray="color=gray" ;;
+        *plamo*-ja-easy) plamo_easy_gray="color=gray" ;;
+        *plamo*-ja)     plamo_ja_gray="color=gray" ;;
     esac
     echo "Switch to Qwen3.6 35B | bash=$SWITCH_TO param1=qwen terminal=false refresh=5s ${qwen_gray}"
+    echo "Switch to PLaMo 8B → English | bash=$SWITCH_TO param1=plamo-en terminal=false refresh=5s ${plamo_en_gray}"
+    echo "Switch to PLaMo 8B → 日本語 | bash=$SWITCH_TO param1=plamo-ja terminal=false refresh=5s ${plamo_ja_gray}"
+    echo "Switch to PLaMo 8B → やさしい日本語 | bash=$SWITCH_TO param1=plamo-ja-easy terminal=false refresh=5s ${plamo_easy_gray}"
     echo "Switch to Bolt E4B | bash=$SWITCH_TO param1=bolt terminal=false refresh=5s ${bolt_gray}"
     echo "Stop | bash=$SWITCH_TO param1=stopped terminal=false refresh=5s"
 
@@ -129,6 +140,9 @@ elif is_transitioning; then
     if [ -n "${PID:-}" ]; then stop_all=""; else stop_all="color=gray"; fi
     echo "Open Web UI (starting...) | href=http://127.0.0.1:${PORT} $all"
     echo "Start Qwen3.6 35B | bash=$SWITCH_TO param1=qwen terminal=false refresh=5s $all"
+    echo "Start PLaMo 8B → English | bash=$SWITCH_TO param1=plamo-en terminal=false refresh=5s $all"
+    echo "Start PLaMo 8B → 日本語 | bash=$SWITCH_TO param1=plamo-ja terminal=false refresh=5s $all"
+    echo "Start PLaMo 8B → やさしい日本語 | bash=$SWITCH_TO param1=plamo-ja-easy terminal=false refresh=5s $all"
     echo "Start Bolt E4B | bash=$SWITCH_TO param1=bolt terminal=false refresh=5s $all"
     echo "Stop | bash=$SWITCH_TO param1=stopped terminal=false refresh=5s $stop_all"
 
@@ -138,6 +152,9 @@ else
     echo "Stopped"
     echo "---"
     echo "Start Qwen3.6 35B | bash=$SWITCH_TO param1=qwen terminal=false refresh=5s"
+    echo "Start PLaMo 8B → English | bash=$SWITCH_TO param1=plamo-en terminal=false refresh=5s"
+    echo "Start PLaMo 8B → 日本語 | bash=$SWITCH_TO param1=plamo-ja terminal=false refresh=5s"
+    echo "Start PLaMo 8B → やさしい日本語 | bash=$SWITCH_TO param1=plamo-ja-easy terminal=false refresh=5s"
     echo "Start Bolt E4B | bash=$SWITCH_TO param1=bolt terminal=false refresh=5s"
     all="color=gray"
     echo "Open Web UI | href=http://127.0.0.1:${PORT} $all"
