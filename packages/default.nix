@@ -20,5 +20,4 @@ rec {
     };
   };
   sandbox-supervisor = pkgs.callPackage ./sandbox-supervisor { };
-  terminal-notifier = pkgs.callPackage ./terminal-notifier { };
 }

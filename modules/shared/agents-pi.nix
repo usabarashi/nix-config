@@ -79,11 +79,11 @@ in
     ".pi/agent/prompts" = agentPrompts;
     ".pi/agent/skills" = agentSkills;
     # Pi extensions, auto-discovered from the agent-dir extensions/:
-    # notification-sound.ts rings the host bell when control returns to the user.
     # grok-webhook.ts POSTs a small status plus the final assistant message's
-    # text (text blocks only, capped) at that same moment. Silent no-op unless
-    # GROK_WEBHOOK_URL and GROK_WEBHOOK_AUTHORIZATION are both set. Those values
-    # are not in this repo; they are meant to come from a secret store later.
+    # text (text blocks only, capped) when control returns to the user. Silent
+    # no-op unless GROK_WEBHOOK_URL and GROK_WEBHOOK_AUTHORIZATION are both set.
+    # Those values are not in this repo; they are meant to come from a secret
+    # store later.
     # The pi-sandboxed wrapper preserves the caller environment and
     # cloud-restricted.sb already allows TCP 443, so no profile change.
     # free-tier's `env -i` omits them.

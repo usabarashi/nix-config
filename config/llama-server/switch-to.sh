@@ -10,22 +10,33 @@ MAX_LOG_SIZE=104857600  # 100 MB
 WEBUI_CONFIG="$HOME/.config/llama-server/webui.json"
 WEBUI_DEFAULTS="$HOME/.config/llama-server/webui-defaults.json"
 
-# Generate WebUI config with today's date in the system prompt, so the model
-# knows the current date and doesn't anchor to its training cutoff.
+# Generate WebUI config with a system message.
+#
+# By default the system message is today's date, so a chat model knows the
+# current date and doesn't anchor to its training cutoff. Translation models
+# pass their own message instead (see the plamo-* case): PLaMo 3 Translate
+# reads its settings from the first system message, and a date line there
+# would be consumed as translation `context` instead.
+#
 # Merges defaults from webui-defaults.json (symlink, repo-managed) with any
-# existing runtime webui.json (user/MCP settings), injects the date, and
-# writes the result to webui.json (regular file, writable).
+# existing runtime webui.json (user/MCP settings), sets the system message, and
+# writes the result to webui.json (regular file, writable). The message travels
+# through the environment so embedded newlines survive.
 webui_config() {
-    local today time
-    today=$(date '+%Y-%m-%d')
-    time=$(date '+%H:%M')
+    local system_message=${1:-}
+    if [ -z "$system_message" ]; then
+        system_message="Today is $(date '+%Y-%m-%d'). The current time is approximately $(date '+%H:%M'). Treat this as the current date and time for all references."
+    fi
 
     mkdir -p "$(dirname "$WEBUI_CONFIG")"
-    /usr/bin/python3 -c "
+    WEBUI_SYSTEM_MESSAGE="$system_message" \
+        WEBUI_DEFAULTS_PATH="$WEBUI_DEFAULTS" \
+        WEBUI_CONFIG_PATH="$WEBUI_CONFIG" \
+        /usr/bin/python3 -c "
 import json, os
 
-defaults_path = '$WEBUI_DEFAULTS'
-runtime_path = '$WEBUI_CONFIG'
+defaults_path = os.environ['WEBUI_DEFAULTS_PATH']
+runtime_path = os.environ['WEBUI_CONFIG_PATH']
 
 # Start with defaults from repo-managed symlink
 if os.path.exists(defaults_path):
@@ -43,8 +54,8 @@ if os.path.exists(runtime_path):
         if k not in cfg:
             cfg[k] = v
 
-# Inject current date as systemMessage (always wins)
-cfg['systemMessage'] = 'Today is $today. The current time is approximately $time. Treat this as the current date and time for all references.'
+# Set systemMessage (always wins)
+cfg['systemMessage'] = os.environ['WEBUI_SYSTEM_MESSAGE']
 
 with open(runtime_path, 'w') as f:
     json.dump(cfg, f, indent=2)
@@ -125,7 +136,7 @@ start_model() {
     sleep 1
     mkdir -p "$(dirname "$LOG")"
     rotate_log
-    if ! webui_config; then
+    if ! webui_config "$SYSTEM_MESSAGE"; then
         echo "ERROR: failed to generate WebUI config" >> "$LOG"
         return 1
     fi
@@ -140,8 +151,7 @@ start_model() {
         -b 4096 -ub 1024 \
         --jinja \
         --host 127.0.0.1 --port $PORT \
-        --webui-mcp-proxy --webui-config-file "$WEBUI_CONFIG" \
-        --tools read_file \
+        --webui-config-file "$WEBUI_CONFIG" \
         >> "$LOG" 2>&1 &
 }
 
@@ -158,7 +168,7 @@ start_model_local() {
     sleep 1
     mkdir -p "$(dirname "$LOG")"
     rotate_log
-    if ! webui_config; then
+    if ! webui_config "$SYSTEM_MESSAGE"; then
         echo "ERROR: failed to generate WebUI config" >> "$LOG"
         return 1
     fi
@@ -173,8 +183,7 @@ start_model_local() {
         -b 4096 -ub 1024 \
         --jinja \
         --host 127.0.0.1 --port $PORT \
-        --webui-mcp-proxy --webui-config-file "$WEBUI_CONFIG" \
-        --tools read_file \
+        --webui-config-file "$WEBUI_CONFIG" \
         >> "$LOG" 2>&1 &
 }
 
@@ -182,6 +191,9 @@ start_model_local() {
 # SwiftBar passes parameters as param1=xxx, param2=yyy, etc.
 first_param=${1:-}
 first_param=${first_param#param1=}
+# System message for the generated WebUI config. Empty means the default date
+# line; the plamo-* case replaces it with the translation settings.
+SYSTEM_MESSAGE=""
 # Bolt is excluded from the coding agent on purpose: `-rea off` and
 # `conversational_mode` cap replies to a sentence or two, and its 64k context is
 # smaller than the agent sessions this repo typically runs. Pick it by hand.
@@ -198,7 +210,9 @@ case "${first_param:-qwen}" in
             -c 65536 \
             --temp 1.0 --top-p 0.95 \
             -rea off \
-            --chat-template-kwargs '{"conversational_mode":true}'
+            --chat-template-kwargs '{"conversational_mode":true}' \
+            --tools read_file \
+            --webui-mcp-proxy
         warmup_server
         ;;
     qwen)
@@ -211,7 +225,38 @@ case "${first_param:-qwen}" in
             --spec-type draft-mtp --spec-draft-n-max 2 \
             --temp 0.6 --top-p 0.85 --top-k 30 --min-p 0.1 \
             -rea off \
-            --no-mmproj
+            --no-mmproj \
+            --tools read_file \
+            --webui-mcp-proxy
+        warmup_server
+        ;;
+    plamo-en | plamo-ja | plamo-ja-easy)
+        # PLaMo 3 Translate 8B (PFN, 53 languages, Q4_K_M, 5.3 GB). Translation
+        # only: no tools and no MCP proxy (the model cannot call them).
+        #
+        # The upstream chat template rejects any request that carries tools (and
+        # documents), and the llama.cpp Web UI attaches its built-in tools
+        # (get_datetime / get_info) to every chat, which made every Web UI
+        # request fail with "Tool calls and documents are not supported". Hence
+        # plamo-chat-template.jinja: the same template with tools ignored
+        # instead of fatal (repo-managed, deployed next to webui-defaults.json).
+        # Actual tool calls in a request are still rejected.
+        #
+        # The direction is a switch parameter because the template reads
+        # `target_lang` from the first system message, and that is also what
+        # the Web UI sends. `ja-easy` is PFML3's easy Japanese (plain words,
+        # short sentences), not a `form`; `ja` with form=polite/plain stays the
+        # ordinary style choice. Greedy decoding (--temp 0) is the model card's
+        # recommendation. Each direction needs a new chat.
+        SYSTEM_MESSAGE="[plamo-translate]
+target_lang=${first_param#plamo-}"
+        start_model \
+            "pfnet/plamo-3-translate-8b-GGUF:Q4_K_M" \
+            "plamo-3-translate-8b-${first_param#plamo-}" \
+            -c 32768 \
+            --temp 0 \
+            --no-prefill-assistant \
+            --chat-template-file "$HOME/.config/llama-server/plamo-chat-template.jinja"
         warmup_server
         ;;
     stopped)

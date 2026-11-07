@@ -1,8 +1,8 @@
 // Tell another device that the Pi coding agent is waiting for the user.
-// Fires on `agent_settled`, the same notification-only boundary as
-// notification-sound.ts: Pi has finished automatic work for a run and will not
-// continue on its own. The handler must not change the run, so the POST is not
-// awaited and its rejection is discarded.
+// Fires on `agent_settled`, the notification-only boundary where Pi has
+// finished automatic work for a run and will not continue on its own. The
+// handler must not change the run, so the POST is not awaited and its
+// rejection is discarded.
 //
 // Besides the operational fields, the payload carries the final assistant
 // message's text: text blocks only, joined with newlines and capped at

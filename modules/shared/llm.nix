@@ -64,6 +64,12 @@ in
       ".config/llama-server/webui-defaults.json" = {
         source = ../../config/llama-server/webui-defaults.json;
       };
+      # PLaMo 3 Translate's own chat template with tools tolerated: the Web UI
+      # attaches built-in tools to every request, which the upstream template
+      # rejects with raise_exception (see the file header).
+      ".config/llama-server/plamo-chat-template.jinja" = {
+        source = ../../config/llama-server/plamo-chat-template.jinja;
+      };
       ".config/llama-server/switch-to.sh" = {
         source = switchTo;
         executable = true;
