@@ -208,28 +208,6 @@
           }
         ]
       }
-    ],
-    "Notification": [
-      {
-        "matcher": "",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "bash ~/.claude/hooks/notify.sh --app 'Claude Code' --event notification"
-          }
-        ]
-      }
-    ],
-    "Stop": [
-      {
-        "matcher": "",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "bash ~/.claude/hooks/notify.sh --app 'Claude Code' --event stop"
-          }
-        ]
-      }
     ]
   },
   "language": "japanese",
