@@ -19,8 +19,8 @@ let
     force = true;
     recursive = true;
   };
-  # Scripts invoked directly by settings.json hooks (deny-check.sh, notify.sh)
-  # are copied into a SEPARATE, previously-nonexistent directory rather than
+  # Scripts invoked directly by settings.json hooks (deny-check.sh) are copied
+  # into a SEPARATE, previously-nonexistent directory rather than
   # symlinked into .claude/scripts: a background/forked Claude session scoped
   # to a project other than this repo cannot follow a symlink that escapes
   # into this repo (same rationale as the git/nix guard shims below, and
@@ -35,10 +35,6 @@ let
   agentHookScripts = {
     ".claude/hooks/deny-check.sh" = {
       text = builtins.readFile "${repoPath}/config/agents/scripts/deny-check.sh";
-      executable = true;
-    };
-    ".claude/hooks/notify.sh" = {
-      text = builtins.readFile "${repoPath}/config/agents/scripts/notify.sh";
       executable = true;
     };
   };
@@ -79,9 +75,6 @@ in
   imports = [ ./agents-common.nix ];
 
   home.packages = [
-    # Used by config/agents/scripts/notify.sh (copied into .claude/hooks).
-    # customPackages override: nixpkgs ships Intel-only zip, this builds arm64 from source.
-    pkgs.customPackages.terminal-notifier
     # MCP server launched via ~/.claude.json (not Nix-managed); only Claude
     # Code wires serena as an MCP server, so it is owned here.
     flakeInputs.serena
