@@ -21,11 +21,11 @@
   stdenvNoCC,
 }:
 let
-  version = "1.4.0";
+  version = "1.5.0";
   asset = "pi-darwin-arm64.tar.gz";
   src = fetchurl {
     url = "https://github.com/earendil-works/pi/releases/download/v${version}/${asset}";
-    hash = "sha256-edmXnXaipa23wo4n6bRGKZKMzQ3J+7aucheGC9Xovl0=";
+    hash = "sha256-qb8NgtWNKn0zf0rkFxtfyev/5CUJUnqDE2TEtlrfLN8=";
   };
 in
 stdenvNoCC.mkDerivation {

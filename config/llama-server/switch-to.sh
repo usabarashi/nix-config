@@ -216,13 +216,20 @@ case "${first_param:-qwen}" in
         warmup_server
         ;;
     qwen)
+        # Qwen3.6-35B-A3B MoE, ~3.5B active: fast enough to drive a session
+        # interactively (decode 28-52 tok/s, prefill 290-420 tok/s here), and it
+        # keeps 4 slots so the Web UI and an agent can run at once.
+        #
+        # n-max 3 over 2: two 5-run medians put 3 slightly ahead on both a
+        # verbatim-code rewrite and a 2.3k-token prompt (+2.6% and +4.5%, i.e.
+        # close to noise), and it is also the upstream default.
         kill_server
         rm -f "$HOME/.cache/llama-server-slots"/*
         start_model \
             "unsloth/Qwen3.6-35B-A3B-MTP-GGUF:UD-IQ4_NL" \
             "qwen3.6-35b-a3b" \
             -c 65536 \
-            --spec-type draft-mtp --spec-draft-n-max 2 \
+            --spec-type draft-mtp --spec-draft-n-max 3 \
             --temp 0.6 --top-p 0.85 --top-k 30 --min-p 0.1 \
             -rea off \
             --no-mmproj \
