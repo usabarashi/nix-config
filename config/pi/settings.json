@@ -4,6 +4,10 @@
   "enableAnalytics": false,
   "defaultProvider": "opencode-go",
   "defaultModel": "deepseek-v4.1-flash",
+  "hideThinkingBlock": true,
+  "modelThinkingLevels": {
+    "llamacpp-local/qwen3.6-35b-a3b": "off"
+  },
   "defaultTools": [
     "+codemode"
   ],
@@ -17,8 +21,8 @@
   "packages": [
     "npm:@czottmann/pi-automode@1.17.0",
     "npm:@rahularya01/pi-cursor@1.4.39",
-    "npm:pi-advisor-flow@0.14.3",
+    "npm:pi-advisor-flow@0.14.4",
     "npm:pi-goal-moonland@0.2.0"
   ],
-  "lastChangelogVersion": "1.4.0"
+  "lastChangelogVersion": "1.5.0"
 }
