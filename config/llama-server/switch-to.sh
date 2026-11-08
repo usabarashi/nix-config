@@ -217,8 +217,9 @@ case "${first_param:-qwen}" in
         ;;
     qwen)
         # Qwen3.6-35B-A3B MoE, ~3.5B active: fast enough to drive a session
-        # interactively (decode 28-52 tok/s, prefill 290-420 tok/s here), and it
-        # keeps 4 slots so the Web UI and an agent can run at once.
+        # interactively, and it keeps 4 slots so the Web UI and an agent can run
+        # at once. Numbers below were measured on mac14-9 (M2 Pro, 32 GB):
+        # decode 28-52 tok/s, prefill 290-420 tok/s.
         #
         # n-max 3 over 2: two 5-run medians put 3 slightly ahead on both a
         # verbatim-code rewrite and a 2.3k-token prompt (+2.6% and +4.5%, i.e.
