@@ -147,13 +147,16 @@
   (regex #"^/dev/tty.*"))
 
 ;; Seatbelt accepts only "*" or "localhost" as a host filter. Restrict
-;; transport to HTTPS for remote hosts (required for the free-tier model API);
-;; loopback is granted so the chrome-devtools MCP can reach its local Chrome
-;; peer. Any unauthenticated local TCP service (e.g. llama-server :18080) is
-;; therefore reachable by the model; accepted and documented.
+;; transport to HTTPS for remote hosts (required for the free-tier model API)
+;; plus TCP 4318 for Pi usage metrics (OTLP/HTTP to the HomeLab collector).
+;; The port cannot be pinned to yn1505af21679. Loopback is granted so the
+;; chrome-devtools MCP can reach its local Chrome peer. Any unauthenticated
+;; local TCP service (e.g. llama-server :18080) is therefore reachable by the
+;; model; accepted and documented.
 (allow network-outbound
   (literal "/private/var/run/mDNSResponder")
   (remote tcp "*:443")
+  (remote tcp "*:4318")
   (remote tcp "localhost:*"))
 
 ;; Runtime feature detection is harmless and avoids failures in native code.
