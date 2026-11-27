@@ -255,10 +255,9 @@
 ;; must already be running: auto-starting it from inside would additionally
 ;; require write access to the state dir and read access to the model tree.
 ;; Pi usage metrics (config/pi/extensions/usage-otel) POST OTLP/HTTP to the
-;; HomeLab collector on TCP 4318. Seatbelt host filters accept only "*" or
-;; "localhost", so this cannot be pinned to yn1505af21679; it is any remote
-;; host on that one port. The profile is shared with the claude wrapper, which
-;; gains the same port. Plain HTTP, not HTTPS: the collector is on the LAN.
+;; HomeLab collector. sandbox-exec rejects an IP literal in a "remote" filter,
+;; so this cannot be pinned to yn1505af21679; it is any host on port 4318, and
+;; the claude wrapper shares the profile.
 (allow network-outbound
   (literal "/private/var/run/mDNSResponder")
   (literal "/nix/var/nix/daemon-socket/socket")

@@ -84,10 +84,8 @@ in
     # managed by this flake, so the generated file is committed as-is. It needs
     # the herdr socket granted in config/agents/cloud-restricted.sb. Re-run the
     # installer and commit the diff after upgrading herdr.
-    # usage-otel/ records LLM usage as OTel metrics. Its npm dependencies are
-    # not installed into this tree (the config is read-only in the sandbox);
-    # the pi wrapper points PI_USAGE_OTEL_MODULES at the Nix-built
-    # node_modules and sets OTEL_EXPORTER_OTLP_ENDPOINT.
+    # usage-otel/ takes its npm dependencies from the Nix-built
+    # PI_USAGE_OTEL_MODULES because this tree is read-only in the sandbox.
     ".pi/agent/extensions" = {
       source = config.lib.file.mkOutOfStoreSymlink "${repoPath}/config/pi/extensions";
       force = true;

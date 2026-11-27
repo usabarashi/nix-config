@@ -14,8 +14,6 @@ import {
   type UsageSnapshot,
 } from "./usage.ts";
 
-const LOADED = Symbol.for("nix-config.pi-usage-otel");
-
 interface Counter {
   add(value: number, attributes?: Record<string, string>): void;
 }
@@ -93,9 +91,8 @@ function loadTelemetry(): Telemetry | undefined {
 
     api.diag.setLogger(new api.DiagConsoleLogger(), api.DiagLogLevel.NONE);
 
-    // Cloud Monitoring custom metrics reject DELTA writes. The OTLP HTTP
-    // exporter defaults to cumulative, and this pins it so an env override
-    // cannot flip the stream to delta.
+    // Cloud Monitoring rejects DELTA writes; pin cumulative whatever the env
+    // says.
     const reader = new metrics.PeriodicExportingMetricReader({
       exporter: new exporterMod.OTLPMetricExporter({
         temporalityPreference: metrics.AggregationTemporality.CUMULATIVE,
@@ -151,15 +148,10 @@ function recordUsage(
   }
 }
 
+// Pi re-evaluates this module in place on /reload, /new, /resume, and /fork,
+// so no state may live on globalThis.
 export default function (pi: PiApi): void {
-  const globalState = globalThis as typeof globalThis & { [LOADED]?: boolean };
-  if (globalState[LOADED]) {
-    return;
-  }
-  globalState[LOADED] = true;
-
   let telemetry: Telemetry | undefined;
-  let shutdownStarted = false;
 
   try {
     pi.on("session_start", (event) => {
@@ -184,38 +176,26 @@ export default function (pi: PiApi): void {
           safeModel(message.model),
           "executor",
         );
-      } catch {
-        // ignore
-      }
+      } catch {}
     });
 
-    // ask_advisor (including codemode's nested call) reports usage here.
-    // A transcript message_end for the same result is not read, so the tool
-    // result is counted once. Tool arguments and result text are never read.
+    // The only source of advisor usage; the toolResult message is not read.
     pi.on("tool_result", (event) => {
       try {
         if (!telemetry || event?.toolName !== "ask_advisor") return;
         const identity = advisorIdentity(event.details);
         telemetry.advisorCalls.add(1, identity);
         recordUsage(telemetry, event.usage, identity.provider, identity.model, "advisor");
-      } catch {
-        // ignore
-      }
+      } catch {}
     });
 
     pi.on("session_shutdown", async () => {
-      if (shutdownStarted) return;
       const current = telemetry;
       if (!current) return;
-      shutdownStarted = true;
       telemetry = undefined;
       try {
         await current.shutdown();
-      } catch {
-        // A stuck collector must not block leaving Pi.
-      }
+      } catch {}
     });
-  } catch {
-    // Extension registration failed; Pi keeps running.
-  }
+  } catch {}
 }

@@ -43,12 +43,7 @@ in
 writeShellScriptBin "pi" ''
   export SSL_CERT_FILE="${cacertSecure}/etc/ssl/certs/ca-bundle.crt"
 
-  # Pi usage metrics. The extension reads these; it no-ops when either is
-  # missing, and export failures stay inside the OpenTelemetry SDK. The
-  # collector listens on the HomeLab host's LAN address (infrastructure PR
-  # 1667). Override the endpoint by exporting OTEL_EXPORTER_OTLP_ENDPOINT
-  # before invoking pi. Cumulative temporality is required: Cloud Monitoring
-  # custom metrics reject DELTA writes.
+  # Cumulative temporality is required: Cloud Monitoring rejects DELTA writes.
   export PI_USAGE_OTEL_MODULES="${pi-usage-otel}"
   export OTEL_EXPORTER_OTLP_METRICS_TEMPORALITY_PREFERENCE="cumulative"
   if [ -z "''${OTEL_EXPORTER_OTLP_ENDPOINT:-}" ]; then

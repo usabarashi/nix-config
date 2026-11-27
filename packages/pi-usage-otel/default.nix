@@ -1,11 +1,5 @@
-# node_modules for config/pi/extensions/usage-otel.
-#
-# The extension source stays in the Pi extensions tree (an out-of-store symlink
-# into this repo, read-only under Seatbelt). npm install cannot run there, so
-# the pi wrapper sets PI_USAGE_OTEL_MODULES to this output and the extension
-# require()s the OpenTelemetry SDK from it. index.ts and usage.ts are copied
-# alongside node_modules so free-tier sessions, which do not load the repo
-# extensions directory, can be started with `pi -e <this>/index.ts`.
+# node_modules for config/pi/extensions/usage-otel, which is read-only in the
+# sandbox. index.ts and usage.ts are copied so free-tier can use `pi -e`.
 {
   buildNpmPackage,
 }:

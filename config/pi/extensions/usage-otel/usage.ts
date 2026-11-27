@@ -1,18 +1,8 @@
-// Pure usage accounting for the Pi OTel extension.
-//
-// Executor tokens come from assistant message_end. Advisor tokens come only
-// from the ask_advisor tool_result `usage` field. pi-advisor-flow fills that
-// field via advisorUsageForPi (advisor call + the screening classifier,
-// combined once) and invokes the advisor with streamSimple, which does not
-// append an assistant message to the parent session. Pi types tool-result
-// usage as "not part of main LLM context accounting", so recording both
-// sources does not double-count ask_advisor.
-//
-// Not visible here, and therefore omitted: turn-gate, loop-gate, and
-// /advisor-manual consultations. Those stay in pi-advisor-flow's session
-// totals because Pi has no lifecycle usage-attribution API. cacheWrite1h and
-// reasoning are subsets of cacheWrite and output, so they are not separate
-// series.
+// Pure accounting called by index.ts. Advisor usage arrives only on the
+// ask_advisor tool_result (advisor call plus its screening classifier); the
+// advisor appends no assistant message, so the two sources never overlap.
+// Turn-gate, loop-gate, and /advisor-manual consultations carry no lifecycle
+// event and are not counted.
 
 export const TOKEN_TYPES = ["input", "output", "cacheRead", "cacheWrite"] as const;
 
@@ -74,8 +64,7 @@ export function tokenPoints(usage: UsageSnapshot | undefined): TokenPoint[] {
   return points;
 }
 
-// Pi's catalog (or provider-reported) total. Missing or non-finite cost is
-// omitted rather than priced from a second table.
+// No fallback price table: a missing or non-finite total is omitted.
 export function costUsd(usage: UsageSnapshot | undefined): number | undefined {
   return finitePositive(usage?.cost?.total);
 }
@@ -98,8 +87,7 @@ export function advisorIdentity(details: unknown): { provider: string; model: st
   };
 }
 
-// /reload tears the runtime down and emits session_start again for the same
-// session. Count the session once.
+// /reload re-emits session_start for the same session; count it once.
 export function countSession(reason: unknown): boolean {
   return reason !== "reload";
 }
