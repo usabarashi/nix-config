@@ -254,6 +254,10 @@
 ;; literal path must be granted here. The daemon runs OUTSIDE the sandbox and
 ;; must already be running: auto-starting it from inside would additionally
 ;; require write access to the state dir and read access to the model tree.
+;; Pi usage metrics (config/pi/extensions/usage-otel) POST OTLP/HTTP to the
+;; HomeLab collector. sandbox-exec rejects an IP literal in a "remote" filter,
+;; so this cannot be pinned to yn1505af21679; it is any host on port 4318, and
+;; the claude wrapper shares the profile.
 (allow network-outbound
   (literal "/private/var/run/mDNSResponder")
   (literal "/nix/var/nix/daemon-socket/socket")
@@ -262,6 +266,7 @@
   (remote tcp "*:53")
   (remote udp "*:53")
   (remote tcp "*:443")
+  (remote tcp "*:4318")
   (remote tcp "localhost:*"))
 
 ;; Local dev servers inside the sandbox: allow listening on the loopback

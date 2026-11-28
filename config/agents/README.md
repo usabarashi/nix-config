@@ -8,8 +8,8 @@ Seatbelt (`sandbox-exec`) profiles for agent runtimes. Selected by the
 
 | Profile | Network | Filesystem | Use case |
 |---------|---------|------------|----------|
-| `cloud-restricted.sb` | Remote TCP 443 + DNS TCP/UDP 53 + loopback TCP (all ports) + Nix and voicevox daemon UNIX sockets | Project + Claude/Pi state/cache read-write; OS/Nix runtime, `/nix/store`, and gcloud ADC read-only; everything else denied | Default for claude and pi (paid cloud models: Claude, OpenCode Go, ChatGPT, Vertex AI, Cursor, local llama.cpp) |
-| `free-tier.sb` | Remote TCP 443 + loopback TCP (all ports) | Project + a dedicated free-tier runtime read-write; immutable free-tier `auth.json` (read-only); NO Keychain, `~/.config/gh`, `~/.gitconfig`, paid auth | Pi free-tier cloud providers (Google/Groq/OpenRouter no-cost) |
+| `cloud-restricted.sb` | Remote TCP 443 + TCP 4318 (OTel collector) + DNS TCP/UDP 53 + loopback TCP (all ports) + Nix and voicevox daemon UNIX sockets | Project + Claude/Pi state/cache read-write; OS/Nix runtime, `/nix/store`, and gcloud ADC read-only; everything else denied | Default for claude and pi (paid cloud models: Claude, OpenCode Go, ChatGPT, Vertex AI, Cursor, local llama.cpp) |
+| `free-tier.sb` | Remote TCP 443 + TCP 4318 (OTel collector) + loopback TCP (all ports) | Project + a dedicated free-tier runtime read-write; immutable free-tier `auth.json` (read-only); NO Keychain, `~/.config/gh`, `~/.gitconfig`, paid auth | Pi free-tier cloud providers (Google/Groq/OpenRouter no-cost) |
 
 `strict-closed.sb` and the unrestricted `permissive-open.sb` have both been
 removed; there is no network-zero or fully-open profile. For sensitive work use
@@ -28,9 +28,13 @@ Deny-default profile:
   Beyond these, only explicit grants remain: the agent's own state file(s) and
   the shared read-only gcloud ADC directory (`~/.config/gcloud`, see "Accepted
   tradeoffs"). Everything else (home directory, `~/.ssh`, …) is denied.
-- **Network**: outbound remote TCP port 443 and DNS TCP/UDP port 53, plus
-  unrestricted loopback TCP (`localhost:*`) so local MCP servers (Chrome
-  DevTools, Slack, the local llama.cpp provider) can reach their HTTP peers.
+- **Network**: outbound remote TCP port 443, TCP port 4318, and DNS TCP/UDP
+  port 53, plus unrestricted loopback TCP (`localhost:*`) so local MCP servers
+  (Chrome DevTools, Slack, the local llama.cpp provider) can reach their HTTP
+  peers. Port 4318 is the HomeLab OpenTelemetry collector (Pi usage metrics,
+  plain HTTP). Seatbelt cannot filter by host, only by `*` or `localhost`, so
+  the grant is any remote host on that port. This profile is shared with
+  `claude`, which receives the same allowance.
   Loopback **inbound**
   is also granted
   (`network-bind` + `network-inbound` on `localhost`; seatbelt host filters

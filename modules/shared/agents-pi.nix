@@ -84,6 +84,8 @@ in
     # managed by this flake, so the generated file is committed as-is. It needs
     # the herdr socket granted in config/agents/cloud-restricted.sb. Re-run the
     # installer and commit the diff after upgrading herdr.
+    # usage-otel/ takes its npm dependencies from the Nix-built
+    # PI_USAGE_OTEL_MODULES because this tree is read-only in the sandbox.
     ".pi/agent/extensions" = {
       source = config.lib.file.mkOutOfStoreSymlink "${repoPath}/config/pi/extensions";
       force = true;

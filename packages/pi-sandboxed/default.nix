@@ -27,6 +27,7 @@
   lib,
   nodejs_22,
   pi-bin,
+  pi-usage-otel,
   procps,
   ripgrep,
   sandbox-supervisor,
@@ -41,6 +42,13 @@ let
 in
 writeShellScriptBin "pi" ''
   export SSL_CERT_FILE="${cacertSecure}/etc/ssl/certs/ca-bundle.crt"
+
+  # Cumulative temporality is required: Cloud Monitoring rejects DELTA writes.
+  export PI_USAGE_OTEL_MODULES="${pi-usage-otel}"
+  export OTEL_EXPORTER_OTLP_METRICS_TEMPORALITY_PREFERENCE="cumulative"
+  if [ -z "''${OTEL_EXPORTER_OTLP_ENDPOINT:-}" ]; then
+      export OTEL_EXPORTER_OTLP_ENDPOINT="http://192.168.1.201:4318"
+  fi
   # nodejs_22 (npm / provider installs) keeps its own root store unless told
   # to use OpenSSL's. The Bun-compiled `pi` binary does not honor this.
   export NODE_OPTIONS="''${NODE_OPTIONS:+''${NODE_OPTIONS} }--use-openssl-ca"
@@ -269,6 +277,9 @@ writeShellScriptBin "pi" ''
           "TMP=$AGENT_TMP_DIR" \
           "TEMP=$AGENT_TMP_DIR" \
           "SSL_CERT_FILE=${cacertSecure}/etc/ssl/certs/ca-bundle.crt" \
+          "PI_USAGE_OTEL_MODULES=${pi-usage-otel}" \
+          "OTEL_EXPORTER_OTLP_ENDPOINT=$OTEL_EXPORTER_OTLP_ENDPOINT" \
+          "OTEL_EXPORTER_OTLP_METRICS_TEMPORALITY_PREFERENCE=cumulative" \
           "PI_CODING_AGENT_DIR=$FREE_AGENT_DIR" \
           "XDG_DATA_HOME=$FREE_DATA_DIR" \
           "XDG_STATE_HOME=$FREE_ROOT" \
@@ -287,7 +298,7 @@ writeShellScriptBin "pi" ''
           -D AGENT_CACHE_DIR="$FREE_CACHE_DIR" \
           -D AGENT_AUTH_FILE="$FREE_AGENT_DIR/auth.json" \
           -D AGENT_TMP_DIR="$AGENT_TMP_DIR" \
-          "$PI_BIN" "$@"
+          "$PI_BIN" -e "${pi-usage-otel}/index.ts" "$@"
   fi
 
   # ------------------------------------------------------------------ #

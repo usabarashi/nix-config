@@ -1,2 +1,5 @@
 # Nix
 /result
+
+# Extension dependencies are built by Nix (packages/pi-usage-otel).
+node_modules/
