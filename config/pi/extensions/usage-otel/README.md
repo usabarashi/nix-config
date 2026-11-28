@@ -76,9 +76,10 @@ are not measured here.
 - **Export failures are silent.** `diag` is set to `NONE` on purpose, so a
   rejected descriptor (for example an unexpected `USD` unit) or an unreachable
   collector shows up only as missing data.
-- The endpoint defaults to `http://192.168.1.201:4318`, which is unreachable
-  from the clients VLAN or over Tailscale only; export then fails silently and
-  Pi keeps running.
+- The endpoint defaults to `http://192.168.1.201:4318`. The collector admits
+  sources by firewall rule, so a Mac outside that set (another VLAN, or a DHCP
+  address no longer covered) sees a silent drop: Pi keeps running and the
+  points are lost. See "Operating it".
 
 ## Checking it locally
 
@@ -89,3 +90,27 @@ npx tsc --noEmit -p tsconfig.json
 
 The pure functions in `usage.ts` carry the testable behavior; `index.ts` only
 wires Pi events to them.
+
+## Operating it
+
+The collector allows this Mac by source address. If its firewall rule does not
+cover the Mac's VLAN (or its DHCP address), TCP 4318 is dropped rather than
+refused and the export fails silently:
+
+```bash
+curl -s -o /dev/null -w '%{http_code}\n' http://192.168.1.201:4318/v1/metrics   # 405 = reachable
+```
+
+The exporter retries on its 60s interval, so no Pi restart is needed after a
+network fix.
+
+Cloud Monitoring side: the four descriptors are
+`workload.googleapis.com/pi.{token.usage,cost.usage,advisor.call.count,session.count}`
+and each carries the unit and labels listed above (`USD` is accepted as-is).
+Read them with `ALIGN_RATE`, not by summing the cumulative value:
+
+| symptom | meaning |
+|---|---|
+| no `pi.*` descriptors at all | nothing reached the collector: endpoint, firewall, collector down, or no service-account key |
+| every descriptor except `pi.cost.usage` | the `USD` unit was rejected by the descriptor creation |
+| descriptor exists, no recent points | Pi not running, or the export is failing (see the collector's log) |
